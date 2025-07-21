@@ -18,16 +18,7 @@ import {
   Car,
   Building2,
   FileText,
-  Trash2,
 } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableColumn,
-  TableHeader,
-  TableRow,
-} from "@heroui/table";
 import ReactSelect, {
   CSSObjectWithLabel,
   StylesConfig,
@@ -38,6 +29,7 @@ import ReactSelect, {
 import { Conductor, Empresa, Vehiculo } from "@/types";
 import { useRecargo } from "@/context/RecargoPlanillaContext";
 import { addToast } from "@heroui/toast";
+import TablaConRecargos from "./tableRecargos";
 
 interface DiaLaboral {
   id: string;
@@ -142,9 +134,13 @@ const EmpresaOption = ({
 export default function ModalNewRecargo({
   isOpen,
   onClose,
+  currentMonth,
+  currentYear,
 }: {
   isOpen: boolean;
   onClose: () => void;
+  currentMonth: number;
+  currentYear: number;
 }) {
   const { conductores, vehiculos, empresas, registrarRecargo } = useRecargo();
 
@@ -253,10 +249,10 @@ export default function ModalNewRecargo({
       vehiculo_id: formData.vehiculoId,
       empresa_id: formData.empresaId,
       numero_planilla: formData.tmNumber,
+      mes: currentMonth,
+      año: currentYear,
       dias_laborales: diasLaborales.map((dia) => ({
         dia: dia.dia,
-        mes: dia.mes,
-        año: dia.año,
         horaInicio: dia.horaInicio,
         horaFin: dia.horaFin,
       })),
@@ -272,7 +268,7 @@ export default function ModalNewRecargo({
       onClose={onClose}
       scrollBehavior="inside"
       classNames={{
-        base: "max-h-[95vh]",
+        base: "max-h-[95vh] max-w-7xl",
         body: "py-6",
       }}
     >
@@ -293,137 +289,141 @@ export default function ModalNewRecargo({
             </ModalHeader>
 
             <ModalBody>
-              <div className="grid md:grid-cols-5 gap-4">
+              <div>
                 {/* Información Principal */}
-                <Card className="col-span-2">
+                <Card className="mb-6">
                   <CardBody className="gap-4">
                     <h3 className="text-lg font-semibold flex items-center gap-2">
                       <User size={20} className="text-primary" />
                       Información Principal
                     </h3>
 
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-4">
                       {/* Select de Conductor con ReactSelect */}
-                      <CustomLabel icon={<User size={18} />}>
-                        Conductor
-                      </CustomLabel>
-                      <ReactSelect
-                        options={conductorOptions}
-                        value={
-                          conductorOptions.find(
-                            (option: Option) =>
-                              option.value === formData.conductorId,
-                          ) || null
-                        }
-                        onChange={(selectedOption) => {
-                          setFormData({
-                            ...formData,
-                            conductorId: selectedOption
-                              ? selectedOption.value
-                              : "",
-                          });
-                        }}
-                        placeholder="Seleccione un conductor"
-                        isSearchable={true}
-                        isClearable={true}
-                        styles={customStyles}
-                        noOptionsMessage={({ inputValue }) =>
-                          inputValue
-                            ? `No se encontraron conductores con "${inputValue}"`
-                            : "No hay conductores disponibles"
-                        }
-                      />
+                      <div className="space-y-4">
+                        <CustomLabel icon={<User size={18} />}>
+                          Conductor
+                        </CustomLabel>
+                        <ReactSelect
+                          options={conductorOptions}
+                          value={
+                            conductorOptions.find(
+                              (option: Option) =>
+                                option.value === formData.conductorId,
+                            ) || null
+                          }
+                          onChange={(selectedOption) => {
+                            setFormData({
+                              ...formData,
+                              conductorId: selectedOption
+                                ? selectedOption.value
+                                : "",
+                            });
+                          }}
+                          placeholder="Seleccione un conductor"
+                          isSearchable={true}
+                          isClearable={true}
+                          styles={customStyles}
+                          noOptionsMessage={({ inputValue }) =>
+                            inputValue
+                              ? `No se encontraron conductores con "${inputValue}"`
+                              : "No hay conductores disponibles"
+                          }
+                        />
 
-                      {/* Select de Vehículo con ReactSelect */}
-                      <CustomLabel icon={<Car size={18} />}>
-                        Vehículo
-                      </CustomLabel>
-                      <ReactSelect
-                        options={vehiculoOptions}
-                        value={
-                          vehiculoOptions.find(
-                            (option) => option.value === formData.vehiculoId,
-                          ) || null
-                        }
-                        onChange={(selectedOption) => {
-                          setFormData({
-                            ...formData,
-                            vehiculoId: selectedOption
-                              ? selectedOption.value
-                              : "",
-                          });
-                        }}
-                        placeholder="Seleccione un vehículo"
-                        isSearchable={true}
-                        isClearable={true}
-                        styles={customStyles}
-                        noOptionsMessage={({ inputValue }) =>
-                          inputValue
-                            ? `No se encontraron vehículos con "${inputValue}"`
-                            : "No hay vehículos disponibles"
-                        }
-                      />
+                        {/* Select de Vehículo con ReactSelect */}
+                        <CustomLabel icon={<Car size={18} />}>
+                          Vehículo
+                        </CustomLabel>
+                        <ReactSelect
+                          options={vehiculoOptions}
+                          value={
+                            vehiculoOptions.find(
+                              (option) => option.value === formData.vehiculoId,
+                            ) || null
+                          }
+                          onChange={(selectedOption) => {
+                            setFormData({
+                              ...formData,
+                              vehiculoId: selectedOption
+                                ? selectedOption.value
+                                : "",
+                            });
+                          }}
+                          placeholder="Seleccione un vehículo"
+                          isSearchable={true}
+                          isClearable={true}
+                          styles={customStyles}
+                          noOptionsMessage={({ inputValue }) =>
+                            inputValue
+                              ? `No se encontraron vehículos con "${inputValue}"`
+                              : "No hay vehículos disponibles"
+                          }
+                        />
+                      </div>
 
-                      {/* Select de Empresa con ReactSelect */}
-                      <CustomLabel icon={<Building2 size={18} />}>
-                        Empresa
-                      </CustomLabel>
-                      <ReactSelect
-                        options={empresaOptions}
-                        value={
-                          empresaOptions.find(
-                            (option: Option) =>
-                              option.value === formData.empresaId,
-                          ) || null
-                        }
-                        onChange={(selectedOption) => {
-                          setFormData({
-                            ...formData,
-                            empresaId: selectedOption
-                              ? selectedOption.value
-                              : "",
-                          });
-                        }}
-                        placeholder="Seleccione una empresa"
-                        isSearchable={true}
-                        isClearable={true}
-                        styles={customStyles}
-                        components={{ Option: EmpresaOption }}
-                        noOptionsMessage={({ inputValue }) =>
-                          inputValue
-                            ? `No se encontraron empresas con "${inputValue}"`
-                            : "No hay empresas disponibles"
-                        }
-                      />
+                      <div className="space-y-4">
+                        {/* Select de Empresa con ReactSelect */}
+                        <CustomLabel icon={<Building2 size={18} />}>
+                          Empresa
+                        </CustomLabel>
+                        <ReactSelect
+                          options={empresaOptions}
+                          value={
+                            empresaOptions.find(
+                              (option: Option) =>
+                                option.value === formData.empresaId,
+                            ) || null
+                          }
+                          onChange={(selectedOption) => {
+                            setFormData({
+                              ...formData,
+                              empresaId: selectedOption
+                                ? selectedOption.value
+                                : "",
+                            });
+                          }}
+                          placeholder="Seleccione una empresa"
+                          isSearchable={true}
+                          isClearable={true}
+                          styles={customStyles}
+                          components={{ Option: EmpresaOption }}
+                          noOptionsMessage={({ inputValue }) =>
+                            inputValue
+                              ? `No se encontraron empresas con "${inputValue}"`
+                              : "No hay empresas disponibles"
+                          }
+                        />
 
-                      <CustomLabel icon={<FileText size={18} />}>
-                        Número de Planilla
-                      </CustomLabel>
-                      <Input
-                        variant="faded"
-                        type="number"
-                        placeholder="0000"
-                        classNames={{
-                          inputWrapper: "h-14",
-                        }}
-                        startContent={
-                          <div className="pointer-events-none flex items-center">
-                            <span className="text-default-500 text-small">
-                              TM-
-                            </span>
-                          </div>
-                        }
-                        value={formData.tmNumber}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, tmNumber: value })
-                        }
-                      />
+                        <CustomLabel icon={<FileText size={18} />}>
+                          Número de Planilla
+                        </CustomLabel>
+                        <Input
+                          variant="faded"
+                          type="number"
+                          placeholder="0000"
+                          classNames={{
+                            inputWrapper: "h-16",
+                          }}
+                          startContent={
+                            <div className="pointer-events-none flex items-center">
+                              <span className="text-default-500 text-small">
+                                TM-
+                              </span>
+                            </div>
+                          }
+                          value={formData.tmNumber}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, tmNumber: value })
+                          }
+                        />
+                      </div>
                     </div>
                   </CardBody>
                 </Card>
 
                 {/* Días Laborales */}
-                <Card className="col-span-3">
+                <Card>
                   <CardBody className="gap-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -447,144 +447,16 @@ export default function ModalNewRecargo({
                       </div>
                     </div>
 
-                    <Table removeWrapper aria-label="Tabla de días laborales">
-                      <TableHeader>
-                        <TableColumn>DÍA</TableColumn>
-                        <TableColumn>HORA INICIO</TableColumn>
-                        <TableColumn>HORA FIN</TableColumn>
-                        <TableColumn>TOTAL</TableColumn>
-                        <TableColumn>ACCIONES</TableColumn>
-                      </TableHeader>
-                      <TableBody>
-                        {diasLaborales.map((dia, index) => (
-                          <TableRow key={dia.id}>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                placeholder="01"
-                                min="1"
-                                max="31"
-                                value={dia.dia}
-                                onValueChange={(value) =>
-                                  actualizarDiaLaboral(dia.id, "dia", value)
-                                }
-                                size="sm"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                placeholder="8.0"
-                                min="0"
-                                max="24"
-                                step="0.5"
-                                value={dia.horaInicio}
-                                onValueChange={(value) => {
-                                  // Validar que sea múltiplo de 0.5 y esté en rango
-                                  const numValue = parseFloat(value);
-                                  if (
-                                    value === "" ||
-                                    (numValue >= 0 &&
-                                      numValue <= 24 &&
-                                      (numValue * 2) % 1 === 0)
-                                  ) {
-                                    actualizarDiaLaboral(
-                                      dia.id,
-                                      "horaInicio",
-                                      value,
-                                    );
-                                  }
-                                }}
-                                startContent={<Clock size={14} />}
-                                endContent={
-                                  <span className="text-default-400 text-small">
-                                    hrs
-                                  </span>
-                                }
-                                size="sm"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                placeholder="8.0"
-                                min="0"
-                                max="24"
-                                step="0.5"
-                                value={dia.horaFin}
-                                onValueChange={(value) => {
-                                  // Validar que sea múltiplo de 0.5 y esté en rango
-                                  const numValue = parseFloat(value);
-                                  if (
-                                    value === "" ||
-                                    (numValue >= 0 &&
-                                      numValue <= 24 &&
-                                      (numValue * 2) % 1 === 0)
-                                  ) {
-                                    actualizarDiaLaboral(
-                                      dia.id,
-                                      "horaFin",
-                                      value,
-                                    );
-                                  }
-                                }}
-                                startContent={<Clock size={14} />}
-                                endContent={
-                                  <span className="text-default-400 text-small">
-                                    hrs
-                                  </span>
-                                }
-                                size="sm"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {dia.horaInicio && dia.horaFin ? (
-                                <span className="text-default-600 font-medium">
-                                  {(() => {
-                                    const inicio = parseFloat(dia.horaInicio);
-                                    const fin = parseFloat(dia.horaFin);
-                                    const diferencia = fin - inicio;
-
-                                    if (diferencia < 0) {
-                                      return (
-                                        <span className="text-danger">
-                                          Error: Hora fin menor que inicio
-                                        </span>
-                                      );
-                                    }
-
-                                    if (diferencia > 24) {
-                                      return (
-                                        <span className="text-warning">
-                                          Error: Más de 24 horas
-                                        </span>
-                                      );
-                                    }
-
-                                    return `${diferencia.toFixed(1)}`;
-                                  })()}
-                                </span>
-                              ) : (
-                                <span className="text-default-400">-- hrs</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {diasLaborales.length > 1 && (
-                                <Button
-                                  size="sm"
-                                  color="danger"
-                                  variant="light"
-                                  isIconOnly
-                                  onPress={() => eliminarDiaLaboral(dia.id)}
-                                >
-                                  <Trash2 size={14} />
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <TablaConRecargos
+                      diasLaborales={diasLaborales}
+                      setDiasLaborales={setDiasLaborales}
+                      eliminarDiaLaboral={eliminarDiaLaboral}
+                      actualizarDiaLaboral={actualizarDiaLaboral}
+                      currentMonth={currentMonth}
+                      currentYear={currentYear}
+                      formData={formData}
+                      setFormData={setFormData}
+                    />
                   </CardBody>
                 </Card>
               </div>

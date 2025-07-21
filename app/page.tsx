@@ -800,7 +800,7 @@ const PlanillaRecargos = () => {
         </ModalContent>
       </Modal>
 
-      <ModalNewRecargo isOpen={modalNewRecargo} onClose={handleNewRecargo} />
+      <ModalNewRecargo isOpen={modalNewRecargo} onClose={handleNewRecargo} currentMonth={currentMonth} currentYear={currentYear} />
     </div>
   );
 };
