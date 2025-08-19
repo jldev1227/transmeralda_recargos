@@ -272,6 +272,7 @@ export const calcularRecargoDominical = (
   diasFestivos: number[] = []
 ): number => {
   // Solo si es domingo o festivo
+  console.log(dia, mes, año, totalHoras, diasFestivos)
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     // Si trabajó 10 horas o menos, todas son recargo dominical
     // Si trabajó más de 10, solo las primeras 10 son recargo dominical
@@ -300,7 +301,7 @@ export const calcularTodasLasHoras = (parametros: ParametrosCalculo): Resultados
   // Calcular todos los tipos
   const resultados: ResultadosCalculo = {
     totalHoras,
-    horaExtraDiurna: calcularHoraExtraDiurna(dia, mes, año, totalHoras, diasFestivos),
+    horaExtraDiurna: calcularHoraExtraDiurna(dia, mes, año, totalHoras, diasFestivos) - calcularHoraExtraNocturna(dia, mes, año, horaFinal, totalHoras, diasFestivos),
     horaExtraNocturna: calcularHoraExtraNocturna(dia, mes, año, horaFinal, totalHoras, diasFestivos),
     horaExtraFestivaDiurna: calcularHoraExtraFestivaDiurna(dia, mes, año, totalHoras, diasFestivos),
     horaExtraFestivaNocturna: calcularHoraExtraFestivaNocturna(dia, mes, año, horaFinal, totalHoras, diasFestivos),
@@ -310,6 +311,8 @@ export const calcularTodasLasHoras = (parametros: ParametrosCalculo): Resultados
     esFestivo: esDiaFestivo(dia, diasFestivos),
     esDomingoOFestivo: esDomingoOFestivo(dia, mes, año, diasFestivos)
   };
+
+  console.log(resultados)
   
   return resultados;
 };

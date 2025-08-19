@@ -5,7 +5,7 @@ import {
   TableColumn, 
   TableBody, 
   TableRow, 
-  TableCell,
+  TableCell
 } from "@heroui/table";
 import { 
   Button
@@ -82,13 +82,42 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
     }
 
     return {
-      HED: calcularHoraExtraDiurna(diaNum, mes, año, totalHoras, diasFestivos),
+      HED: calcularHoraExtraDiurna(diaNum, mes, año, totalHoras, diasFestivos) - calcularHoraExtraNocturna(diaNum, mes, año, horaFin, totalHoras, diasFestivos),
       HEN: calcularHoraExtraNocturna(diaNum, mes, año, horaFin, totalHoras, diasFestivos),
-      HEFD: calcularHoraExtraFestivaDiurna(diaNum, mes, año, totalHoras, diasFestivos),
+      HEFD: calcularHoraExtraFestivaDiurna(diaNum, mes, año, totalHoras, diasFestivos) - calcularHoraExtraFestivaNocturna(diaNum, mes, año, horaFin, totalHoras, diasFestivos),
       HEFN: calcularHoraExtraFestivaNocturna(diaNum, mes, año, horaFin, totalHoras, diasFestivos),
       RN: calcularRecargoNocturno(diaNum, horaInicio, horaFin),
       RD: calcularRecargoDominical(diaNum, mes, año, totalHoras, diasFestivos)
     };
+  };
+
+  // Función para calcular totales acumulados
+  const calcularTotales = () => {
+    const totales = {
+      totalHoras: 0,
+      HED: 0,
+      HEN: 0,
+      HEFD: 0,
+      HEFN: 0,
+      RN: 0,
+      RD: 0
+    };
+
+    diasLaborales.forEach(dia => {
+      const horasTotales = calcularTotalHoras(dia.horaInicio, dia.horaFin);
+      if (horasTotales > 0) {
+        totales.totalHoras += horasTotales;
+        const recargos = calcularRecargos(dia);
+        totales.HED += recargos.HED;
+        totales.HEN += recargos.HEN;
+        totales.HEFD += recargos.HEFD;
+        totales.HEFN += recargos.HEFN;
+        totales.RN += recargos.RN;
+        totales.RD += recargos.RD;
+      }
+    });
+
+    return totales;
   };
 
   // Función para formatear el valor de recargo
@@ -111,8 +140,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
     }
   };
 
+  const totales = calcularTotales();
+
   return (
-    <Table removeWrapper aria-label="Tabla de días laborales con recargos">
+    <div className="w-full">
+      <Table removeWrapper aria-label="Tabla de días laborales con recargos">
       <TableHeader>
         <TableColumn>DÍA</TableColumn>
         <TableColumn>HORA INICIO</TableColumn>
@@ -272,7 +304,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                 <Chip
                   size="sm"
                   color={obtenerColorRecargo('HED', recargos.HED)}
-                  variant={recargos.HED > 0 ? 'solid' : 'flat'}
+                  variant='flat'
                   className="min-w-[50px]"
                 >
                   {formatearRecargo(recargos.HED)}
@@ -284,7 +316,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                 <Chip
                   size="sm"
                   color={obtenerColorRecargo('HEN', recargos.HEN)}
-                  variant={recargos.HEN > 0 ? 'solid' : 'flat'}
+                  variant='flat'
                   className="min-w-[50px]"
                 >
                   {formatearRecargo(recargos.HEN)}
@@ -296,7 +328,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                 <Chip
                   size="sm"
                   color={obtenerColorRecargo('HEFD', recargos.HEFD)}
-                  variant={recargos.HEFD > 0 ? 'solid' : 'flat'}
+                  variant='flat'
                   className="min-w-[50px]"
                 >
                   {formatearRecargo(recargos.HEFD)}
@@ -308,7 +340,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                 <Chip
                   size="sm"
                   color={obtenerColorRecargo('HEFN', recargos.HEFN)}
-                  variant={recargos.HEFN > 0 ? 'solid' : 'flat'}
+                  variant='flat'
                   className="min-w-[50px]"
                 >
                   {formatearRecargo(recargos.HEFN)}
@@ -320,7 +352,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                 <Chip
                   size="sm"
                   color={obtenerColorRecargo('RN', recargos.RN)}
-                  variant={recargos.RN > 0 ? 'solid' : 'flat'}
+                  variant='flat'
                   className="min-w-[50px]"
                 >
                   {formatearRecargo(recargos.RN)}
@@ -332,7 +364,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                 <Chip
                   size="sm"
                   color={obtenerColorRecargo('RD', recargos.RD)}
-                  variant={recargos.RD > 0 ? 'solid' : 'flat'}
+                  variant='flat'
                   className="min-w-[50px]"
                 >
                   {formatearRecargo(recargos.RD)}
@@ -358,6 +390,123 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
         })}
       </TableBody>
     </Table>
+
+    {/* Footer personalizado fuera de la tabla */}
+    <div className="mt-4 p-4 bg-gradient-to-r from-default-50 to-default-100 rounded-lg border border-default-200 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-bold text-default-700 flex items-center gap-2">
+          <Clock size={20} className="text-primary" />
+          Resumen Total del Período
+        </h3>
+        <div className="text-right">
+          <div className="text-sm text-default-500">Total de Horas Trabajadas</div>
+          <div className="text-2xl font-bold text-primary">
+            {totales.totalHoras.toFixed(1)} hrs
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        {/* HED - Hora Extra Diurna */}
+        <div className="bg-white p-3 rounded-lg border border-success-200 text-center">
+          <div className="text-xs text-success-600 font-medium mb-1">HED • 25%</div>
+          <div className="text-sm text-default-500 mb-2">Hora Extra Diurna</div>
+          <Chip
+            size="lg"
+            color={totales.HED > 0 ? 'success' : 'default'}
+            variant='flat'
+            className="w-full font-bold"
+          >
+            {formatearRecargo(totales.HED)} hrs
+          </Chip>
+        </div>
+
+        {/* HEN - Hora Extra Nocturna */}
+        <div className="bg-white p-3 rounded-lg border border-primary-200 text-center">
+          <div className="text-xs text-primary-600 font-medium mb-1">HEN • 75%</div>
+          <div className="text-sm text-default-500 mb-2">Hora Extra Nocturna</div>
+          <Chip
+            size="lg"
+            color={totales.HEN > 0 ? 'primary' : 'default'}
+            variant='flat'
+            className="w-full font-bold"
+          >
+            {formatearRecargo(totales.HEN)} hrs
+          </Chip>
+        </div>
+
+        {/* HEFD - Hora Extra Festiva Diurna */}
+        <div className="bg-white p-3 rounded-lg border border-warning-200 text-center">
+          <div className="text-xs text-warning-600 font-medium mb-1">HEFD • 100%</div>
+          <div className="text-sm text-default-500 mb-2">H.E. Festiva Diurna</div>
+          <Chip
+            size="lg"
+            color={totales.HEFD > 0 ? 'warning' : 'default'}
+            variant='flat'
+            className="w-full font-bold"
+          >
+            {formatearRecargo(totales.HEFD)} hrs
+          </Chip>
+        </div>
+
+        {/* HEFN - Hora Extra Festiva Nocturna */}
+        <div className="bg-white p-3 rounded-lg border border-secondary-200 text-center">
+          <div className="text-xs text-secondary-600 font-medium mb-1">HEFN • 150%</div>
+          <div className="text-sm text-default-500 mb-2">H.E. Festiva Nocturna</div>
+          <Chip
+            size="lg"
+            color={totales.HEFN > 0 ? 'secondary' : 'default'}
+            variant='flat'
+            className="w-full font-bold"
+          >
+            {formatearRecargo(totales.HEFN)} hrs
+          </Chip>
+        </div>
+
+        {/* RN - Recargo Nocturno */}
+        <div className="bg-white p-3 rounded-lg border border-primary-200 text-center">
+          <div className="text-xs text-primary-600 font-medium mb-1">RN • 35%</div>
+          <div className="text-sm text-default-500 mb-2">Recargo Nocturno</div>
+          <Chip
+            size="lg"
+            color={totales.RN > 0 ? 'primary' : 'default'}
+            variant='flat'
+            className="w-full font-bold"
+          >
+            {formatearRecargo(totales.RN)} hrs
+          </Chip>
+        </div>
+
+        {/* RD - Recargo Dominical */}
+        <div className="bg-white p-3 rounded-lg border border-danger-200 text-center">
+          <div className="text-xs text-danger-600 font-medium mb-1">RD • 75%</div>
+          <div className="text-sm text-default-500 mb-2">Recargo Dominical</div>
+          <Chip
+            size="lg"
+            color={totales.RD > 0 ? 'danger' : 'default'}
+            variant='flat'
+            className="w-full font-bold"
+          >
+            {formatearRecargo(totales.RD)} hrs
+          </Chip>
+        </div>
+      </div>
+
+      {/* Información adicional */}
+      <div className="mt-4 pt-3 border-t border-default-200 flex flex-wrap justify-between items-center gap-2 text-sm text-default-600">
+        <div className="flex items-center gap-4">
+          <span>📅 Días laborales: <strong>{diasLaborales.length}</strong></span>
+          <span>✅ Días con datos: <strong>{diasLaborales.filter(dia => 
+            dia.dia && dia.horaInicio && dia.horaFin && 
+            calcularTotalHoras(dia.horaInicio, dia.horaFin) > 0
+          ).length}</strong></span>
+        </div>
+        <div className="text-xs text-default-500">
+          Los porcentajes mostrados corresponden a los recargos legales colombianos
+        </div>
+      </div>
+    </div>
+  </div>
   );
 };
 
