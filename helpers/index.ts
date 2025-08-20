@@ -43,13 +43,13 @@ export const PORCENTAJES_RECARGO = {
   HE_FESTIVA_DIURNA: 100,
   HE_FESTIVA_NOCTURNA: 150,
   RECARGO_NOCTURNO: 35,
-  RECARGO_DOMINICAL: 75
+  RECARGO_DOMINICAL: 75,
 } as const;
 
 export const HORAS_LIMITE = {
   JORNADA_NORMAL: 10,
   INICIO_NOCTURNO: 21,
-  FIN_NOCTURNO: 6
+  FIN_NOCTURNO: 6,
 } as const;
 
 // ===== FUNCIONES UTILITARIAS =====
@@ -72,7 +72,10 @@ export const esDomingo = (dia: number, mes: number, año: number): boolean => {
  * @param diasFestivos - Array de días festivos del mes
  * @returns true si es día festivo
  */
-export const esDiaFestivo = (dia: number, diasFestivos: number[] = []): boolean => {
+export const esDiaFestivo = (
+  dia: number,
+  diasFestivos: number[] = [],
+): boolean => {
   return diasFestivos.includes(dia);
 };
 
@@ -85,10 +88,10 @@ export const esDiaFestivo = (dia: number, diasFestivos: number[] = []): boolean 
  * @returns true si es domingo o festivo
  */
 export const esDomingoOFestivo = (
-  dia: number, 
-  mes: number, 
-  año: number, 
-  diasFestivos: number[] = []
+  dia: number,
+  mes: number,
+  año: number,
+  diasFestivos: number[] = [],
 ): boolean => {
   return esDomingo(dia, mes, año) || esDiaFestivo(dia, diasFestivos);
 };
@@ -112,7 +115,7 @@ export const redondear = (numero: number, decimales: number = 2): number => {
 export const formatearHoras = (horas: number): string => {
   const horasEnteras = Math.floor(horas);
   const minutos = Math.round((horas - horasEnteras) * 60);
-  return `${horasEnteras.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
+  return `${horasEnteras.toString().padStart(2, "0")}:${minutos.toString().padStart(2, "0")}`;
 };
 
 /**
@@ -121,8 +124,8 @@ export const formatearHoras = (horas: number): string => {
  * @returns Hora en formato decimal
  */
 export const parsearHora = (horaString: string): number => {
-  const [horas, minutos] = horaString.split(':').map(Number);
-  return horas + (minutos / 60);
+  const [horas, minutos] = horaString.split(":").map(Number);
+  return horas + minutos / 60;
 };
 
 // ===== FUNCIONES DE CÁLCULO =====
@@ -136,18 +139,18 @@ export const calcularHoraExtraDiurna = (
   mes: number,
   año: number,
   totalHoras: number,
-  diasFestivos: number[] = []
+  diasFestivos: number[] = [],
 ): number => {
   // Si es domingo o festivo, no hay horas extra diurnas normales
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     return 0;
   }
-  
+
   // Si trabajó más de 10 horas, calcular extra diurna
   if (totalHoras > HORAS_LIMITE.JORNADA_NORMAL) {
     return redondear(totalHoras - HORAS_LIMITE.JORNADA_NORMAL);
   }
-  
+
   return 0;
 };
 
@@ -161,18 +164,21 @@ export const calcularHoraExtraNocturna = (
   año: number,
   horaFinal: number,
   totalHoras: number,
-  diasFestivos: number[] = []
+  diasFestivos: number[] = [],
 ): number => {
   // Si es domingo o festivo, no hay horas extra nocturnas normales
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     return 0;
   }
-  
+
   // Si trabajó más de 10 horas Y terminó después de las 21:00
-  if (totalHoras > HORAS_LIMITE.JORNADA_NORMAL && horaFinal > HORAS_LIMITE.INICIO_NOCTURNO) {
+  if (
+    totalHoras > HORAS_LIMITE.JORNADA_NORMAL &&
+    horaFinal > HORAS_LIMITE.INICIO_NOCTURNO
+  ) {
     return redondear(horaFinal - HORAS_LIMITE.INICIO_NOCTURNO);
   }
-  
+
   return 0;
 };
 
@@ -185,7 +191,7 @@ export const calcularHoraExtraFestivaDiurna = (
   mes: number,
   año: number,
   totalHoras: number,
-  diasFestivos: number[] = []
+  diasFestivos: number[] = [],
 ): number => {
   // Solo si es domingo o festivo
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
@@ -193,7 +199,7 @@ export const calcularHoraExtraFestivaDiurna = (
       return redondear(totalHoras - HORAS_LIMITE.JORNADA_NORMAL);
     }
   }
-  
+
   return 0;
 };
 
@@ -207,16 +213,19 @@ export const calcularHoraExtraFestivaNocturna = (
   año: number,
   horaFinal: number,
   totalHoras: number,
-  diasFestivos: number[] = []
+  diasFestivos: number[] = [],
 ): number => {
   // Solo si es domingo o festivo
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     // Si trabajó más de 10 horas Y terminó después de las 21:00
-    if (totalHoras > HORAS_LIMITE.JORNADA_NORMAL && horaFinal > HORAS_LIMITE.INICIO_NOCTURNO) {
+    if (
+      totalHoras > HORAS_LIMITE.JORNADA_NORMAL &&
+      horaFinal > HORAS_LIMITE.INICIO_NOCTURNO
+    ) {
       return redondear(horaFinal - HORAS_LIMITE.INICIO_NOCTURNO);
     }
   }
-  
+
   return 0;
 };
 
@@ -227,36 +236,36 @@ export const calcularHoraExtraFestivaNocturna = (
 export const calcularRecargoNocturno = (
   dia: number,
   horaInicial: number,
-  horaFinal: number
+  horaFinal: number,
 ): number => {
   // Si no hay día registrado, retornar 0
   if (!dia) {
     return 0;
   }
-  
+
   // Si no hay horas registradas, retornar 0
   if (!horaInicial || !horaFinal) {
     return 0;
   }
-  
+
   let recargoNocturno = 0;
-  
+
   // Recargo por iniciar antes de las 6:00 AM
   if (horaInicial < HORAS_LIMITE.FIN_NOCTURNO) {
-    recargoNocturno += (HORAS_LIMITE.FIN_NOCTURNO - horaInicial);
+    recargoNocturno += HORAS_LIMITE.FIN_NOCTURNO - horaInicial;
   }
-  
+
   // Recargo por terminar después de las 21:00 (9:00 PM)
   if (horaFinal > HORAS_LIMITE.INICIO_NOCTURNO) {
     if (horaInicial > HORAS_LIMITE.INICIO_NOCTURNO) {
       // Si también inició después de las 21:00, es toda la jornada
-      recargoNocturno += (horaFinal - horaInicial);
+      recargoNocturno += horaFinal - horaInicial;
     } else {
       // Solo las horas después de las 21:00
-      recargoNocturno += (horaFinal - HORAS_LIMITE.INICIO_NOCTURNO);
+      recargoNocturno += horaFinal - HORAS_LIMITE.INICIO_NOCTURNO;
     }
   }
-  
+
   return redondear(recargoNocturno);
 };
 
@@ -269,96 +278,139 @@ export const calcularRecargoDominical = (
   mes: number,
   año: number,
   totalHoras: number,
-  diasFestivos: number[] = []
+  diasFestivos: number[] = [],
 ): number => {
   // Solo si es domingo o festivo
-  console.log(dia, mes, año, totalHoras, diasFestivos)
+  console.log(dia, mes, año, totalHoras, diasFestivos);
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     // Si trabajó 10 horas o menos, todas son recargo dominical
     // Si trabajó más de 10, solo las primeras 10 son recargo dominical
-    return redondear(totalHoras <= HORAS_LIMITE.JORNADA_NORMAL ? totalHoras : HORAS_LIMITE.JORNADA_NORMAL);
+    return redondear(
+      totalHoras <= HORAS_LIMITE.JORNADA_NORMAL
+        ? totalHoras
+        : HORAS_LIMITE.JORNADA_NORMAL,
+    );
   }
-  
+
   return 0;
 };
 
 /**
  * Función principal que calcula todos los tipos de horas y recargos
  */
-export const calcularTodasLasHoras = (parametros: ParametrosCalculo): ResultadosCalculo => {
+export const calcularTodasLasHoras = (
+  parametros: ParametrosCalculo,
+): ResultadosCalculo => {
   const {
     dia,
     mes,
     año,
     horaInicial,
     horaFinal,
-    diasFestivos = []
+    diasFestivos = [],
   } = parametros;
-  
+
   // Calcular total de horas trabajadas
   const totalHoras = redondear(horaFinal - horaInicial);
-  
+
   // Calcular todos los tipos
   const resultados: ResultadosCalculo = {
     totalHoras,
-    horaExtraDiurna: calcularHoraExtraDiurna(dia, mes, año, totalHoras, diasFestivos) - calcularHoraExtraNocturna(dia, mes, año, horaFinal, totalHoras, diasFestivos),
-    horaExtraNocturna: calcularHoraExtraNocturna(dia, mes, año, horaFinal, totalHoras, diasFestivos),
-    horaExtraFestivaDiurna: calcularHoraExtraFestivaDiurna(dia, mes, año, totalHoras, diasFestivos),
-    horaExtraFestivaNocturna: calcularHoraExtraFestivaNocturna(dia, mes, año, horaFinal, totalHoras, diasFestivos),
+    horaExtraDiurna:
+      calcularHoraExtraDiurna(dia, mes, año, totalHoras, diasFestivos) -
+      calcularHoraExtraNocturna(
+        dia,
+        mes,
+        año,
+        horaFinal,
+        totalHoras,
+        diasFestivos,
+      ),
+    horaExtraNocturna: calcularHoraExtraNocturna(
+      dia,
+      mes,
+      año,
+      horaFinal,
+      totalHoras,
+      diasFestivos,
+    ),
+    horaExtraFestivaDiurna: calcularHoraExtraFestivaDiurna(
+      dia,
+      mes,
+      año,
+      totalHoras,
+      diasFestivos,
+    ),
+    horaExtraFestivaNocturna: calcularHoraExtraFestivaNocturna(
+      dia,
+      mes,
+      año,
+      horaFinal,
+      totalHoras,
+      diasFestivos,
+    ),
     recargoNocturno: calcularRecargoNocturno(dia, horaInicial, horaFinal),
-    recargoDominical: calcularRecargoDominical(dia, mes, año, totalHoras, diasFestivos),
+    recargoDominical: calcularRecargoDominical(
+      dia,
+      mes,
+      año,
+      totalHoras,
+      diasFestivos,
+    ),
     esDomingo: esDomingo(dia, mes, año),
     esFestivo: esDiaFestivo(dia, diasFestivos),
-    esDomingoOFestivo: esDomingoOFestivo(dia, mes, año, diasFestivos)
+    esDomingoOFestivo: esDomingoOFestivo(dia, mes, año, diasFestivos),
   };
 
-  console.log(resultados)
-  
+  console.log(resultados);
+
   return resultados;
 };
 
 /**
  * Obtiene un resumen detallado de todos los tipos de horas calculadas
  */
-export const obtenerResumenTipoHoras = (resultados: ResultadosCalculo): ResumenTipoHoras[] => {
+export const obtenerResumenTipoHoras = (
+  resultados: ResultadosCalculo,
+): ResumenTipoHoras[] => {
   return [
     {
-      tipo: 'HED',
+      tipo: "HED",
       horas: resultados.horaExtraDiurna,
       porcentaje: `${PORCENTAJES_RECARGO.HE_DIURNA}%`,
-      descripcion: 'Hora Extra Diurna'
+      descripcion: "Hora Extra Diurna",
     },
     {
-      tipo: 'HEN',
+      tipo: "HEN",
       horas: resultados.horaExtraNocturna,
       porcentaje: `${PORCENTAJES_RECARGO.HE_NOCTURNA}%`,
-      descripcion: 'Hora Extra Nocturna'
+      descripcion: "Hora Extra Nocturna",
     },
     {
-      tipo: 'HEFD',
+      tipo: "HEFD",
       horas: resultados.horaExtraFestivaDiurna,
       porcentaje: `${PORCENTAJES_RECARGO.HE_FESTIVA_DIURNA}%`,
-      descripcion: 'Hora Extra Festiva Diurna'
+      descripcion: "Hora Extra Festiva Diurna",
     },
     {
-      tipo: 'HEFN',
+      tipo: "HEFN",
       horas: resultados.horaExtraFestivaNocturna,
       porcentaje: `${PORCENTAJES_RECARGO.HE_FESTIVA_NOCTURNA}%`,
-      descripcion: 'Hora Extra Festiva Nocturna'
+      descripcion: "Hora Extra Festiva Nocturna",
     },
     {
-      tipo: 'RN',
+      tipo: "RN",
       horas: resultados.recargoNocturno,
       porcentaje: `${PORCENTAJES_RECARGO.RECARGO_NOCTURNO}%`,
-      descripcion: 'Recargo Nocturno'
+      descripcion: "Recargo Nocturno",
     },
     {
-      tipo: 'RD',
+      tipo: "RD",
       horas: resultados.recargoDominical,
       porcentaje: `${PORCENTAJES_RECARGO.RECARGO_DOMINICAL}%`,
-      descripcion: 'Recargo Dominical/Festivo'
-    }
-  ].filter(item => item.horas > 0); // Solo mostrar tipos con horas > 0
+      descripcion: "Recargo Dominical/Festivo",
+    },
+  ].filter((item) => item.horas > 0); // Solo mostrar tipos con horas > 0
 };
 
 /**
@@ -367,13 +419,13 @@ export const obtenerResumenTipoHoras = (resultados: ResultadosCalculo): ResumenT
 export const obtenerDomingosDelMes = (mes: number, año: number): number[] => {
   const domingos: number[] = [];
   const diasEnMes = new Date(año, mes, 0).getDate();
-  
+
   for (let dia = 1; dia <= diasEnMes; dia++) {
     if (esDomingo(dia, mes, año)) {
       domingos.push(dia);
     }
   }
-  
+
   return domingos;
 };
 
@@ -382,31 +434,31 @@ export const obtenerDomingosDelMes = (mes: number, año: number): number[] => {
  */
 export const validarParametros = (parametros: ParametrosCalculo): string[] => {
   const errores: string[] = [];
-  
+
   if (parametros.dia < 1 || parametros.dia > 31) {
-    errores.push('El día debe estar entre 1 y 31');
+    errores.push("El día debe estar entre 1 y 31");
   }
-  
+
   if (parametros.mes < 1 || parametros.mes > 12) {
-    errores.push('El mes debe estar entre 1 y 12');
+    errores.push("El mes debe estar entre 1 y 12");
   }
-  
+
   if (parametros.año < 1900 || parametros.año > 2100) {
-    errores.push('El año debe estar entre 1900 y 2100');
+    errores.push("El año debe estar entre 1900 y 2100");
   }
-  
+
   if (parametros.horaInicial < 0 || parametros.horaInicial > 24) {
-    errores.push('La hora inicial debe estar entre 0 y 24');
+    errores.push("La hora inicial debe estar entre 0 y 24");
   }
-  
+
   if (parametros.horaFinal < 0 || parametros.horaFinal > 24) {
-    errores.push('La hora final debe estar entre 0 y 24');
+    errores.push("La hora final debe estar entre 0 y 24");
   }
-  
+
   if (parametros.horaFinal <= parametros.horaInicial) {
-    errores.push('La hora final debe ser mayor que la hora inicial');
+    errores.push("La hora final debe ser mayor que la hora inicial");
   }
-  
+
   return errores;
 };
 
@@ -416,7 +468,7 @@ const horasRecargosHelpers = {
   // Funciones principales
   calcularTodasLasHoras,
   obtenerResumenTipoHoras,
-  
+
   // Funciones individuales
   calcularHoraExtraDiurna,
   calcularHoraExtraNocturna,
@@ -424,7 +476,7 @@ const horasRecargosHelpers = {
   calcularHoraExtraFestivaNocturna,
   calcularRecargoNocturno,
   calcularRecargoDominical,
-  
+
   // Utilidades
   esDomingo,
   esDiaFestivo,
@@ -434,10 +486,10 @@ const horasRecargosHelpers = {
   parsearHora,
   obtenerDomingosDelMes,
   validarParametros,
-  
+
   // Constantes
   PORCENTAJES_RECARGO,
-  HORAS_LIMITE
+  HORAS_LIMITE,
 };
 
 export default horasRecargosHelpers;

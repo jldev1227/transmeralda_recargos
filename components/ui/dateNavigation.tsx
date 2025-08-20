@@ -1,7 +1,12 @@
-import React, { useMemo, useCallback } from 'react';
-import { Button } from '@heroui/button';
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from '@heroui/dropdown';
-import { ChevronLeft, ChevronRight, Calendar, ChevronDown } from 'lucide-react';
+import React, { useMemo, useCallback } from "react";
+import { Button } from "@heroui/button";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+} from "@heroui/dropdown";
+import { ChevronLeft, ChevronRight, Calendar, ChevronDown } from "lucide-react";
 
 interface DateNavigationProps {
   currentMonth: number;
@@ -12,7 +17,7 @@ interface DateNavigationProps {
 const DateNavigation: React.FC<DateNavigationProps> = ({
   currentMonth,
   currentYear,
-  onDateChange
+  onDateChange,
 }) => {
   const MONTH_NAMES = useMemo(
     () => [
@@ -76,13 +81,19 @@ const DateNavigation: React.FC<DateNavigationProps> = ({
     [currentMonth, currentYear, onDateChange],
   );
 
-  const handleMonthSelect = useCallback((month: number) => {
-    onDateChange(month, currentYear);
-  }, [currentYear, onDateChange]);
+  const handleMonthSelect = useCallback(
+    (month: number) => {
+      onDateChange(month, currentYear);
+    },
+    [currentYear, onDateChange],
+  );
 
-  const handleYearSelect = useCallback((year: number) => {
-    onDateChange(currentMonth, year);
-  }, [currentMonth, onDateChange]);
+  const handleYearSelect = useCallback(
+    (year: number) => {
+      onDateChange(currentMonth, year);
+    },
+    [currentMonth, onDateChange],
+  );
 
   const goToToday = useCallback(() => {
     const today = new Date();
@@ -104,11 +115,11 @@ const DateNavigation: React.FC<DateNavigationProps> = ({
         >
           <ChevronLeft size={16} />
         </Button>
-        
+
         <Dropdown>
           <DropdownTrigger>
-            <Button 
-              variant="solid" 
+            <Button
+              variant="solid"
               color="default"
               className="min-w-[80px] font-semibold bg-white text-emerald-600 hover:bg-gray-100 border-2 border-white shadow-md"
               endContent={<ChevronDown size={16} />}
@@ -116,16 +127,14 @@ const DateNavigation: React.FC<DateNavigationProps> = ({
               {currentYear}
             </Button>
           </DropdownTrigger>
-          <DropdownMenu 
+          <DropdownMenu
             aria-label="Seleccionar año"
             selectedKeys={[currentYear.toString()]}
             selectionMode="single"
             onAction={(key) => handleYearSelect(Number(key))}
           >
             {yearOptions.map((year) => (
-              <DropdownItem key={year.toString()}>
-                {year}
-              </DropdownItem>
+              <DropdownItem key={year.toString()}>{year}</DropdownItem>
             ))}
           </DropdownMenu>
         </Dropdown>
@@ -159,8 +168,8 @@ const DateNavigation: React.FC<DateNavigationProps> = ({
         <div className="text-center min-w-[300px]">
           <Dropdown>
             <DropdownTrigger>
-              <Button 
-                variant="solid" 
+              <Button
+                variant="solid"
                 color="default"
                 className="text-2xl font-bold min-w-[250px] h-auto py-3 bg-white text-emerald-600 hover:bg-gray-100 border-2 border-white shadow-lg"
                 startContent={<Calendar size={24} />}
@@ -169,7 +178,7 @@ const DateNavigation: React.FC<DateNavigationProps> = ({
                 {MONTH_NAMES[currentMonth - 1]}
               </Button>
             </DropdownTrigger>
-            <DropdownMenu 
+            <DropdownMenu
               aria-label="Seleccionar mes"
               selectedKeys={[currentMonth.toString()]}
               selectionMode="single"

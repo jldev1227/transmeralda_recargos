@@ -12,7 +12,6 @@ import { Input } from "@heroui/input";
 import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { Divider } from "@heroui/divider";
-import { Progress } from "@heroui/progress";
 import { Tabs, Tab } from "@heroui/tabs";
 import {
   Plus,
@@ -30,12 +29,9 @@ import {
   Users,
   Hash,
   Paperclip,
-  ChevronRight,
   Info,
-  ArrowRight,
-  CheckCircle,
   Circle,
-  PlusIcon
+  PlusIcon,
 } from "lucide-react";
 import ReactSelect, {
   CSSObjectWithLabel,
@@ -44,20 +40,11 @@ import ReactSelect, {
   OptionProps,
   GroupBase,
 } from "react-select";
-import { Conductor, Empresa, Vehiculo } from "@/types";
+import { Conductor, DiaLaboral, Empresa, Vehiculo } from "@/types";
 import { useRecargo } from "@/context/RecargoPlanillaContext";
 import { addToast } from "@heroui/toast";
 import TablaConRecargos from "./tableRecargos";
 import UploadPlanilla from "../uploadPlanilla";
-
-interface DiaLaboral {
-  id: string;
-  dia: string;
-  mes: string;
-  año: string;
-  horaInicio: string;
-  horaFin: string;
-}
 
 interface Option {
   value: string;
@@ -98,7 +85,8 @@ const customStyles: StylesConfig<Option, false, GroupBase<Option>> = {
     ...provided,
     borderRadius: "12px",
     border: "1px solid #e5e7eb",
-    boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    boxShadow:
+      "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
     zIndex: 9999,
   }),
   option: (
@@ -146,7 +134,7 @@ const FieldLabel = ({
 }) => (
   <div className="flex items-center gap-2 mb-2">
     <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-      <div className="w-5 h-5 flex items-center justify-center text-blue-600">
+      <div className="w-5 h-5 flex items-center justify-center text-emerald-600">
         {icon}
       </div>
       {children}
@@ -188,30 +176,18 @@ const EmpresaOption = ({
   </div>
 );
 
-// Componente de progreso del formulario
-const FormProgress = ({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) => (
-  <div className="mb-4">
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-sm font-medium text-gray-700">Progreso del formulario</span>
-      <span className="text-sm text-gray-500">{currentStep}/{totalSteps}</span>
-    </div>
-    <Progress
-      value={(currentStep / totalSteps) * 100}
-      color="primary"
-      className="h-2"
-      classNames={{
-        track: "bg-gray-200",
-        indicator: "bg-gradient-to-r from-blue-500 to-indigo-600"
-      }}
-    />
-  </div>
-);
-
 // Componente de indicador de tab completado
 const TabIndicator = ({ completed }: { completed: boolean }) => (
-  <div className={`w-4 h-4 rounded-full flex items-center justify-center ${completed ? 'bg-green-500 text-white' : 'bg-gray-300'
-    }`}>
-    {completed ? <Check size={12} /> : <Circle size={12} className="text-gray-500" />}
+  <div
+    className={`w-4 h-4 rounded-full flex items-center justify-center ${
+      completed ? "bg-green-500 text-white" : "bg-gray-300"
+    }`}
+  >
+    {completed ? (
+      <Check size={12} />
+    ) : (
+      <Circle size={12} className="text-gray-500" />
+    )}
   </div>
 );
 
@@ -255,7 +231,8 @@ export default function ModalNewRecargo({
     if (formData.conductorId) completed++;
     if (formData.vehiculoId) completed++;
     if (formData.empresaId) completed++;
-    if (diasLaborales.some(dia => dia.dia && dia.horaInicio && dia.horaFin)) completed++;
+    if (diasLaborales.some((dia) => dia.dia && dia.horaInicio && dia.horaFin))
+      completed++;
 
     return { completed, total };
   };
@@ -264,8 +241,13 @@ export default function ModalNewRecargo({
 
   // Verificar si cada tab está completado
   const tabCompleted = {
-    informacion: formData.conductorId && formData.vehiculoId && formData.empresaId,
-    horarios: diasLaborales.some(dia => dia.dia && dia.horaInicio && dia.horaFin),
+    informacion:
+      formData.conductorId && formData.vehiculoId && formData.empresaId
+        ? true
+        : false,
+    horarios: diasLaborales.some(
+      (dia) => dia.dia && dia.horaInicio && dia.horaFin,
+    ),
   };
 
   useEffect(() => {
@@ -290,6 +272,7 @@ export default function ModalNewRecargo({
       setIsLoading(false);
       setActiveTab("informacion");
     }
+    console.log(vehiculos);
   }, [isOpen]);
 
   // Transformar datos para react-select
@@ -302,7 +285,7 @@ export default function ModalNewRecargo({
   const vehiculoOptions = vehiculos.map((vehiculo: Vehiculo) => ({
     value: vehiculo.id.toString(),
     label: vehiculo.placa,
-    description: `${vehiculo.marca} ${vehiculo.modelo} - ${vehiculo.año}`,
+    description: `${vehiculo.marca} ${vehiculo.linea} - ${vehiculo.modelo}`,
   }));
 
   const empresaOptions = empresas.map((empresa: Empresa) => ({
@@ -347,18 +330,6 @@ export default function ModalNewRecargo({
     setArchivoAdjunto(archivo);
   };
 
-  const handleContinueToSchedule = () => {
-    if (!tabCompleted.informacion) {
-      addToast({
-        title: "Información incompleta",
-        description: "Complete conductor, vehículo y empresa antes de continuar.",
-        color: "warning",
-      });
-      return;
-    }
-    setActiveTab("horarios");
-  };
-
   const handleSubmit = async () => {
     // Validaciones
     if (!formData.conductorId || !formData.vehiculoId || !formData.empresaId) {
@@ -381,7 +352,9 @@ export default function ModalNewRecargo({
       return;
     }
 
-    if (diasLaborales.some((dia) => !dia.dia || !dia.horaInicio || !dia.horaFin)) {
+    if (
+      diasLaborales.some((dia) => !dia.dia || !dia.horaInicio || !dia.horaFin)
+    ) {
       addToast({
         title: "Información incompleta",
         description: "Complete todos los días laborales agregados.",
@@ -396,23 +369,26 @@ export default function ModalNewRecargo({
     try {
       const formDataToSend = new FormData();
 
-      formDataToSend.append('recargo_data', JSON.stringify({
-        conductor_id: formData.conductorId,
-        vehiculo_id: formData.vehiculoId,
-        empresa_id: formData.empresaId,
-        numero_planilla: formData.tmNumber,
-        mes: currentMonth,
-        año: currentYear,
-        dias_laborales: diasLaborales.map((dia) => ({
-          dia: dia.dia,
-          horaInicio: dia.horaInicio,
-          horaFin: dia.horaFin,
-        })),
-      }));
+      formDataToSend.append(
+        "recargo_data",
+        JSON.stringify({
+          conductor_id: formData.conductorId,
+          vehiculo_id: formData.vehiculoId,
+          empresa_id: formData.empresaId,
+          numero_planilla: formData.tmNumber,
+          mes: currentMonth,
+          año: currentYear,
+          dias_laborales: diasLaborales.map((dia) => ({
+            dia: dia.dia,
+            horaInicio: dia.horaInicio,
+            horaFin: dia.horaFin,
+          })),
+        }),
+      );
 
       // Adjuntar archivo solo si existe (ahora es opcional)
       if (archivoAdjunto) {
-        formDataToSend.append('planilla', archivoAdjunto);
+        formDataToSend.append("planilla", archivoAdjunto);
       }
 
       await registrarRecargo(formDataToSend);
@@ -422,11 +398,11 @@ export default function ModalNewRecargo({
         description: "El recargo se ha registrado exitosamente.",
         color: "success",
       });
-
     } catch (error) {
       addToast({
         title: "Error al registrar",
-        description: "Ocurrió un error al registrar el recargo. Intente nuevamente.",
+        description:
+          "Ocurrió un error al registrar el recargo. Intente nuevamente.",
         color: "danger",
       });
       console.error("Error al registrar recargo:", error);
@@ -437,13 +413,21 @@ export default function ModalNewRecargo({
 
   return (
     <>
-      <Button onPress={onOpen} color="success" variant="flat" radius="sm" startContent={<PlusIcon className="w-5 h-5" />}>Nuevo recargo</Button>
+      <Button
+        onPress={onOpen}
+        color="success"
+        variant="flat"
+        radius="sm"
+        startContent={<PlusIcon className="w-5 h-5" />}
+      >
+        Nuevo recargo
+      </Button>
       <Modal
         isOpen={isOpen}
         size="5xl"
         scrollBehavior="inside"
         isDismissable={!isLoading}
-        hideCloseButton={isLoading}
+        hideCloseButton
         classNames={{
           base: "max-h-[95vh] max-w-6xl",
           body: "py-6",
@@ -456,7 +440,7 @@ export default function ModalNewRecargo({
               <ModalHeader className="flex flex-col gap-1 pb-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
                       <FileText className="text-white" size={24} />
                     </div>
                     <div>
@@ -464,12 +448,29 @@ export default function ModalNewRecargo({
                         Nuevo Recargo Laboral
                       </h2>
                       <p className="text-sm text-gray-600 mt-1">
-                        {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][currentMonth - 1]} {currentYear}
+                        {
+                          [
+                            "Enero",
+                            "Febrero",
+                            "Marzo",
+                            "Abril",
+                            "Mayo",
+                            "Junio",
+                            "Julio",
+                            "Agosto",
+                            "Septiembre",
+                            "Octubre",
+                            "Noviembre",
+                            "Diciembre",
+                          ][currentMonth - 1]
+                        }{" "}
+                        {currentYear}
                       </p>
                     </div>
                   </div>
                   {!isLoading && (
                     <Button
+                      onPress={onOpenChange}
                       isIconOnly
                       variant="light"
                       className="text-gray-400 hover:text-gray-600"
@@ -477,11 +478,6 @@ export default function ModalNewRecargo({
                       <X size={20} />
                     </Button>
                   )}
-                </div>
-
-                {/* Progreso del formulario */}
-                <div className="mt-4">
-                  <FormProgress currentStep={progress.completed} totalSteps={progress.total} />
                 </div>
               </ModalHeader>
 
@@ -492,10 +488,11 @@ export default function ModalNewRecargo({
                   color="primary"
                   variant="underlined"
                   classNames={{
-                    tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
-                    cursor: "w-full bg-blue-500",
+                    tabList:
+                      "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+                    cursor: "w-full bg-emerald-500",
                     tab: "max-w-fit px-4 h-12",
-                    tabContent: "group-data-[selected=true]:text-blue-600"
+                    tabContent: "group-data-[selected=true]:text-emerald-600",
                   }}
                 >
                   <Tab
@@ -505,7 +502,9 @@ export default function ModalNewRecargo({
                         <TabIndicator completed={tabCompleted.informacion} />
                         <div className="flex items-center gap-2">
                           <Users size={18} />
-                          <span className="font-medium">Información Principal</span>
+                          <span className="font-medium">
+                            Información Principal
+                          </span>
                         </div>
                       </div>
                     }
@@ -524,11 +523,18 @@ export default function ModalNewRecargo({
                           </FieldLabel>
                           <ReactSelect
                             options={conductorOptions}
-                            value={conductorOptions.find(option => option.value === formData.conductorId) || null}
+                            value={
+                              conductorOptions.find(
+                                (option) =>
+                                  option.value === formData.conductorId,
+                              ) || null
+                            }
                             onChange={(selectedOption) => {
                               setFormData({
                                 ...formData,
-                                conductorId: selectedOption ? selectedOption.value : "",
+                                conductorId: selectedOption
+                                  ? selectedOption.value
+                                  : "",
                               });
                             }}
                             placeholder="Buscar y seleccionar conductor..."
@@ -555,11 +561,18 @@ export default function ModalNewRecargo({
                           </FieldLabel>
                           <ReactSelect
                             options={vehiculoOptions}
-                            value={vehiculoOptions.find(option => option.value === formData.vehiculoId) || null}
+                            value={
+                              vehiculoOptions.find(
+                                (option) =>
+                                  option.value === formData.vehiculoId,
+                              ) || null
+                            }
                             onChange={(selectedOption) => {
                               setFormData({
                                 ...formData,
-                                vehiculoId: selectedOption ? selectedOption.value : "",
+                                vehiculoId: selectedOption
+                                  ? selectedOption.value
+                                  : "",
                               });
                             }}
                             placeholder="Buscar por placa..."
@@ -586,11 +599,17 @@ export default function ModalNewRecargo({
                           </FieldLabel>
                           <ReactSelect
                             options={empresaOptions}
-                            value={empresaOptions.find(option => option.value === formData.empresaId) || null}
+                            value={
+                              empresaOptions.find(
+                                (option) => option.value === formData.empresaId,
+                              ) || null
+                            }
                             onChange={(selectedOption) => {
                               setFormData({
                                 ...formData,
-                                empresaId: selectedOption ? selectedOption.value : "",
+                                empresaId: selectedOption
+                                  ? selectedOption.value
+                                  : "",
                               });
                             }}
                             placeholder="Buscar empresa..."
@@ -618,12 +637,15 @@ export default function ModalNewRecargo({
                             variant="bordered"
                             placeholder="Ej: 001, 002, 003..."
                             classNames={{
-                              inputWrapper: "h-[52px] border-2 border-gray-200 hover:border-gray-300 focus-within:border-blue-500",
-                              input: "text-sm"
+                              inputWrapper:
+                                "h-[52px] border-2 border-gray-200 hover:border-gray-300 focus-within:border-emerald-500",
+                              input: "text-sm",
                             }}
                             startContent={
                               <div className="pointer-events-none flex items-center">
-                                <span className="text-gray-500 text-sm font-medium">TM-</span>
+                                <span className="text-gray-500 text-sm font-medium">
+                                  TM-
+                                </span>
                               </div>
                             }
                             value={formData.tmNumber}
@@ -656,7 +678,8 @@ export default function ModalNewRecargo({
                                 {archivoAdjunto.name}
                               </span>
                               <span className="text-xs text-green-600">
-                                {(archivoAdjunto.size / 1024 / 1024).toFixed(2)} MB
+                                {(archivoAdjunto.size / 1024 / 1024).toFixed(2)}{" "}
+                                MB
                               </span>
                               <Button
                                 isIconOnly
@@ -671,19 +694,6 @@ export default function ModalNewRecargo({
                           )}
                         </div>
                       </div>
-
-                      {/* Botón para continuar */}
-                      <div className="flex justify-end pt-4">
-                        <Button
-                          color="primary"
-                          onPress={handleContinueToSchedule}
-                          endContent={<ArrowRight size={16} />}
-                          isDisabled={!tabCompleted.informacion}
-                          className="bg-gradient-to-r from-blue-500 to-indigo-600"
-                        >
-                          Continuar a Horarios
-                        </Button>
-                      </div>
                     </div>
                   </Tab>
 
@@ -694,7 +704,9 @@ export default function ModalNewRecargo({
                         <TabIndicator completed={tabCompleted.horarios} />
                         <div className="flex items-center gap-2">
                           <Clock size={18} />
-                          <span className="font-medium">Horarios de Trabajo</span>
+                          <span className="font-medium">
+                            Horarios de Trabajo
+                          </span>
                         </div>
                       </div>
                     }
@@ -702,14 +714,19 @@ export default function ModalNewRecargo({
                     <div className="space-y-6 py-4">
                       {/* Información de alerta */}
                       <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                        <AlertCircle size={20} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                        <AlertCircle
+                          size={20}
+                          className="text-amber-600 mt-0.5 flex-shrink-0"
+                        />
                         <div>
                           <h4 className="font-medium text-amber-800 mb-1">
                             Configuración de Horarios
                           </h4>
                           <p className="text-sm text-amber-700">
-                            Configure los días y horarios laborales para el cálculo automático de recargos.
-                            El sistema calculará HED, HEN, y recargos dominicales/festivos según la normativa vigente.
+                            Configure los días y horarios laborales para el
+                            cálculo automático de recargos. El sistema calculará
+                            HED, HEN, y recargos dominicales/festivos según la
+                            normativa vigente.
                           </p>
                         </div>
                       </div>
@@ -717,15 +734,19 @@ export default function ModalNewRecargo({
                       {/* Controles de días laborales */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Calendar size={20} className="text-blue-600" />
-                          <h3 className="text-lg font-semibold text-gray-900">Días Laborales</h3>
+                          <Calendar size={20} className="text-emerald-600" />
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Días Laborales
+                          </h3>
                           <span className="text-red-500">*</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <Chip
                             size="sm"
                             variant="flat"
-                            color={diasLaborales.length >= 10 ? "warning" : "primary"}
+                            color={
+                              diasLaborales.length >= 10 ? "warning" : "primary"
+                            }
                             className="text-xs"
                           >
                             {diasLaborales.length}/15 días
@@ -764,8 +785,12 @@ export default function ModalNewRecargo({
               <ModalFooter className="pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <div className={`w-2 h-2 rounded-full ${progress.completed === progress.total ? 'bg-green-500' : 'bg-amber-500'}`} />
-                    {progress.completed === progress.total ? 'Formulario completo' : `${progress.total - progress.completed} campos pendientes`}
+                    <div
+                      className={`w-2 h-2 rounded-full ${progress.completed === progress.total ? "bg-green-500" : "bg-amber-500"}`}
+                    />
+                    {progress.completed === progress.total
+                      ? "Formulario completo"
+                      : `${progress.total - progress.completed} campos pendientes`}
                   </div>
 
                   <div className="flex gap-3">
@@ -782,8 +807,10 @@ export default function ModalNewRecargo({
                       onPress={handleSubmit}
                       isLoading={isLoading}
                       startContent={!isLoading && <Save size={16} />}
-                      isDisabled={!tabCompleted.informacion || !tabCompleted.horarios}
-                      className="min-w-[140px] bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
+                      isDisabled={
+                        !tabCompleted.informacion || !tabCompleted.horarios
+                      }
+                      className="min-w-[140px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
                     >
                       {isLoading ? "Registrando..." : "Registrar Recargo"}
                     </Button>

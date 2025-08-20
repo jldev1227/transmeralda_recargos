@@ -1,47 +1,55 @@
 "use client";
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from "react";
 import {
   Search,
   Filter,
   Calendar,
-  Clock,
-  TrendingUp,
-  Users,
-  Building,
-  Car,
   Eye,
   Download,
-  Plus,
-  X,
-  ChevronDown,
   BarChart3,
-  Settings,
-  FileText,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal
-} from 'lucide-react';
-import ModalNewRecargo from '@/components/ui/modalNewRecargo';
+  MoreHorizontal,
+} from "lucide-react";
+import ModalNewRecargo from "@/components/ui/modalNewRecargo";
+import { useRecargosCanvas } from "@/context/RecargoPlanillaContext";
+import ModalConfiguracion from "@/components/ui/modalConfiguracion";
+
+interface Filters {
+  empresas: string[];
+  estados: string[];
+  planillas: string[];
+  placas: string[];
+}
 
 const CanvasRecargosDashboard = () => {
   // Estados principales
   const [selectedMonth, setSelectedMonth] = useState(7);
   const [selectedYear, setSelectedYear] = useState(2025);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('conductor');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState("conductor");
+  const [sortDirection, setSortDirection] = useState("asc");
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
+  const {
+    canvasData,
+    loading: canvasLoading,
+    error: canvasError,
+    refrescar,
+  } = useRecargosCanvas(selectedMonth, selectedYear);
+
+  const recargos = canvasData?.recargos || [];
+
   // Estados de filtros
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     empresas: [],
     estados: [],
     planillas: [],
-    placas: []
+    placas: [],
   });
 
   // Estados de visibilidad de filtros
@@ -49,109 +57,33 @@ const CanvasRecargosDashboard = () => {
     empresas: false,
     estados: false,
     planillas: false,
-    placas: false
+    placas: false,
   });
 
-
   // Función para obtener días del mes seleccionado
-  const getDaysInMonth = useCallback((month, year) => {
+  const getDaysInMonth = useCallback((month: number, year: number) => {
     return new Date(year, month, 0).getDate();
   }, []);
 
-
   // Función para verificar si un día es domingo
-  const isSunday = useCallback((day, month, year) => {
+  const isSunday = useCallback((day: number, month: number, year: number) => {
     const date = new Date(year, month - 1, day);
     return date.getDay() === 0;
   }, []);
 
-
   // Función para verificar si un día es festivo (simulado)
-  const isHoliday = useCallback((day, month, year) => {
+  const isHoliday = useCallback((day: number, month: number, year: number) => {
     // Simulamos algunos días festivos
     const holidays = [
-      { month: 1, day: 1 },   // Año nuevo
-      { month: 5, day: 1 },   // Día del trabajo
-      { month: 7, day: 20 },  // Día de la independencia
+      { month: 1, day: 1 }, // Año nuevo
+      { month: 5, day: 1 }, // Día del trabajo
+      { month: 7, day: 20 }, // Día de la independencia
       { month: 12, day: 25 }, // Navidad
     ];
-    return holidays.some(holiday => holiday.month === month && holiday.day === day);
+    return holidays.some(
+      (holiday) => holiday.month === month && holiday.day === day,
+    );
   }, []);
-
-  // Datos simulados ampliados con días laborales
-  const mockData = useMemo(() => {
-    const conductores = [
-      "Juan Carlos Rodríguez", "María Elena González", "Carlos Alberto Mendoza",
-      "Ana Patricia López", "Luis Fernando Vargas", "Carmen Rosa Herrera",
-      "José Miguel Torres", "Sandra Milena Castro", "Diego Alejandro Ruiz",
-      "Claudia Patricia Morales", "Roberto Carlos Jiménez", "Liliana Marcela Pérez"
-    ];
-
-    const empresas = [
-      "TransCarga S.A.S", "Logística del Norte", "Express Delivery",
-      "Carga Rápida Ltda", "Transportes Unidos", "MoviCarga Express"
-    ];
-
-    const estados = ["activo", "revision", "pendiente", "aprobado"];
-    const daysInMonth = getDaysInMonth(selectedMonth, selectedYear);
-
-    return Array.from({ length: 50 }, (_, i) => {
-      const conductor = conductores[i % conductores.length];
-      const [nombre, ...apellidos] = conductor.split(' ');
-      const apellido = apellidos.join(' ');
-
-      // Generar datos por día del mes
-      const diasLaborales = {};
-      let totalHoras = 0;
-      let diasTrabajados = 0;
-
-      for (let day = 1; day <= daysInMonth; day++) {
-        const isSundayDay = isSunday(day, selectedMonth, selectedYear);
-        const isHolidayDay = isHoliday(day, selectedMonth, selectedYear);
-
-        // Probabilidad de trabajar (menor en domingos/festivos)
-        const trabajaHoy = Math.random() > (isSundayDay || isHolidayDay ? 0.7 : 0.2);
-
-        if (trabajaHoy) {
-          const horasDelDia = 6 + Math.floor(Math.random() * 6); // 6-12 horas
-          diasLaborales[`day_${day}`] = horasDelDia;
-          totalHoras += horasDelDia;
-          diasTrabajados++;
-        } else {
-          diasLaborales[`day_${day}`] = 0;
-        }
-      }
-
-      return {
-        id: i + 1,
-        conductor: {
-          nombre,
-          apellido,
-          cedula: `${12345678 + i}`,
-          fullName: conductor
-        },
-        empresa: {
-          nombre: empresas[i % empresas.length],
-          id: (i % empresas.length) + 1
-        },
-        vehiculo: { placa: `${String.fromCharCode(65 + (i % 26))}${String.fromCharCode(66 + ((i + 1) % 26))}${String.fromCharCode(67 + ((i + 2) % 26))}${(123 + i).toString().slice(-3)}` },
-        numero_planilla: `PL-2025-${(i + 1).toString().padStart(3, '0')}`,
-        total_horas_trabajadas: totalHoras,
-        total_hed: Math.floor(Math.random() * 30),
-        total_hen: Math.floor(Math.random() * 25),
-        total_hefd: Math.floor(Math.random() * 15),
-        total_hefn: Math.floor(Math.random() * 20),
-        total_rn: Math.floor(Math.random() * 40),
-        total_rd: Math.floor(Math.random() * 20),
-        estado: estados[i % estados.length],
-        dias_laborales: diasTrabajados,
-        valor_total: 1800000 + Math.floor(Math.random() * 800000),
-        fecha_creacion: new Date(2025, selectedMonth - 1, Math.floor(Math.random() * 28) + 1),
-        promedio_diario: diasTrabajados > 0 ? (totalHoras / diasTrabajados).toFixed(1) : "0",
-        ...diasLaborales // Incluir las horas por día
-      };
-    });
-  }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday]);
 
   // Configuración de columnas dinámicas
   const columns = useMemo(() => {
@@ -159,49 +91,49 @@ const CanvasRecargosDashboard = () => {
 
     const baseColumns = [
       {
-        key: 'select',
-        label: '',
-        width: '50px',
+        key: "select",
+        label: "",
+        width: "50px",
         sortable: false,
         filterable: false,
-        fixed: true
+        fixed: true,
       },
       {
-        key: 'conductor',
-        label: 'CONDUCTOR',
-        width: '250px',
+        key: "conductor",
+        label: "CONDUCTOR",
+        width: "250px",
         sortable: true,
         filterable: true,
-        align: 'left',
-        fixed: true
+        align: "left",
+        fixed: true,
       },
       {
-        key: 'empresa',
-        label: 'EMPRESA',
-        width: '200px',
+        key: "empresa",
+        label: "EMPRESA",
+        width: "200px",
         sortable: true,
         filterable: true,
-        align: 'left',
-        fixed: true
+        align: "left",
+        fixed: true,
       },
       {
-        key: 'numero_planilla',
-        label: 'PLANILLA',
-        width: '120px',
+        key: "numero_planilla",
+        label: "PLANILLA",
+        width: "120px",
         sortable: true,
         filterable: true,
-        align: 'center',
-        fixed: true
+        align: "center",
+        fixed: true,
       },
       {
-        key: 'vehiculo',
-        label: 'PLACA',
-        width: '100px',
+        key: "vehiculo",
+        label: "PLACA",
+        width: "100px",
         sortable: true,
         filterable: true,
-        align: 'center',
-        fixed: true
-      }
+        align: "center",
+        fixed: true,
+      },
     ];
 
     // Generar columnas para cada día del mes
@@ -213,200 +145,212 @@ const CanvasRecargosDashboard = () => {
       return {
         key: `day_${day}`,
         label: day.toString(),
-        width: '55px',
+        width: "55px",
         sortable: true,
-        align: 'center',
+        align: "center",
         isDayColumn: true,
         isSunday: isSundayDay,
         isHoliday: isHolidayDay,
-        day: day
+        day: day,
       };
     });
 
     const summaryColumns = [
       {
-        key: 'total_horas_trabajadas',
-        label: 'TOTAL\nHORAS',
-        width: '80px',
+        key: "total_horas_trabajadas",
+        label: "TOTAL\nHORAS",
+        width: "80px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'promedio_diario',
-        label: 'PROM.\nDIARIO',
-        width: '80px',
+        key: "promedio_diario",
+        label: "PROM.\nDIARIO",
+        width: "80px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'total_hed',
-        label: 'HED\n(25%)',
-        width: '70px',
+        key: "total_hed",
+        label: "HED\n(25%)",
+        width: "70px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'total_hen',
-        label: 'HEN\n(75%)',
-        width: '70px',
+        key: "total_hen",
+        label: "HEN\n(75%)",
+        width: "70px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'total_hefd',
-        label: 'HEFD\n(100%)',
-        width: '70px',
+        key: "total_hefd",
+        label: "HEFD\n(100%)",
+        width: "70px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'total_hefn',
-        label: 'HEFN\n(150%)',
-        width: '70px',
+        key: "total_hefn",
+        label: "HEFN\n(150%)",
+        width: "70px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'total_rn',
-        label: 'RN\n(35%)',
-        width: '70px',
+        key: "total_rn",
+        label: "RN\n(35%)",
+        width: "70px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'total_rd',
-        label: 'RD\n(75%)',
-        width: '70px',
+        key: "total_rd",
+        label: "RD\n(75%)",
+        width: "70px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'dias_laborales',
-        label: 'DÍAS\nLAB.',
-        width: '70px',
+        key: "dias_laborales",
+        label: "DÍAS\nLAB.",
+        width: "70px",
         sortable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'valor_total',
-        label: 'VALOR TOTAL',
-        width: '130px',
+        key: "valor_total",
+        label: "VALOR TOTAL",
+        width: "130px",
         sortable: true,
-        align: 'right',
-        isSummary: true
+        align: "right",
+        isSummary: true,
       },
       {
-        key: 'estado',
-        label: 'ESTADO',
-        width: '100px',
+        key: "estado",
+        label: "ESTADO",
+        width: "100px",
         sortable: true,
         filterable: true,
-        align: 'center',
-        isSummary: true
+        align: "center",
+        isSummary: true,
       },
       {
-        key: 'acciones',
-        label: 'ACCIONES',
-        width: '100px',
+        key: "acciones",
+        label: "ACCIONES",
+        width: "100px",
         sortable: false,
-        align: 'center',
-        isSummary: true
-      }
+        align: "center",
+        isSummary: true,
+      },
     ];
 
     return [...baseColumns, ...dayColumns, ...summaryColumns];
   }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday]);
 
   // Obtener valores únicos para filtros
-  const getUniqueValues = useCallback((field) => {
-    const values = new Set();
-    mockData.forEach(item => {
-      let value = '';
-      switch (field) {
-        case 'empresas':
-          value = item.empresa.nombre;
-          break;
-        case 'estados':
-          value = item.estado;
-          break;
-        case 'planillas':
-          value = item.numero_planilla;
-          break;
-        case 'placas':
-          value = item.vehiculo.placa;
-          break;
-      }
-      if (value) values.add(value);
-    });
-    return Array.from(values).sort();
-  }, [mockData]);
+  const getUniqueValues = useCallback(
+    (field: string) => {
+      const values = new Set();
+      recargos.forEach((item) => {
+        let value = "";
+        switch (field) {
+          case "empresas":
+            value = "Empresa"; // Simular empresa por ahora
+            break;
+          case "estados":
+            value = "activo"; // Simular estado
+            break;
+          case "planillas":
+            value = item.planilla;
+            break;
+          case "placas":
+            value = item.vehiculo;
+            break;
+        }
+        if (value) values.add(value);
+      });
+      return Array.from(values).sort();
+    },
+    [recargos],
+  );
 
   // Datos filtrados y ordenados
   const processedData = useMemo(() => {
-    let result = [...mockData];
+    let result = [...recargos];
 
     // Aplicar búsqueda
     if (searchTerm) {
-      result = result.filter(item =>
-        item.conductor.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.conductor.cedula.includes(searchTerm) ||
-        item.empresa.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.vehiculo.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.numero_planilla.toLowerCase().includes(searchTerm.toLowerCase())
+      result = result.filter(
+        (item) =>
+          item.conductor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.vehiculo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.planilla.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
     // Aplicar filtros
     if (filters.empresas.length > 0) {
-      result = result.filter(item => filters.empresas.includes(item.empresa.nombre));
+      result = result.filter((item) => filters.empresas.includes("Empresa"));
     }
     if (filters.estados.length > 0) {
-      result = result.filter(item => filters.estados.includes(item.estado));
+      result = result.filter((item) => filters.estados.includes("activo"));
     }
     if (filters.planillas.length > 0) {
-      result = result.filter(item => filters.planillas.includes(item.numero_planilla));
+      result = result.filter((item) =>
+        filters.planillas.includes(item.planilla),
+      );
     }
     if (filters.placas.length > 0) {
-      result = result.filter(item => filters.placas.includes(item.vehiculo.placa));
+      result = result.filter((item) => filters.placas.includes(item.vehiculo));
     }
 
     // Aplicar ordenamiento
-    result.sort((a, b) => {
+    result.sort((a: any, b: any) => {
       let aValue, bValue;
 
       switch (sortField) {
-        case 'conductor':
-          aValue = a.conductor.fullName;
-          bValue = b.conductor.fullName;
+        case "conductor":
+          aValue = a.conductor;
+          bValue = b.conductor;
           break;
-        case 'empresa':
-          aValue = a.empresa.nombre;
-          bValue = b.empresa.nombre;
+        case "empresa":
+          aValue = "Empresa";
+          bValue = "Empresa";
           break;
-        case 'vehiculo':
-          aValue = a.vehiculo.placa;
-          bValue = b.vehiculo.placa;
+        case "vehiculo":
+          aValue = a.vehiculo;
+          bValue = b.vehiculo;
+          break;
+        case "numero_planilla":
+          aValue = a.planilla;
+          bValue = b.planilla;
+          break;
+        case "total_horas_trabajadas":
+          aValue = a.total_horas;
+          bValue = b.total_horas;
           break;
         default:
-          aValue = a[sortField];
-          bValue = b[sortField];
+          aValue = a[sortField] || 0;
+          bValue = b[sortField] || 0;
       }
 
-      if (typeof aValue === 'string') {
+      if (typeof aValue === "string") {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
 
-      if (sortDirection === 'asc') {
+      if (sortDirection === "asc") {
         return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       } else {
         return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
@@ -414,7 +358,7 @@ const CanvasRecargosDashboard = () => {
     });
 
     return result;
-  }, [mockData, searchTerm, filters, sortField, sortDirection]);
+  }, [recargos, searchTerm, filters, sortField, sortDirection]);
 
   // Datos paginados
   const paginatedData = useMemo(() => {
@@ -424,10 +368,22 @@ const CanvasRecargosDashboard = () => {
 
   // Estadísticas
   const statistics = useMemo(() => {
-    const totalHoras = processedData.reduce((acc, item) => acc + item.total_horas_trabajadas, 0);
-    const totalValor = processedData.reduce((acc, item) => acc + item.valor_total, 0);
-    const totalHED = processedData.reduce((acc, item) => acc + item.total_hed, 0);
-    const totalHEN = processedData.reduce((acc, item) => acc + item.total_hen, 0);
+    const totalHoras = processedData.reduce(
+      (acc, item) => acc + item.total_horas,
+      0,
+    );
+    const totalValor = processedData.reduce(
+      (acc, item) => acc + (item.valor_total || 0),
+      0,
+    );
+    const totalHED = processedData.reduce(
+      (acc, item) => acc + (item.total_hed || 0),
+      0,
+    );
+    const totalHEN = processedData.reduce(
+      (acc, item) => acc + (item.total_hen || 0),
+      0,
+    );
 
     return {
       totalRegistros: processedData.length,
@@ -435,22 +391,25 @@ const CanvasRecargosDashboard = () => {
       totalValor,
       totalHED,
       totalHEN,
-      promedioHoras: processedData.length > 0 ? (totalHoras / processedData.length).toFixed(1) : 0,
-      empresasActivas: new Set(processedData.map(item => item.empresa.nombre)).size
+      promedioHoras:
+        processedData.length > 0
+          ? (totalHoras / processedData.length).toFixed(1)
+          : 0,
+      empresasActivas: 1, // Por ahora simulamos 1 empresa
     };
   }, [processedData]);
 
   // Handlers
-  const handleSort = (field) => {
+  const handleSort = (field: string) => {
     if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
-  const handleSelectRow = (id) => {
+  const handleSelectRow = (id: string) => {
     const newSelected = new Set(selectedRows);
     if (newSelected.has(id)) {
       newSelected.delete(id);
@@ -464,22 +423,22 @@ const CanvasRecargosDashboard = () => {
     if (selectedRows.size === paginatedData.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedData.map(item => item.id)));
+      setSelectedRows(new Set(paginatedData.map((item) => item.id)));
     }
   };
 
   const toggleFilter = (type) => {
-    setShowFilters(prev => ({
+    setShowFilters((prev) => ({
       ...prev,
-      [type]: !prev[type]
+      [type]: !prev[type],
     }));
   };
 
   const updateFilter = (type, value) => {
-    setFilters(prev => {
+    setFilters((prev) => {
       const currentValues = prev[type];
       const newValues = currentValues.includes(value)
-        ? currentValues.filter(v => v !== value)
+        ? currentValues.filter((v) => v !== value)
         : [...currentValues, value];
 
       return { ...prev, [type]: newValues };
@@ -488,12 +447,12 @@ const CanvasRecargosDashboard = () => {
 
   const clearAllFilters = () => {
     setFilters({ empresas: [], estados: [], planillas: [], placas: [] });
-    setSearchTerm('');
+    setSearchTerm("");
   };
 
   const renderCell = (item, column) => {
     switch (column.key) {
-      case 'select':
+      case "select":
         return (
           <input
             type="checkbox"
@@ -503,52 +462,61 @@ const CanvasRecargosDashboard = () => {
           />
         );
 
-      case 'conductor':
+      case "conductor":
+        const initials = item.conductor
+          .split(" ")
+          .map((name) => name.charAt(0))
+          .slice(0, 2)
+          .join("");
         return (
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">
-              {item.conductor.nombre.charAt(0)}{item.conductor.apellido.charAt(0)}
+              {initials}
             </div>
             <div>
-              <div className="font-medium text-gray-900 text-sm">{item.conductor.fullName}</div>
-              <div className="text-xs text-gray-500">{item.conductor.cedula}</div>
+              <div className="font-medium text-gray-900 text-sm">
+                {item.conductor}
+              </div>
+              <div className="text-xs text-gray-500">
+                ID: {item.id.substring(0, 8)}
+              </div>
             </div>
           </div>
         );
 
-      case 'empresa':
-        return (
-          <div className="text-sm text-gray-900">{item.empresa.nombre}</div>
-        );
+      case "empresa":
+        return <div className="text-sm text-gray-900">Empresa Principal</div>;
 
-      case 'vehiculo':
+      case "vehiculo":
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-            {item.vehiculo.placa}
+            {item.vehiculo}
           </span>
         );
 
-      case 'valor_total':
+      case "valor_total":
         return (
           <span className="font-semibold text-green-600">
-            ${item.valor_total.toLocaleString()}
+            ${(item.valor_total || 0).toLocaleString()}
           </span>
         );
 
-      case 'estado':
+      case "estado":
         const statusColors = {
-          activo: 'bg-green-100 text-green-800',
-          revision: 'bg-yellow-100 text-yellow-800',
-          pendiente: 'bg-red-100 text-red-800',
-          aprobado: 'bg-emerald-100 text-emerald-800'
+          activo: "bg-green-100 text-green-800",
+          revision: "bg-yellow-100 text-yellow-800",
+          pendiente: "bg-red-100 text-red-800",
+          aprobado: "bg-emerald-100 text-emerald-800",
         };
         return (
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusColors[item.estado]}`}>
-            {item.estado.toUpperCase()}
+          <span
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800`}
+          >
+            ACTIVO
           </span>
         );
 
-      case 'acciones':
+      case "acciones":
         return (
           <div className="flex items-center justify-center space-x-1">
             <button className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
@@ -566,22 +534,52 @@ const CanvasRecargosDashboard = () => {
       default:
         // Manejo de columnas de días y otras columnas numéricas
         if (column.isDayColumn) {
-          const horasDelDia = item[column.key] || 0;
-          const hasHours = horasDelDia > 0;
+          const dayData = item.dias?.find((d) => d.dia === column.day);
+          const hasHours = dayData && dayData.horas > 0;
 
           return (
-            <div className={`text-sm font-medium ${hasHours
-              ? 'text-emerald-900 bg-emerald-50 px-2 py-1 rounded'
-              : 'text-gray-400'
-              }`}>
-              {hasHours ? horasDelDia : '-'}
+            <div
+              className={`text-sm font-medium ${
+                hasHours
+                  ? dayData.es_especial
+                    ? "text-red-900 bg-red-100 px-2 py-1 rounded"
+                    : "text-emerald-900 bg-emerald-50 px-2 py-1 rounded"
+                  : "text-gray-400"
+              }`}
+            >
+              {hasHours ? dayData.horas : "-"}
             </div>
+          );
+        }
+
+        // Manejo de otras columnas de resumen
+        if (column.key === "total_horas_trabajadas") {
+          return (
+            <span className="font-semibold text-emerald-600">
+              {item.total_horas}
+            </span>
+          );
+        }
+
+        if (column.key === "dias_laborales") {
+          return (
+            <span className="font-semibold text-blue-600">
+              {item.total_dias}
+            </span>
+          );
+        }
+
+        if (column.key === "numero_planilla") {
+          return (
+            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+              {item.planilla}
+            </span>
           );
         }
 
         return (
           <span className="text-sm text-gray-900">
-            {item[column.key] || '0'}
+            {item[column.key] || "0"}
           </span>
         );
     }
@@ -591,11 +589,11 @@ const CanvasRecargosDashboard = () => {
     if (!column.filterable) return null;
 
     const filterKey = {
-      'conductor': 'conductores',
-      'empresa': 'empresas',
-      'numero_planilla': 'planillas',
-      'vehiculo': 'placas',
-      'estado': 'estados'
+      conductor: "conductores",
+      empresa: "empresas",
+      numero_planilla: "planillas",
+      vehiculo: "placas",
+      estado: "estados",
     }[column.key];
 
     if (!filterKey || !showFilters[filterKey]) return null;
@@ -606,7 +604,7 @@ const CanvasRecargosDashboard = () => {
     return (
       <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-48 overflow-y-auto">
         <div className="space-y-2">
-          {values.map(value => (
+          {values.map((value) => (
             <label key={value} className="flex items-center space-x-2 text-xs">
               <input
                 type="checkbox"
@@ -636,8 +634,12 @@ const CanvasRecargosDashboard = () => {
                 <BarChart3 size={24} className="text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Planilla de Recargos - Canvas View</h1>
-                <p className="text-sm text-gray-500">Vista de tabla avanzada con filtros inteligentes</p>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Planilla de Recargos - Canvas View
+                </h1>
+                <p className="text-sm text-gray-500">
+                  Vista de tabla avanzada con filtros inteligentes
+                </p>
               </div>
             </div>
 
@@ -650,8 +652,23 @@ const CanvasRecargosDashboard = () => {
                   onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
                   className="border-none bg-transparent text-sm font-medium focus:outline-none"
                 >
-                  {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((month, index) => (
-                    <option key={index} value={index + 1}>{month}</option>
+                  {[
+                    "Enero",
+                    "Febrero",
+                    "Marzo",
+                    "Abril",
+                    "Mayo",
+                    "Junio",
+                    "Julio",
+                    "Agosto",
+                    "Septiembre",
+                    "Octubre",
+                    "Noviembre",
+                    "Diciembre",
+                  ].map((month, index) => (
+                    <option key={index} value={index + 1}>
+                      {month}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -663,7 +680,11 @@ const CanvasRecargosDashboard = () => {
                   <option value={2025}>2025</option>
                 </select>
               </div>
-              <ModalNewRecargo currentMonth={selectedMonth} currentYear={selectedYear}/>
+              <ModalNewRecargo
+                currentMonth={selectedMonth}
+                currentYear={selectedYear}
+              />
+              <ModalConfiguracion />
             </div>
           </div>
         </div>
@@ -674,27 +695,39 @@ const CanvasRecargosDashboard = () => {
         <div className="px-6 py-4">
           <div className="grid grid-cols-6 gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-600">{statistics.totalRegistros}</div>
+              <div className="text-2xl font-bold text-emerald-600">
+                {statistics.totalRegistros}
+              </div>
               <div className="text-xs text-gray-500">Registros</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{statistics.totalHoras}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {statistics.totalHoras}
+              </div>
               <div className="text-xs text-gray-500">Horas Totales</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{statistics.totalHED}</div>
+              <div className="text-2xl font-bold text-purple-600">
+                {statistics.totalHED}
+              </div>
               <div className="text-xs text-gray-500">HE Diurnas</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-600">{statistics.totalHEN}</div>
+              <div className="text-2xl font-bold text-emerald-600">
+                {statistics.totalHEN}
+              </div>
               <div className="text-xs text-gray-500">HE Nocturnas</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-amber-600">{statistics.empresasActivas}</div>
+              <div className="text-2xl font-bold text-amber-600">
+                {statistics.empresasActivas}
+              </div>
               <div className="text-xs text-gray-500">Empresas</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">${(statistics.totalValor / 1000000).toFixed(1)}M</div>
+              <div className="text-2xl font-bold text-green-600">
+                ${(statistics.totalValor / 1000000).toFixed(1)}M
+              </div>
               <div className="text-xs text-gray-500">Valor Total</div>
             </div>
           </div>
@@ -708,7 +741,10 @@ const CanvasRecargosDashboard = () => {
             <div className="flex items-center space-x-4">
               {/* Búsqueda global */}
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                />
                 <input
                   type="text"
                   placeholder="Buscar en todos los campos..."
@@ -721,7 +757,9 @@ const CanvasRecargosDashboard = () => {
               {/* Indicadores de filtros activos */}
               {activeFiltersCount > 0 && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">Filtros activos:</span>
+                  <span className="text-sm text-gray-600">
+                    Filtros activos:
+                  </span>
                   <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
                     {activeFiltersCount}
                   </span>
@@ -746,7 +784,9 @@ const CanvasRecargosDashboard = () => {
               {/* Paginación compacta */}
               <div className="flex items-center space-x-2 text-sm">
                 <span className="text-gray-600">
-                  {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, processedData.length)} de {processedData.length}
+                  {(currentPage - 1) * itemsPerPage + 1}-
+                  {Math.min(currentPage * itemsPerPage, processedData.length)}{" "}
+                  de {processedData.length}
                 </span>
                 <select
                   value={itemsPerPage}
@@ -775,17 +815,22 @@ const CanvasRecargosDashboard = () => {
             <div className="flex">
               {columns.map((column, index) => {
                 // Determinar el estilo del header según el tipo de columna
-                let headerClass = "relative border-r border-gray-300 bg-gray-50";
+                let headerClass =
+                  "relative border-r border-gray-300 bg-gray-50";
 
                 if (column.fixed) {
-                  headerClass = "relative border-r border-gray-300 bg-slate-100";
+                  headerClass =
+                    "relative border-r border-gray-300 bg-slate-100";
                 } else if (column.isDayColumn) {
                   if (column.isSunday) {
-                    headerClass = "relative border-r border-gray-300 bg-emerald-600 text-white";
+                    headerClass =
+                      "relative border-r border-gray-300 bg-emerald-600 text-white";
                   } else if (column.isHoliday) {
-                    headerClass = "relative border-r border-gray-300 bg-red-500 text-white";
+                    headerClass =
+                      "relative border-r border-gray-300 bg-red-500 text-white";
                   } else {
-                    headerClass = "relative border-r border-gray-300 bg-emerald-50";
+                    headerClass =
+                      "relative border-r border-gray-300 bg-emerald-50";
                   }
                 } else if (column.isSummary) {
                   headerClass = "relative border-r border-gray-300 bg-green-50";
@@ -797,20 +842,33 @@ const CanvasRecargosDashboard = () => {
                     className={headerClass}
                     style={{
                       width: column.width,
-                      minWidth: column.width
+                      minWidth: column.width,
                     }}
                   >
                     <div className="p-2 flex items-center justify-between">
-                      <div className={`flex-1 text-xs font-bold ${column.isSunday || column.isHoliday ? 'text-white' : 'text-gray-700'
-                        } ${column.align === 'center' ? 'text-center' :
-                          column.align === 'right' ? 'text-right' : 'text-left'
-                        }`}>
+                      <div
+                        className={`flex-1 text-xs font-bold ${
+                          column.isSunday || column.isHoliday
+                            ? "text-white"
+                            : "text-gray-700"
+                        } ${
+                          column.align === "center"
+                            ? "text-center"
+                            : column.align === "right"
+                              ? "text-right"
+                              : "text-left"
+                        }`}
+                      >
                         <div className="whitespace-pre-line leading-tight">
                           {column.isDayColumn ? (
                             <div className="text-center">
                               <div className="font-bold">{column.label}</div>
-                              {column.isSunday && <div className="text-xs opacity-90">DOM</div>}
-                              {column.isHoliday && <div className="text-xs opacity-90">FES</div>}
+                              {column.isSunday && (
+                                <div className="text-xs opacity-90">DOM</div>
+                              )}
+                              {column.isHoliday && (
+                                <div className="text-xs opacity-90">FES</div>
+                              )}
                             </div>
                           ) : (
                             column.label
@@ -823,31 +881,56 @@ const CanvasRecargosDashboard = () => {
                         {column.sortable && (
                           <button
                             onClick={() => handleSort(column.key)}
-                            className={`p-1 hover:bg-gray-200 rounded transition-colors ${column.isSunday || column.isHoliday ? 'hover:bg-white/20' : ''
-                              }`}
+                            className={`p-1 hover:bg-gray-200 rounded transition-colors ${
+                              column.isSunday || column.isHoliday
+                                ? "hover:bg-white/20"
+                                : ""
+                            }`}
                           >
-                            <ArrowUpDown size={10} className={`${sortField === column.key ? 'text-emerald-600' :
-                              column.isSunday || column.isHoliday ? 'text-white' : 'text-gray-400'
-                              }`} />
+                            <ArrowUpDown
+                              size={10}
+                              className={`${
+                                sortField === column.key
+                                  ? "text-emerald-600"
+                                  : column.isSunday || column.isHoliday
+                                    ? "text-white"
+                                    : "text-gray-400"
+                              }`}
+                            />
                           </button>
                         )}
 
                         {/* Filter button - solo para columnas específicas */}
                         {column.filterable && (
                           <button
-                            onClick={() => toggleFilter(
-                              column.key === 'conductor' ? 'conductores' :
-                                column.key === 'empresa' ? 'empresas' :
-                                  column.key === 'numero_planilla' ? 'planillas' :
-                                    column.key === 'vehiculo' ? 'placas' : 'estados'
-                            )}
-                            className={`p-1 hover:bg-gray-200 rounded transition-colors ${filters[
-                              column.key === 'conductor' ? 'conductores' :
-                                column.key === 'empresa' ? 'empresas' :
-                                  column.key === 'numero_planilla' ? 'planillas' :
-                                    column.key === 'vehiculo' ? 'placas' : 'estados'
-                            ]?.length > 0 ? 'text-emerald-600' : 'text-gray-400'
-                              }`}
+                            onClick={() =>
+                              toggleFilter(
+                                column.key === "conductor"
+                                  ? "conductores"
+                                  : column.key === "empresa"
+                                    ? "empresas"
+                                    : column.key === "numero_planilla"
+                                      ? "planillas"
+                                      : column.key === "vehiculo"
+                                        ? "placas"
+                                        : "estados",
+                              )
+                            }
+                            className={`p-1 hover:bg-gray-200 rounded transition-colors ${
+                              filters[
+                                column.key === "conductor"
+                                  ? "conductores"
+                                  : column.key === "empresa"
+                                    ? "empresas"
+                                    : column.key === "numero_planilla"
+                                      ? "planillas"
+                                      : column.key === "vehiculo"
+                                        ? "placas"
+                                        : "estados"
+                              ]?.length > 0
+                                ? "text-emerald-600"
+                                : "text-gray-400"
+                            }`}
                           >
                             <Filter size={10} />
                           </button>
@@ -866,18 +949,24 @@ const CanvasRecargosDashboard = () => {
             <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
               <input
                 type="checkbox"
-                checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
+                checked={
+                  selectedRows.size === paginatedData.length &&
+                  paginatedData.length > 0
+                }
                 onChange={handleSelectAll}
                 className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
               />
             </div>
           </div>
-    
+
           {/* Header de selección múltiple */}
           <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
             <input
               type="checkbox"
-              checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
+              checked={
+                selectedRows.size === paginatedData.length &&
+                paginatedData.length > 0
+              }
               onChange={handleSelectAll}
               className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
             />
@@ -889,19 +978,23 @@ const CanvasRecargosDashboard = () => {
           {paginatedData.map((item, rowIndex) => (
             <div
               key={item.id}
-              className={`flex hover:bg-emerald-50 transition-colors ${selectedRows.has(item.id) ? 'bg-emerald-50' : ''
-                } ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+              className={`flex hover:bg-emerald-50 transition-colors ${
+                selectedRows.has(item.id) ? "bg-emerald-50" : ""
+              } ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
             >
               {columns.map((column) => {
                 // Determinar el estilo de la celda según el tipo de columna
-                let cellClass = "border-r border-gray-200 p-2 flex items-center";
+                let cellClass =
+                  "border-r border-gray-200 p-2 flex items-center";
 
                 if (column.fixed) {
                   cellClass += " bg-slate-50";
                 } else if (column.isDayColumn) {
                   const hasHours = item[column.key] > 0;
                   if (column.isSunday) {
-                    cellClass += hasHours ? " bg-emerald-100" : " bg-emerald-50";
+                    cellClass += hasHours
+                      ? " bg-emerald-100"
+                      : " bg-emerald-50";
                   } else if (column.isHoliday) {
                     cellClass += hasHours ? " bg-red-100" : " bg-red-50";
                   } else {
@@ -918,7 +1011,12 @@ const CanvasRecargosDashboard = () => {
                     style={{
                       width: column.width,
                       minWidth: column.width,
-                      justifyContent: column.align === 'center' ? 'center' : column.align === 'right' ? 'flex-end' : 'flex-start'
+                      justifyContent:
+                        column.align === "center"
+                          ? "center"
+                          : column.align === "right"
+                            ? "flex-end"
+                            : "flex-start",
                     }}
                   >
                     {renderCell(item, column)}
@@ -936,7 +1034,9 @@ const CanvasRecargosDashboard = () => {
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search size={32} className="text-gray-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No se encontraron registros</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                No se encontraron registros
+              </h3>
               <p className="text-gray-500 mb-4">
                 {searchTerm || activeFiltersCount > 0
                   ? "Intenta ajustar los filtros o términos de búsqueda"
@@ -961,12 +1061,31 @@ const CanvasRecargosDashboard = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, processedData.length)} de {processedData.length} registros
+                Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
+                {Math.min(currentPage * itemsPerPage, processedData.length)} de{" "}
+                {processedData.length} registros
               </span>
 
               <div className="text-sm text-gray-500">
-                Mes: {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][selectedMonth - 1]} {selectedYear}
-                ({getDaysInMonth(selectedMonth, selectedYear)} días)
+                Mes:{" "}
+                {
+                  [
+                    "Enero",
+                    "Febrero",
+                    "Marzo",
+                    "Abril",
+                    "Mayo",
+                    "Junio",
+                    "Julio",
+                    "Agosto",
+                    "Septiembre",
+                    "Octubre",
+                    "Noviembre",
+                    "Diciembre",
+                  ][selectedMonth - 1]
+                }{" "}
+                {selectedYear}({getDaysInMonth(selectedMonth, selectedYear)}{" "}
+                días)
               </div>
 
               {selectedRows.size > 0 && (
@@ -1011,10 +1130,11 @@ const CanvasRecargosDashboard = () => {
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1 text-sm rounded-lg transition-colors ${currentPage === pageNum
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
+                      className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                        currentPage === pageNum
+                          ? "bg-emerald-600 text-white"
+                          : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
                     >
                       {pageNum}
                     </button>
@@ -1035,7 +1155,9 @@ const CanvasRecargosDashboard = () => {
               </div>
 
               <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
                 disabled={currentPage === totalPages}
                 className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >

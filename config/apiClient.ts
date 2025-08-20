@@ -5,8 +5,7 @@ import axios from "axios";
 // Crear una instancia de axios sin usar hooks
 const createApiClient = () => {
   const instance = axios.create({
-    baseURL:
-      process.env.NEXT_PUBLIC_API_URL_MAIN || "http://localhost:5000/api",
+    baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
     headers: { "Content-Type": "application/json" },
     withCredentials: true, // Esto enviará las cookies automáticamente
   });
@@ -49,8 +48,7 @@ const createApiClient = () => {
 
       // Si hay token, incluirlo en el header
       if (token) {
-        config.headers["Authorization"] =
-          `Bearer ${"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImE2ODgyNzc4LTU5NjUtNDEyYy1hYjAyLTdhNjJmZmQwNTc1MCIsImlhdCI6MTc1MzExMTc5NiwiZXhwIjoxNzU1NzAzNzk2fQ.jErIaLMV2YXYzLd2j65zAoPuLVkjlagfQMyspqUg2EA"}`;
+        config.headers["Authorization"] = `Bearer ${token}`;
       }
 
       return config;
@@ -83,7 +81,7 @@ const createApiClient = () => {
 };
 
 // Crear una instancia para exportar
-export const apiClientMain = createApiClient();
+export const apiClient = createApiClient();
 
 // Exportar también la función creadora por si se necesita una instancia fresca
 export default createApiClient;

@@ -6,7 +6,7 @@
     "dev": "next dev --hostname recargos.midominio.local --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .ts,.tsx -c .eslintrc.json --fix",
+    "lint": "eslint . --ext .ts,.tsx --fix",
     "lint:fix": "prettier --write . && eslint . --ext .ts,.tsx --fix"
   },
   "lint-staged": {
@@ -16,6 +16,7 @@
     ]
   },
   "dependencies": {
+    "@heroui/badge": "^2.2.15",
     "@heroui/button": "^2.2.23",
     "@heroui/card": "^2.2.22",
     "@heroui/chip": "^2.2.19",
@@ -23,6 +24,7 @@
     "@heroui/date-input": "^2.3.23",
     "@heroui/divider": "^2.2.16",
     "@heroui/dropdown": "^2.3.23",
+    "@heroui/form": "^2.1.24",
     "@heroui/input": "2.4.24",
     "@heroui/kbd": "2.2.18",
     "@heroui/link": "2.2.20",
@@ -38,7 +40,7 @@
     "@heroui/table": "^2.2.23",
     "@heroui/tabs": "^2.2.21",
     "@heroui/theme": "2.4.19",
-    "@heroui/toast": "^2.0.13",
+    "@heroui/toast": "^2.0.14",
     "@heroui/tooltip": "^2.2.20",
     "@hookform/resolvers": "^5.1.1",
     "@react-aria/ssr": "3.9.9",
@@ -66,9 +68,9 @@
     "@types/node": "20.5.7",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
-    "@typescript-eslint/eslint-plugin": "8.34.1",
-    "@typescript-eslint/parser": "8.34.1",
-    "eslint": "9.25.1",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "eslint": "^9.33.0",
     "eslint-config-next": "15.3.4",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-import": "2.31.0",

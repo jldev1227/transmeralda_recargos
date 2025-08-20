@@ -1,19 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from "react";
 import { Button } from "@heroui/button";
-import { Card, CardBody, CardHeader } from "@heroui/card";
-import { Chip } from "@heroui/chip";
-import { 
-  Upload, 
-  FileText, 
-  Image as ImageIcon, 
-  X, 
-  Eye,
-  Download,
-  AlertCircle,
-  RotateCw,
-  ZoomIn,
-  ZoomOut
-} from "lucide-react";
+import { Card, CardBody } from "@heroui/card";
+import { Upload, FileText, Image, X, Eye, AlertCircle } from "lucide-react";
 
 interface ArchivoAdjunto {
   file: File;
@@ -31,38 +19,35 @@ interface UploadPlanillaProps {
 const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
   onFileChange,
   maxSizeMB = 10,
-  className = ""
+  className = "",
 }) => {
   const [archivo, setArchivo] = useState<ArchivoAdjunto | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string>("");
   const [showPreview, setShowPreview] = useState(false);
-  const [pdfZoom, setPdfZoom] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Tipos de archivo permitidos
   const tiposPermitidos = {
-    'application/pdf': ['.pdf'],
-    'image/jpeg': ['.jpg', '.jpeg'],
-    'image/png': ['.png'],
-    'image/webp': ['.webp'],
-    'image/gif': ['.gif'],
-    'image/bmp': ['.bmp']
+    "application/pdf": [".pdf"],
+    "image/jpeg": [".jpg", ".jpeg"],
+    "image/png": [".png"],
+    "image/webp": [".webp"],
+    "image/gif": [".gif"],
+    "image/bmp": [".bmp"],
   };
 
   const extensionesPermitidas = Object.values(tiposPermitidos).flat();
 
   // Función para validar archivo
   const validarArchivo = (file: File): string | null => {
-    // Verificar tipo de archivo
     if (!Object.keys(tiposPermitidos).includes(file.type)) {
-      return `Tipo de archivo no permitido. Solo se aceptan: ${extensionesPermitidas.join(', ')}`;
+      return `Tipo no permitido. Solo: ${extensionesPermitidas.join(", ")}`;
     }
 
-    // Verificar tamaño
     const sizeMB = file.size / (1024 * 1024);
     if (sizeMB > maxSizeMB) {
-      return `El archivo es muy grande. Máximo ${maxSizeMB}MB permitido.`;
+      return `Archivo muy grande. Máximo ${maxSizeMB}MB.`;
     }
 
     return null;
@@ -73,17 +58,17 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
     return new Promise((resolve) => {
       const archivoData: ArchivoAdjunto = {
         file,
-        id: `${Date.now()}-${Math.random()}`
+        id: `${Date.now()}-${Math.random()}`,
       };
 
-      if (file.type.startsWith('image/')) {
+      if (file.type.startsWith("image/")) {
         const reader = new FileReader();
         reader.onload = (e) => {
           archivoData.preview = e.target?.result as string;
           resolve(archivoData);
         };
         reader.readAsDataURL(file);
-      } else if (file.type === 'application/pdf') {
+      } else if (file.type === "application/pdf") {
         const reader = new FileReader();
         reader.onload = (e) => {
           archivoData.pdfDataUrl = e.target?.result as string;
@@ -99,7 +84,7 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
   // Función para procesar archivo
   const procesarArchivo = async (file: File) => {
     setError("");
-    
+
     const errorValidacion = validarArchivo(file);
     if (errorValidacion) {
       setError(errorValidacion);
@@ -108,7 +93,7 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
 
     const archivoData = await crearPreview(file);
     setArchivo(archivoData);
-    
+
     if (onFileChange) {
       onFileChange(file);
     }
@@ -130,9 +115,9 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
-    if (archivo) return; // No permitir si ya hay archivo
-    
+
+    if (archivo) return;
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       procesarArchivo(files[0]);
@@ -151,231 +136,136 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
   const eliminarArchivo = () => {
     setArchivo(null);
     setShowPreview(false);
-    setPdfZoom(1);
-    
+
     if (onFileChange) {
       onFileChange(null);
     }
 
-    // Limpiar input
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
-  };
-
-  // Función para cambiar archivo
-  const cambiarArchivo = () => {
-    eliminarArchivo();
-    setTimeout(() => {
-      fileInputRef.current?.click();
-    }, 100);
   };
 
   // Función para formatear tamaño de archivo
   const formatearTamaño = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const sizes = ["B", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
   };
 
-  // Si ya hay archivo, mostrar preview
+  // Si ya hay archivo, mostrar vista compacta
   if (archivo) {
     return (
       <div className={`w-full ${className}`}>
         <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-center w-full">
-              <div className="flex items-center gap-2">
-                {archivo.file.type === 'application/pdf' ? (
+          <CardBody className="p-3">
+            <div className="flex items-center gap-3">
+              {/* Thumbnail pequeño */}
+              <div
+                className="w-12 h-12 bg-default-100 rounded-lg border flex-shrink-0 flex items-center justify-center overflow-hidden cursor-pointer"
+                onClick={() => setShowPreview(true)}
+              >
+                {archivo.preview ? (
+                  <img
+                    src={archivo.preview}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : archivo.file.type === "application/pdf" ? (
                   <FileText size={20} className="text-danger" />
                 ) : (
-                  <ImageIcon size={20} className="text-primary" />
+                  <Image size={20} className="text-default-400" />
                 )}
-                <div>
-                  <h4 className="text-sm font-semibold text-default-700">
-                    Planilla adjunta
-                  </h4>
-                  <p className="text-xs text-default-500">
-                    {archivo.file.name} • {formatearTamaño(archivo.file.size)}
-                  </p>
-                </div>
               </div>
-              
-              <div className="flex items-center gap-1">
+
+              {/* Info del archivo */}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-default-700 truncate">
+                  {archivo.file.name}
+                </p>
+                <p className="text-xs text-default-500">
+                  {formatearTamaño(archivo.file.size)}
+                </p>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <Button
                   size="sm"
                   isIconOnly
                   variant="light"
                   color="primary"
-                  onClick={() => setShowPreview(true)}
+                  onPress={() => setShowPreview(true)}
+                  className="w-8 h-8 min-w-8"
                 >
                   <Eye size={14} />
                 </Button>
-                
-                <Button
-                  size="sm"
-                  isIconOnly
-                  variant="light"
-                  color="default"
-                  onClick={() => {
-                    const url = URL.createObjectURL(archivo.file);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = archivo.file.name;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  <Download size={14} />
-                </Button>
 
-                <Button
-                  size="sm"
-                  isIconOnly
-                  variant="light"
-                  color="warning"
-                  onClick={cambiarArchivo}
-                >
-                  <RotateCw size={14} />
-                </Button>
-                
                 <Button
                   size="sm"
                   isIconOnly
                   variant="light"
                   color="danger"
-                  onClick={eliminarArchivo}
+                  onPress={eliminarArchivo}
+                  className="w-8 h-8 min-w-8"
                 >
                   <X size={14} />
                 </Button>
               </div>
             </div>
-          </CardHeader>
-          
-          <CardBody className="pt-0">
-            {/* Preview thumbnail */}
-            <div className="w-full h-32 bg-default-100 rounded-lg border-2 border-dashed border-default-300 flex items-center justify-center overflow-hidden cursor-pointer"
-                 onClick={() => setShowPreview(true)}>
-              {archivo.preview ? (
-                <img 
-                  src={archivo.preview} 
-                  alt="Preview"
-                  className="w-full h-full object-contain"
-                />
-              ) : archivo.file.type === 'application/pdf' ? (
-                <div className="text-center">
-                  <FileText size={48} className="text-danger mx-auto mb-2" />
-                  <p className="text-sm text-default-600">Click para previsualizar PDF</p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <ImageIcon size={48} className="text-default-400 mx-auto mb-2" />
-                  <p className="text-sm text-default-500">Vista previa no disponible</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-center mt-3">
-              <Button
-                color="primary"
-                variant="flat"
-                size="sm"
-                startContent={<Eye size={16} />}
-                onClick={() => setShowPreview(true)}
-              >
-                Ver en pantalla completa
-              </Button>
-            </div>
           </CardBody>
         </Card>
 
-        {/* Modal de preview */}
+        {/* Modal de preview simplificado */}
         {showPreview && (
-          <div 
+          <div
             className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
             onClick={() => setShowPreview(false)}
           >
-            <div className="relative w-full h-full max-w-6xl max-h-full flex flex-col">
-              {/* Header del modal */}
-              <div className="flex justify-between items-center mb-4 bg-black/50 p-3 rounded-lg">
-                <div className="text-white">
-                  <h3 className="font-semibold">{archivo.file.name}</h3>
-                  <p className="text-sm text-gray-300">{formatearTamaño(archivo.file.size)}</p>
+            <div className="relative max-w-4xl max-h-full w-full h-full flex flex-col">
+              {/* Header compacto */}
+              <div className="flex justify-between items-center mb-3 bg-black/50 p-2 rounded-lg">
+                <div className="text-white text-sm">
+                  <span className="font-medium">{archivo.file.name}</span>
+                  <span className="text-gray-300 ml-2">
+                    ({formatearTamaño(archivo.file.size)})
+                  </span>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  {archivo.file.type === 'application/pdf' && (
-                    <>
-                      <Button
-                        isIconOnly
-                        color="default"
-                        variant="flat"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPdfZoom(Math.max(0.5, pdfZoom - 0.25));
-                        }}
-                      >
-                        <ZoomOut size={16} />
-                      </Button>
-                      <span className="text-white text-sm px-2">{Math.round(pdfZoom * 100)}%</span>
-                      <Button
-                        isIconOnly
-                        color="default"
-                        variant="flat"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPdfZoom(Math.min(3, pdfZoom + 0.25));
-                        }}
-                      >
-                        <ZoomIn size={16} />
-                      </Button>
-                    </>
-                  )}
-                  
-                  <Button
-                    isIconOnly
-                    color="danger"
-                    variant="solid"
-                    size="sm"
-                    onClick={() => setShowPreview(false)}
-                  >
-                    <X size={16} />
-                  </Button>
-                </div>
+
+                <Button
+                  isIconOnly
+                  color="danger"
+                  variant="solid"
+                  size="sm"
+                  onPress={() => setShowPreview(false)}
+                  className="w-8 h-8 min-w-8"
+                >
+                  <X size={16} />
+                </Button>
               </div>
 
               {/* Contenido del preview */}
               <div className="flex-1 flex items-center justify-center overflow-auto">
                 {archivo.preview ? (
-                  <img 
+                  <img
                     src={archivo.preview}
                     alt={archivo.file.name}
                     className="max-w-full max-h-full object-contain"
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : archivo.pdfDataUrl ? (
-                  <div 
-                    className="w-full h-full flex items-center justify-center"
+                  <iframe
+                    src={archivo.pdfDataUrl}
+                    className="w-full h-full rounded-lg"
+                    title={archivo.file.name}
                     onClick={(e) => e.stopPropagation()}
-                  >
-                    <iframe
-                      src={archivo.pdfDataUrl}
-                      className="w-full h-full rounded-lg"
-                      style={{ 
-                        transform: `scale(${pdfZoom})`,
-                        transformOrigin: 'center center'
-                      }}
-                      title={archivo.file.name}
-                    />
-                  </div>
+                  />
                 ) : (
                   <div className="text-center text-white">
-                    <FileText size={64} className="mx-auto mb-4 opacity-50" />
-                    <p>No se puede mostrar la vista previa de este archivo</p>
+                    <FileText size={48} className="mx-auto mb-2 opacity-50" />
+                    <p>Vista previa no disponible</p>
                   </div>
                 )}
               </div>
@@ -386,79 +276,72 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
     );
   }
 
-  // Si no hay archivo, mostrar dropzone
+  // Dropzone compacto
   return (
     <div className={`w-full ${className}`}>
-      {/* Zona de upload */}
-      <Card 
+      <Card
         className={`border-2 border-dashed transition-all duration-200 cursor-pointer ${
-          isDragOver 
-            ? 'border-primary bg-primary-50' 
-            : 'border-default-300 hover:border-primary hover:bg-default-50'
+          isDragOver
+            ? "border-primary bg-primary-50"
+            : "border-default-300 hover:border-primary hover:bg-default-50"
         }`}
       >
         <CardBody
-          className="p-6 text-center"
+          className="p-4 text-center"
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
         >
-          <div className="flex flex-col items-center gap-3">
-            <div className={`p-3 rounded-full transition-colors ${
-              isDragOver ? 'bg-primary-100' : 'bg-default-100'
-            }`}>
-              <Upload size={32} className={isDragOver ? 'text-primary' : 'text-default-500'} />
+          <div className="flex items-center justify-center gap-3">
+            <div
+              className={`p-2 rounded-full transition-colors ${
+                isDragOver ? "bg-primary-100" : "bg-default-100"
+              }`}
+            >
+              <Upload
+                size={20}
+                className={isDragOver ? "text-primary" : "text-default-500"}
+              />
             </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-default-700">
+
+            <div className="text-left">
+              <p className="text-sm font-medium text-default-700">
                 Adjuntar Planilla
-              </h3>
-              <p className="text-sm text-default-500 mt-1">
-                Arrastra y suelta tu planilla aquí, o haz clic para seleccionar
+              </p>
+              <p className="text-xs text-default-500">
+                PDF, JPG, PNG • Máx {maxSizeMB}MB
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2 justify-center">
-              <Chip size="sm" variant="flat" color="danger">PDF</Chip>
-              <Chip size="sm" variant="flat" color="primary">JPG</Chip>
-              <Chip size="sm" variant="flat" color="primary">PNG</Chip>
-              <Chip size="sm" variant="flat" color="primary">WEBP</Chip>
-            </div>
-
-            <p className="text-xs text-default-400">
-              1 archivo máximo • Hasta {maxSizeMB}MB
-            </p>
-
-            <Button 
-              color="primary" 
+            <Button
+              color="primary"
               variant="flat"
               size="sm"
-              onClick={(e) => {
+              onPress={(e) => {
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
             >
-              Seleccionar Archivo
+              Seleccionar
             </Button>
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept={Object.keys(tiposPermitidos).join(',')}
+            accept={Object.keys(tiposPermitidos).join(",")}
             onChange={handleFileInput}
             className="hidden"
           />
         </CardBody>
       </Card>
 
-      {/* Mensaje de error */}
+      {/* Mensaje de error compacto */}
       {error && (
-        <div className="mt-3 p-3 bg-danger-50 border border-danger-200 rounded-lg flex items-center gap-2">
-          <AlertCircle size={16} className="text-danger" />
-          <span className="text-sm text-danger">{error}</span>
+        <div className="mt-2 p-2 bg-danger-50 border border-danger-200 rounded-lg flex items-center gap-2">
+          <AlertCircle size={14} className="text-danger flex-shrink-0" />
+          <span className="text-xs text-danger">{error}</span>
         </div>
       )}
     </div>
