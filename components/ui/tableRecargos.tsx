@@ -226,7 +226,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
         <TableBody>
           {diasLaborales.map((dia, index) => {
             const recargos = calcularRecargos(dia);
-            const totalHoras = calcularTotalHoras(dia.horaInicio, dia.horaFin);
+            const esFestivo = dia.esFestivo
 
             return (
               <TableRow key={dia.id}>
@@ -243,6 +243,13 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                     }
                     size="sm"
                   />
+
+                  {esFestivo && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-yellow-600 text-xs font-medium">🎉</span>
+                      <span className="text-yellow-600 text-xs">Festivo</span>
+                    </div>
+                  )}
                 </TableCell>
 
                 {/* HORA INICIO */}
@@ -445,108 +452,192 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* HED - Hora Extra Diurna */}
-          <div className="bg-white p-3 rounded-lg border border-success-200 text-center">
-            <div className="text-xs text-success-600 font-medium mb-1">
+          <div
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HED > 0
+              ? "bg-white border-success-200 shadow-sm hover:shadow-md"
+              : "bg-gray-50 border-gray-200"
+              }`}
+          >
+            <div
+              className={`text-xs font-medium mb-1 ${totales.HED > 0 ? "text-success-600" : "text-gray-400"
+                }`}
+            >
               HED • 25%
             </div>
-            <div className="text-sm text-default-500 mb-2">
+            <div
+              className={`text-sm mb-2 ${totales.HED > 0 ? "text-default-500" : "text-gray-400"
+                }`}
+            >
               Hora Extra Diurna
             </div>
             <Chip
               size="lg"
               color={totales.HED > 0 ? "success" : "default"}
-              variant="flat"
-              className="w-full font-bold"
+              variant={totales.HED > 0 ? "flat" : "bordered"}
+              className={`w-full font-bold transition-all duration-200 ${totales.HED > 0
+                ? "text-success-700"
+                : "text-gray-400 border-gray-300"
+                }`}
             >
               {formatearRecargo(totales.HED)} hrs
             </Chip>
           </div>
 
           {/* HEN - Hora Extra Nocturna */}
-          <div className="bg-white p-3 rounded-lg border border-primary-200 text-center">
-            <div className="text-xs text-primary-600 font-medium mb-1">
+          <div
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HEN > 0
+              ? "bg-white border-primary-200 shadow-sm hover:shadow-md"
+              : "bg-gray-50 border-gray-200"
+              }`}
+          >
+            <div
+              className={`text-xs font-medium mb-1 ${totales.HEN > 0 ? "text-primary-600" : "text-gray-400"
+                }`}
+            >
               HEN • 75%
             </div>
-            <div className="text-sm text-default-500 mb-2">
+            <div
+              className={`text-sm mb-2 ${totales.HEN > 0 ? "text-default-500" : "text-gray-400"
+                }`}
+            >
               Hora Extra Nocturna
             </div>
             <Chip
               size="lg"
               color={totales.HEN > 0 ? "primary" : "default"}
-              variant="flat"
-              className="w-full font-bold"
+              variant={totales.HEN > 0 ? "flat" : "bordered"}
+              className={`w-full font-bold transition-all duration-200 ${totales.HEN > 0
+                ? "text-primary-700"
+                : "text-gray-400 border-gray-300"
+                }`}
             >
               {formatearRecargo(totales.HEN)} hrs
             </Chip>
           </div>
 
           {/* HEFD - Hora Extra Festiva Diurna */}
-          <div className="bg-white p-3 rounded-lg border border-warning-200 text-center">
-            <div className="text-xs text-warning-600 font-medium mb-1">
+          <div
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HEFD > 0
+              ? "bg-white border-warning-200 shadow-sm hover:shadow-md"
+              : "bg-gray-50 border-gray-200"
+              }`}
+          >
+            <div
+              className={`text-xs font-medium mb-1 ${totales.HEFD > 0 ? "text-warning-600" : "text-gray-400"
+                }`}
+            >
               HEFD • 100%
             </div>
-            <div className="text-sm text-default-500 mb-2">
+            <div
+              className={`text-sm mb-2 ${totales.HEFD > 0 ? "text-default-500" : "text-gray-400"
+                }`}
+            >
               H.E. Festiva Diurna
             </div>
             <Chip
               size="lg"
               color={totales.HEFD > 0 ? "warning" : "default"}
-              variant="flat"
-              className="w-full font-bold"
+              variant={totales.HEFD > 0 ? "flat" : "bordered"}
+              className={`w-full font-bold transition-all duration-200 ${totales.HEFD > 0
+                ? "text-warning-700"
+                : "text-gray-400 border-gray-300"
+                }`}
             >
               {formatearRecargo(totales.HEFD)} hrs
             </Chip>
           </div>
 
           {/* HEFN - Hora Extra Festiva Nocturna */}
-          <div className="bg-white p-3 rounded-lg border border-secondary-200 text-center">
-            <div className="text-xs text-secondary-600 font-medium mb-1">
+          <div
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HEFN > 0
+              ? "bg-white border-secondary-200 shadow-sm hover:shadow-md"
+              : "bg-gray-50 border-gray-200"
+              }`}
+          >
+            <div
+              className={`text-xs font-medium mb-1 ${totales.HEFN > 0 ? "text-secondary-600" : "text-gray-400"
+                }`}
+            >
               HEFN • 150%
             </div>
-            <div className="text-sm text-default-500 mb-2">
+            <div
+              className={`text-sm mb-2 ${totales.HEFN > 0 ? "text-default-500" : "text-gray-400"
+                }`}
+            >
               H.E. Festiva Nocturna
             </div>
             <Chip
               size="lg"
               color={totales.HEFN > 0 ? "secondary" : "default"}
-              variant="flat"
-              className="w-full font-bold"
+              variant={totales.HEFN > 0 ? "flat" : "bordered"}
+              className={`w-full font-bold transition-all duration-200 ${totales.HEFN > 0
+                ? "text-secondary-700"
+                : "text-gray-400 border-gray-300"
+                }`}
             >
               {formatearRecargo(totales.HEFN)} hrs
             </Chip>
           </div>
 
           {/* RN - Recargo Nocturno */}
-          <div className="bg-white p-3 rounded-lg border border-primary-200 text-center">
-            <div className="text-xs text-primary-600 font-medium mb-1">
+          <div
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.RN > 0
+              ? "bg-white border-primary-200 shadow-sm hover:shadow-md"
+              : "bg-gray-50 border-gray-200"
+              }`}
+          >
+            <div
+              className={`text-xs font-medium mb-1 ${totales.RN > 0 ? "text-primary-600" : "text-gray-400"
+                }`}
+            >
               RN • 35%
             </div>
-            <div className="text-sm text-default-500 mb-2">
+            <div
+              className={`text-sm mb-2 ${totales.RN > 0 ? "text-default-500" : "text-gray-400"
+                }`}
+            >
               Recargo Nocturno
             </div>
             <Chip
               size="lg"
               color={totales.RN > 0 ? "primary" : "default"}
-              variant="flat"
-              className="w-full font-bold"
+              variant={totales.RN > 0 ? "flat" : "bordered"}
+              className={`w-full font-bold transition-all duration-200 ${totales.RN > 0
+                ? "text-primary-700"
+                : "text-gray-400 border-gray-300"
+                }`}
             >
               {formatearRecargo(totales.RN)} hrs
             </Chip>
           </div>
 
           {/* RD - Recargo Dominical */}
-          <div className="bg-white p-3 rounded-lg border border-danger-200 text-center">
-            <div className="text-xs text-danger-600 font-medium mb-1">
+          <div
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.RD > 0
+              ? "bg-white border-danger-200 shadow-sm hover:shadow-md"
+              : "bg-gray-50 border-gray-200"
+              }`}
+          >
+            <div
+              className={`text-xs font-medium mb-1 ${totales.RD > 0 ? "text-danger-600" : "text-gray-400"
+                }`}
+            >
               RD • 75%
             </div>
-            <div className="text-sm text-default-500 mb-2">
+            <div
+              className={`text-sm mb-2 ${totales.RD > 0 ? "text-default-500" : "text-gray-400"
+                }`}
+            >
               Recargo Dominical
             </div>
             <Chip
               size="lg"
               color={totales.RD > 0 ? "danger" : "default"}
-              variant="flat"
-              className="w-full font-bold"
+              variant={totales.RD > 0 ? "flat" : "bordered"}
+              className={`w-full font-bold transition-all duration-200 ${totales.RD > 0
+                ? "text-danger-700"
+                : "text-gray-400 border-gray-300"
+                }`}
             >
               {formatearRecargo(totales.RD)} hrs
             </Chip>

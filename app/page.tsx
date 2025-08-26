@@ -6,35 +6,135 @@ import {
   Filter,
   Calendar,
   Eye,
-  Download,
   BarChart3,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
+  Edit3,
+  PlusIcon,
 } from "lucide-react";
-import ModalNewRecargo from "@/components/ui/modalNewRecargo";
-import { useRecargosCanvas } from "@/context/RecargoPlanillaContext";
+import ModalFormRecargo from "@/components/ui/modalFormRecargo";
+import {
+  CanvasRecargo,
+  DiaLaboralPlanilla,
+  useRecargo,
+  useRecargosCanvas,
+} from "@/context/RecargoPlanillaContext";
 import ModalConfiguracion from "@/components/ui/modalConfiguracion";
+import { Button } from "@heroui/button";
+import ModalVisualizarRecargo from "@/components/ui/modalVisualizarRecargo";
+import { formatearCOP } from "@/helpers";
+import { ConfiguracionSalario } from "@/types";
+
+interface ShowFilters {
+  conductores: boolean;
+  empresas: boolean;
+  estados: boolean;
+  planillas: boolean;
+  placas: boolean;
+}
+
+type FilterKey =
+  | "conductores"
+  | "empresas"
+  | "estados"
+  | "planillas"
+  | "placas";
 
 interface Filters {
+  conductores: string[];
   empresas: string[];
-  estados: string[];
   planillas: string[];
   placas: string[];
+  estados: string[];
+}
+
+interface Column {
+  // Propiedades básicas requeridas
+  key: string;
+  label: string;
+  width: string;
+
+  // Propiedades opcionales (pueden no estar presentes en todos los objetos)
+  sortable?: boolean;
+  filterable?: boolean;
+  fixed?: boolean;
+  align?: string;
+
+  // Propiedades específicas para columnas de día
+  isDayColumn?: boolean;
+  isSunday?: boolean;
+  isHoliday?: boolean;
+  day?: number; // Basado en el error, algunos objetos tienen esta propiedad
+
+  // Si es columna de resumen
+  isSummary?: boolean;
+
+  // Propiedades adicionales opcionales
+  visible?: boolean;
+  minWidth?: string | number;
+  type?: "text" | "number" | "date" | "currency" | "status" | "boolean";
+  resizable?: boolean;
+  draggable?: boolean;
+
+  // Funciones de renderizado y formato
+  render?: (value: any, row: any, column: Column) => React.ReactNode;
+  format?: (value: any) => string;
+  sortFunction?: (a: any, b: any) => number;
+
+  // CSS classes
+  className?: string;
+  headerClassName?: string;
+  cellClassName?: string;
+
+  // Configuración de filtros
+  tooltip?: string;
+  filterPlaceholder?: string;
+  filterType?: "text" | "select" | "multiselect" | "date" | "number";
+  filterOptions?: Array<{ label: string; value: any }>;
+
+  // Edición inline
+  editable?: boolean;
+  validation?: {
+    required?: boolean;
+    min?: number;
+    max?: number;
+    pattern?: RegExp;
+  };
+
+  // Metadatos adicionales
+  meta?: Record<string, any>;
 }
 
 const CanvasRecargosDashboard = () => {
   // Estados principales
-  const [selectedMonth, setSelectedMonth] = useState(7);
-  const [selectedYear, setSelectedYear] = useState(2025);
+  const today = new Date();
+
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // getMonth() devuelve 0-11
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("conductor");
   const [sortDirection, setSortDirection] = useState("asc");
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [viewModalState, setViewModalState] = useState<{
+    isOpen: boolean;
+    recargoId: string | null;
+  }>({
+    isOpen: false,
+    recargoId: null,
+  });
 
+  const handleViewRecargo = (recargoId: string) => {
+    setViewModalState({
+      isOpen: true,
+      recargoId: recargoId,
+    });
+  };
+
+  const { configuracionesSalario, tiposRecargo } = useRecargo();
   const {
     canvasData,
     loading: canvasLoading,
@@ -42,10 +142,14 @@ const CanvasRecargosDashboard = () => {
     refrescar,
   } = useRecargosCanvas(selectedMonth, selectedYear);
 
+  const [modalFormIsOpen, setModalFormIsOpen] = useState(false);
+  const [recargoId, setRecargoId] = useState("");
+
   const recargos = canvasData?.recargos || [];
 
   // Estados de filtros
   const [filters, setFilters] = useState<Filters>({
+    conductores: [],
     empresas: [],
     estados: [],
     planillas: [],
@@ -53,12 +157,18 @@ const CanvasRecargosDashboard = () => {
   });
 
   // Estados de visibilidad de filtros
-  const [showFilters, setShowFilters] = useState({
+  const [showFilters, setShowFilters] = useState<ShowFilters>({
+    conductores: false,
     empresas: false,
     estados: false,
     planillas: false,
     placas: false,
   });
+
+  const handleOpenFormModal = () => {
+    setRecargoId("");
+    setModalFormIsOpen(!modalFormIsOpen);
+  };
 
   // Función para obtener días del mes seleccionado
   const getDaysInMonth = useCallback((month: number, year: number) => {
@@ -99,9 +209,18 @@ const CanvasRecargosDashboard = () => {
         fixed: true,
       },
       {
+        key: "acciones",
+        label: "ACCIONES",
+        width: "100px",
+        sortable: false,
+        align: "center",
+        isSummary: false,
+        fixed: true,
+      },
+      {
         key: "conductor",
         label: "CONDUCTOR",
-        width: "250px",
+        width: "300px",
         sortable: true,
         filterable: true,
         align: "left",
@@ -146,7 +265,7 @@ const CanvasRecargosDashboard = () => {
         key: `day_${day}`,
         label: day.toString(),
         width: "55px",
-        sortable: true,
+        sortable: false,
         align: "center",
         isDayColumn: true,
         isSunday: isSundayDay,
@@ -157,7 +276,7 @@ const CanvasRecargosDashboard = () => {
 
     const summaryColumns = [
       {
-        key: "total_horas_trabajadas",
+        key: "total_horas",
         label: "TOTAL\nHORAS",
         width: "80px",
         sortable: true,
@@ -245,120 +364,196 @@ const CanvasRecargosDashboard = () => {
         align: "center",
         isSummary: true,
       },
-      {
-        key: "acciones",
-        label: "ACCIONES",
-        width: "100px",
-        sortable: false,
-        align: "center",
-        isSummary: true,
-      },
     ];
 
     return [...baseColumns, ...dayColumns, ...summaryColumns];
   }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday]);
 
+  const calcularTotalesRecargos = (diasLaborales: DiaLaboralPlanilla[]) => {
+    if (!diasLaborales || diasLaborales.length === 0) {
+      return {
+        total_hed: 0,
+        total_hen: 0,
+        total_hefd: 0,
+        total_hefn: 0,
+        total_rn: 0,
+        total_rd: 0,
+      };
+    }
+
+    return diasLaborales.reduce(
+      (acc, dia) => ({
+        total_hed: acc.total_hed + (Number(dia.hed) || 0),
+        total_hen: acc.total_hen + (Number(dia.hen) || 0),
+        total_hefd: acc.total_hefd + (Number(dia.hefd) || 0),
+        total_hefn: acc.total_hefn + (Number(dia.hefn) || 0),
+        total_rn: acc.total_rn + (Number(dia.rn) || 0),
+        total_rd: acc.total_rd + (Number(dia.rd) || 0),
+      }),
+      {
+        total_hed: 0,
+        total_hen: 0,
+        total_hefd: 0,
+        total_hefn: 0,
+        total_rn: 0,
+        total_rd: 0,
+      },
+    );
+  };
+
+  const processedDataWithTotals = useMemo(() => {
+    return recargos.map((item) => {
+      const totalesCalculados = calcularTotalesRecargos(item.dias_laborales);
+      return {
+        ...item,
+        // ✅ Sobrescribir con totales calculados desde dias_laborales
+        ...totalesCalculados,
+      };
+    });
+  }, [recargos]);
+
+  const getSortValue = (item: CanvasRecargo, field: string): any => {
+    switch (field) {
+      case "conductor":
+        return `${item.conductor?.nombre} ${item.conductor?.apellido}`;
+      case "empresa":
+        return item.empresa?.nombre;
+      case "vehiculo":
+        return item.vehiculo?.placa;
+      case "numero_planilla":
+        return item.numero_planilla;
+      case "total_horas":
+        return item.total_horas;
+      case "total_hed":
+        return item.total_hed;
+      case "total_hen":
+        return item.total_hen;
+      case "total_hefd":
+        return item.total_hefd;
+      case "total_hefn":
+        return item.total_hefn;
+      case "total_rn":
+        return item.total_rn;
+      case "total_rd":
+        return item.total_rd;
+      case "total_dias_laborados":
+        return item.total_dias_laborados;
+      default:
+        // Para campos dinámicos, usar type assertion con verificación
+        return (item as any)[field] || 0;
+    }
+  };
+
   // Obtener valores únicos para filtros
   const getUniqueValues = useCallback(
     (field: string) => {
       const values = new Set();
-      recargos.forEach((item) => {
+      processedDataWithTotals.forEach((item) => {
         let value = "";
         switch (field) {
           case "empresas":
-            value = "Empresa"; // Simular empresa por ahora
+            value = item.empresa?.nombre || "Sin empresa";
             break;
           case "estados":
-            value = "activo"; // Simular estado
+            value = "activo"; // Por ahora todos son activos
             break;
           case "planillas":
-            value = item.planilla;
+            value = item.numero_planilla || "";
             break;
           case "placas":
-            value = item.vehiculo;
+            value = item.vehiculo?.placa || "";
+            break;
+          case "conductores":
+            value =
+              `${item.conductor?.nombre} ${item.conductor?.apellido}`.trim() ||
+              "Sin conductor";
             break;
         }
-        if (value) values.add(value);
+        if (value && value.trim()) values.add(value);
       });
       return Array.from(values).sort();
     },
-    [recargos],
+    [processedDataWithTotals],
   );
 
   // Datos filtrados y ordenados
   const processedData = useMemo(() => {
-    let result = [...recargos];
+    let result = [...processedDataWithTotals];
 
     // Aplicar búsqueda
     if (searchTerm) {
       result = result.filter(
         (item) =>
-          item.conductor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.vehiculo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.planilla.toLowerCase().includes(searchTerm.toLowerCase()),
+          `${item.conductor?.nombre} ${item.conductor?.apellido}`
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          item.vehiculo?.placa
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          item.empresa?.nombre
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          item.empresa?.nit.replace(/\./g, "")
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          item.numero_planilla
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()),
       );
     }
 
     // Aplicar filtros
     if (filters.empresas.length > 0) {
-      result = result.filter((item) => filters.empresas.includes("Empresa"));
+      result = result.filter((item) =>
+        filters.empresas.includes(item.empresa?.nombre),
+      );
     }
     if (filters.estados.length > 0) {
       result = result.filter((item) => filters.estados.includes("activo"));
     }
     if (filters.planillas.length > 0) {
       result = result.filter((item) =>
-        filters.planillas.includes(item.planilla),
+        filters.planillas.includes(item.numero_planilla),
       );
     }
     if (filters.placas.length > 0) {
-      result = result.filter((item) => filters.placas.includes(item.vehiculo));
+      result = result.filter((item) =>
+        filters.placas.includes(item.vehiculo?.placa),
+      );
     }
 
-    // Aplicar ordenamiento
-    result.sort((a: any, b: any) => {
-      let aValue, bValue;
+    // ✅ Aplicar ordenamiento con función helper
+    result.sort((a: CanvasRecargo, b: CanvasRecargo) => {
+      const aValue = getSortValue(a, sortField);
+      const bValue = getSortValue(b, sortField);
 
-      switch (sortField) {
-        case "conductor":
-          aValue = a.conductor;
-          bValue = b.conductor;
-          break;
-        case "empresa":
-          aValue = "Empresa";
-          bValue = "Empresa";
-          break;
-        case "vehiculo":
-          aValue = a.vehiculo;
-          bValue = b.vehiculo;
-          break;
-        case "numero_planilla":
-          aValue = a.planilla;
-          bValue = b.planilla;
-          break;
-        case "total_horas_trabajadas":
-          aValue = a.total_horas;
-          bValue = b.total_horas;
-          break;
-        default:
-          aValue = a[sortField] || 0;
-          bValue = b[sortField] || 0;
+      // Normalizar strings para comparación
+      let normalizedA = aValue;
+      let normalizedB = bValue;
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        normalizedA = aValue.toLowerCase();
+        normalizedB = bValue.toLowerCase();
       }
 
-      if (typeof aValue === "string") {
-        aValue = aValue.toLowerCase();
-        bValue = bValue.toLowerCase();
-      }
-
+      // Realizar comparación
       if (sortDirection === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+        return normalizedA < normalizedB
+          ? -1
+          : normalizedA > normalizedB
+            ? 1
+            : 0;
       } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+        return normalizedA > normalizedB
+          ? -1
+          : normalizedA < normalizedB
+            ? 1
+            : 0;
       }
     });
 
     return result;
-  }, [recargos, searchTerm, filters, sortField, sortDirection]);
+  }, [processedDataWithTotals, searchTerm, filters, sortField, sortDirection]);
 
   // Datos paginados
   const paginatedData = useMemo(() => {
@@ -368,35 +563,99 @@ const CanvasRecargosDashboard = () => {
 
   // Estadísticas
   const statistics = useMemo(() => {
+    if (!processedData || !Array.isArray(processedData) || processedData.length === 0) {
+      return {
+        totalRegistros: 0,
+        totalHoras: '0.0',
+        totalValor: 0,
+        totalHED: '0.0',
+        totalHEN: '0.0',
+        totalHEFD: '0.0',
+        totalHEFN: '0.0',
+        totalRN: '0.0',
+        totalRD: '0.0',
+        totalRF: '0.0', // Recargo festivo
+        totalRDF: '0.0', // Recargo dominical festivo
+        totalHEDN: '0.0', // Horas extras diurnas nocturnas
+        totalHEDD: '0.0', // Horas extras diurnas dominicales
+        totalDias: '0.0',
+        empresasActivas: 0,
+      };
+    }
+
+    // Calcular totales básicos
     const totalHoras = processedData.reduce(
-      (acc, item) => acc + item.total_horas,
+      (acc, item) => acc + (item.total_horas || item.total_horas || 0),
       0,
     );
+
+    const totalesDias = processedData.reduce(
+      (acc, item) => acc + (item.dias_laborales.length),
+      0,
+    );
+
+    console.log(processedData)
+
     const totalValor = processedData.reduce(
       (acc, item) => acc + (item.valor_total || 0),
       0,
     );
-    const totalHED = processedData.reduce(
-      (acc, item) => acc + (item.total_hed || 0),
-      0,
-    );
-    const totalHEN = processedData.reduce(
-      (acc, item) => acc + (item.total_hen || 0),
-      0,
+
+    // Calcular todos los tipos de recargos
+    const totalesRecargos = processedData.reduce(
+      (acc, item) => ({
+        totalHED: acc.totalHED + (item.total_hed || 0),
+        totalHEN: acc.totalHEN + (item.total_hen || 0),
+        totalHEFD: acc.totalHEFD + (item.total_hefd || 0),
+        totalHEFN: acc.totalHEFN + (item.total_hefn || 0),
+        totalRN: acc.totalRN + (item.total_rn || 0),
+        totalRD: acc.totalRD + (item.total_rd || 0),
+        // Tipos adicionales de recargos que podrían existir
+        totalRF: acc.totalRF + (item.total_rf || 0),
+        totalRDF: acc.totalRDF + (item.total_rdf || 0),
+        totalHEDN: acc.totalHEDN + (item.total_hedn || 0),
+        totalHEDD: acc.totalHEDD + (item.total_hedd || 0),
+      }),
+      {
+        totalHED: 0,   // Horas Extras Diurnas
+        totalHEN: 0,   // Horas Extras Nocturnas
+        totalHEFD: 0,  // Horas Extras Festivas Diurnas
+        totalHEFN: 0,  // Horas Extras Festivas Nocturnas
+        totalRN: 0,    // Recargo Nocturno
+        totalRD: 0,    // Recargo Dominical
+        totalRF: 0,    // Recargo Festivo
+        totalRDF: 0,   // Recargo Dominical Festivo
+        totalHEDN: 0,  // Horas Extras Diurnas Nocturnas
+        totalHEDD: 0,  // Horas Extras Diurnas Dominicales
+      },
     );
 
-    return {
+    // Calcular empresas únicas
+    const empresasActivas = new Set(
+      processedData
+        .map((item) => item.empresa?.id)
+        .filter((id) => id !== null && id !== undefined)
+    ).size;
+
+    const resultado = {
       totalRegistros: processedData.length,
-      totalHoras,
-      totalValor,
-      totalHED,
-      totalHEN,
-      promedioHoras:
-        processedData.length > 0
-          ? (totalHoras / processedData.length).toFixed(1)
-          : 0,
-      empresasActivas: 1, // Por ahora simulamos 1 empresa
+      totalHoras: totalHoras.toFixed(1),
+      totalValor: totalValor,
+      totalHED: totalesRecargos.totalHED.toFixed(1),
+      totalHEN: totalesRecargos.totalHEN.toFixed(1),
+      totalHEFD: totalesRecargos.totalHEFD.toFixed(1),
+      totalHEFN: totalesRecargos.totalHEFN.toFixed(1),
+      totalRN: totalesRecargos.totalRN.toFixed(1),
+      totalRD: totalesRecargos.totalRD.toFixed(1),
+      totalRF: totalesRecargos.totalRF.toFixed(1),
+      totalRDF: totalesRecargos.totalRDF.toFixed(1),
+      totalHEDN: totalesRecargos.totalHEDN.toFixed(1),
+      totalHEDD: totalesRecargos.totalHEDD.toFixed(1),
+      totalDias: (totalesDias).toFixed(1),
+      empresasActivas: empresasActivas,
     };
+
+    return resultado;
   }, [processedData]);
 
   // Handlers
@@ -427,30 +686,247 @@ const CanvasRecargosDashboard = () => {
     }
   };
 
-  const toggleFilter = (type) => {
+  const toggleFilter = (type: FilterKey) => {
     setShowFilters((prev) => ({
       ...prev,
       [type]: !prev[type],
     }));
   };
 
-  const updateFilter = (type, value) => {
+  const updateFilter = (type: FilterKey, value: string) => {
     setFilters((prev) => {
-      const currentValues = prev[type];
+      const currentValues = prev[type] || [];
       const newValues = currentValues.includes(value)
         ? currentValues.filter((v) => v !== value)
         : [...currentValues, value];
-
       return { ...prev, [type]: newValues };
     });
   };
 
   const clearAllFilters = () => {
-    setFilters({ empresas: [], estados: [], planillas: [], placas: [] });
+    setFilters({
+      conductores: [],
+      empresas: [],
+      estados: [],
+      planillas: [],
+      placas: [],
+    });
     setSearchTerm("");
   };
 
-  const renderCell = (item, column) => {
+  const getItemValue = (item: CanvasRecargo, columnKey: string): any => {
+    // Mapeo de propiedades conocidas
+    const knownProperties: Record<string, keyof CanvasRecargo> = {
+      id: "id",
+      planilla: "planilla",
+      conductor: "conductor",
+      vehiculo: "vehiculo",
+      total_horas: "total_horas",
+      total_dias: "total_dias",
+      valor_total: "valor_total",
+      total_hed: "total_hed",
+      total_hen: "total_hen",
+    };
+
+    // Si es una propiedad conocida, accederla directamente
+    if (knownProperties[columnKey]) {
+      return item[knownProperties[columnKey]];
+    }
+
+    // Para columnas de días (día_1, día_2, etc.)
+    const dayMatch = columnKey.match(/^día?_(\d+)$/);
+    if (dayMatch) {
+      const dayNumber = parseInt(dayMatch[1], 10);
+      const dayData = item.dias.find((d) => d.dia === dayNumber);
+      return dayData?.horas || 0;
+    }
+
+    // Para propiedades dinámicas, usar type assertion con verificación
+    const itemWithDynamicProps = item as CanvasRecargo & Record<string, any>;
+    return itemWithDynamicProps[columnKey] || 0;
+  };
+
+  const toNumber = (value: number | string | null | undefined): number => {
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+
+    const num = typeof value === "string" ? parseFloat(value) : value;
+    return isNaN(num) ? 0 : num;
+  };
+
+  const MAPEO_CAMPOS_HORAS = {
+    HED: "total_hed", // Horas Extra Diurnas
+    HEN: "total_hen", // Horas Extra Nocturnas
+    HEFD: "total_hefd", // Horas Extra Festivas Diurnas
+    HEFN: "total_hefn", // Horas Extra Festivas Nocturnas
+    RN: "total_rn", // Recargo Nocturno
+    RD: "total_rd", // Recargo Dominical Diurno
+  } as const;
+
+  const obtenerSalarioBase = (
+    item: CanvasRecargo,
+  ): ConfiguracionSalario | null => {
+    if (!item?.empresa?.id) {
+      console.error("❌ Item o empresa no válidos");
+      return null;
+    }
+
+    if (!configuracionesSalario || !Array.isArray(configuracionesSalario)) {
+      console.error(
+        "❌ configuracionesSalario no está definido o no es un array",
+      );
+      return null;
+    }
+
+    let configuracionGlobal: ConfiguracionSalario | null = null;
+
+    for (const salario of configuracionesSalario) {
+      // Solo considerar configuraciones activas
+      if (!salario.activo) {
+        continue;
+      }
+
+      // Si encontramos configuración específica para la empresa
+      if (salario.empresa_id === item.empresa.id) {
+        return salario;
+      }
+
+      // Guardamos la primera configuración global que encontremos
+      if (
+        !configuracionGlobal &&
+        (salario.empresa_id === null || salario.empresa_id === undefined)
+      ) {
+        configuracionGlobal = salario;
+      }
+    }
+
+    return configuracionGlobal;
+  };
+
+  const obtenerTotalRecargos = (item: CanvasRecargo): number => {
+    // Obtener el salario base para este item
+    const configuracionSalario = obtenerSalarioBase(item);
+
+    if (!configuracionSalario) {
+      console.warn(
+        "No se encontró configuración de salario para la empresa:",
+        item.empresa.nombre,
+      );
+      return 0;
+    }
+
+    const valorPorHora =
+      configuracionSalario.salario_basico /
+      configuracionSalario.horas_mensuales_base;
+
+    let totalGeneral = 0;
+
+    const totalFestivos = item.dias_laborales.filter(dia => dia.es_festivo).length;
+    const totalDomingos = item.dias_laborales.filter(dia => dia.es_domingo).length;
+
+    // Filtrar tipos de recargo activos y ordenar por orden de cálculo
+    const tiposActivos = tiposRecargo
+      .filter((tipo) => tipo.activo)
+      .sort((a, b) => a.orden_calculo - b.orden_calculo);
+
+    for (const tipoRecargo of tiposActivos) {
+      const pagaDiasFestivos = configuracionSalario.paga_dias_festivos || false;
+      let valorCalculado = 0; // ✅ Mover la declaración aquí para que esté disponible en todo el scope
+
+      // Si la configuración paga días festivos, calcular recargo especial para RD
+      if (pagaDiasFestivos && (tipoRecargo.codigo === 'RD')) {
+        const valorDiarioBase = configuracionSalario.salario_basico / 30;
+
+        console.log(configuracionSalario.salario_basico, valorDiarioBase)
+        const porcentaje = parseFloat(tipoRecargo.porcentaje);
+
+        // ✅ Validar que el porcentaje sea válido
+        if (isNaN(porcentaje)) {
+          console.warn(`Porcentaje inválido para ${tipoRecargo.codigo}: ${tipoRecargo.porcentaje}`);
+          continue;
+        }
+
+        const valorRecargo = valorDiarioBase * (1 + porcentaje / 100);
+
+        // Total de días festivos/domingos (evitar duplicados)
+        const totalDiasEspeciales = totalFestivos + totalDomingos;
+
+        console.log(totalDiasEspeciales, "dias especiales", valorRecargo)
+        valorCalculado = totalDiasEspeciales * valorRecargo;
+
+        // ✅ Agregar al total y continuar con el siguiente tipo de recargo
+        totalGeneral += valorCalculado;
+        continue;
+      }
+
+      const campoHoras = MAPEO_CAMPOS_HORAS[
+        tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
+      ];
+
+      if (!campoHoras) {
+        console.warn(`Campo de horas no encontrado para: ${tipoRecargo.codigo}`);
+        continue;
+      }
+
+      const horasTrabajadas = item[campoHoras as keyof CanvasRecargo] as number;
+
+      // ✅ Validar que horasTrabajadas sea un número válido
+      if (!horasTrabajadas || horasTrabajadas <= 0 || isNaN(horasTrabajadas)) {
+        continue;
+      }
+
+      if (tipoRecargo.es_valor_fijo && tipoRecargo.valor_fijo) {
+        // Para valores fijos (como COVID)
+        const valorFijo = parseFloat(tipoRecargo.valor_fijo);
+        if (isNaN(valorFijo)) {
+          console.warn(`Valor fijo inválido para ${tipoRecargo.codigo}: ${tipoRecargo.valor_fijo}`);
+          continue;
+        }
+        valorCalculado = valorFijo;
+      } else {
+        // Para porcentajes
+        const porcentaje = parseFloat(tipoRecargo.porcentaje);
+
+        if (isNaN(porcentaje)) {
+          console.warn(`Porcentaje inválido para ${tipoRecargo.codigo}: ${tipoRecargo.porcentaje}`);
+          continue;
+        }
+
+        if (isNaN(valorPorHora) || valorPorHora <= 0) {
+          console.warn(`Valor por hora inválido: ${valorPorHora}`);
+          continue;
+        }
+
+        if (tipoRecargo.adicional) {
+          const valorHoraConRecargo = valorPorHora * (1 + porcentaje / 100);
+          valorCalculado = valorHoraConRecargo * horasTrabajadas;
+        } else {
+          const valorHoraConRecargo = valorPorHora * (porcentaje / 100);
+          valorCalculado = valorHoraConRecargo * horasTrabajadas;
+        }
+      }
+
+      // ✅ Validar el resultado antes de sumarlo
+      if (isNaN(valorCalculado)) {
+        console.warn(`Valor calculado es NaN para ${tipoRecargo.codigo}`, {
+          horasTrabajadas,
+          valorPorHora,
+          porcentaje: tipoRecargo.porcentaje,
+          valorFijo: tipoRecargo.valor_fijo
+        });
+        continue;
+      }
+
+      console.log(`${tipoRecargo.codigo}: ${horasTrabajadas}h × ${valorPorHora} = ${valorCalculado}`);
+      totalGeneral += valorCalculado;
+    }
+
+    return totalGeneral;
+  };
+
+  const renderCell = (item: CanvasRecargo, column: Column) => {
+
     switch (column.key) {
       case "select":
         return (
@@ -458,16 +934,43 @@ const CanvasRecargosDashboard = () => {
             type="checkbox"
             checked={selectedRows.has(item.id)}
             onChange={() => handleSelectRow(item.id)}
-            className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+            className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ml-1"
           />
         );
 
+      case "acciones":
+        return (
+          <div className="flex items-center justify-center space-x-1">
+            <Button
+              isIconOnly
+              variant="light"
+              size="sm"
+              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+              onPress={() => handleViewRecargo(item.id)}
+            >
+              <Eye size={14} />
+            </Button>
+            <Button
+              isIconOnly
+              variant="light"
+              size="sm"
+              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+              onPress={() => handleEditRecargo(item.id)}
+            >
+              <Edit3 size={14} />
+            </Button>
+          </div>
+        );
+
       case "conductor":
-        const initials = item.conductor
+        const nombreCompleto =
+          `${item.conductor?.nombre || ""} ${item.conductor?.apellido || ""}`.trim();
+        const initials = nombreCompleto
           .split(" ")
           .map((name) => name.charAt(0))
           .slice(0, 2)
           .join("");
+
         return (
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xs">
@@ -475,127 +978,193 @@ const CanvasRecargosDashboard = () => {
             </div>
             <div>
               <div className="font-medium text-gray-900 text-sm">
-                {item.conductor}
+                {nombreCompleto}
               </div>
               <div className="text-xs text-gray-500">
-                ID: {item.id.substring(0, 8)}
+                ID: {item.conductor?.id}
               </div>
             </div>
           </div>
         );
 
       case "empresa":
-        return <div className="text-sm text-gray-900">Empresa Principal</div>;
+        return (
+          <div>
+            <div className="text-sm text-gray-900">{item.empresa?.nombre}</div>
+            <div className="text-xs text-gray-500">
+              NIT: {item.empresa?.nit}
+            </div>
+          </div>
+        );
 
       case "vehiculo":
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-            {item.vehiculo}
+            {item.vehiculo?.placa}
+          </span>
+        );
+
+      case "numero_planilla":
+        return (
+          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
+            {item.numero_planilla}
           </span>
         );
 
       case "valor_total":
         return (
           <span className="font-semibold text-green-600">
-            ${(item.valor_total || 0).toLocaleString()}
+            {formatearCOP(obtenerTotalRecargos(item))}
           </span>
         );
 
       case "estado":
-        const statusColors = {
-          activo: "bg-green-100 text-green-800",
-          revision: "bg-yellow-100 text-yellow-800",
-          pendiente: "bg-red-100 text-red-800",
-          aprobado: "bg-emerald-100 text-emerald-800",
-        };
         return (
-          <span
-            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800`}
-          >
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
             ACTIVO
           </span>
         );
 
-      case "acciones":
+      case "total_horas":
         return (
-          <div className="flex items-center justify-center space-x-1">
-            <button className="p-1 text-emerald-600 hover:bg-emerald-50 rounded transition-colors">
-              <Eye size={14} />
-            </button>
-            <button className="p-1 text-gray-600 hover:bg-gray-50 rounded transition-colors">
-              <Download size={14} />
-            </button>
-            <button className="p-1 text-gray-600 hover:bg-gray-50 rounded transition-colors">
-              <MoreHorizontal size={14} />
-            </button>
-          </div>
+          <span className="font-semibold text-emerald-600">
+            {item.total_horas || 0}h
+          </span>
+        );
+
+      case "promedio_diario":
+        return (
+          <span className="font-semibold text-emerald-600">
+            {(item.total_horas / item.total_dias) || 0}h
+          </span>
+        );
+
+      case "dias_laborales":
+        return (
+          <span className="font-semibold text-blue-600">
+            {item.dias_laborales.length || 0}
+          </span>
+        );
+
+      // ✅ Columnas de totales de recargos (usando toNumber para manejar strings)
+      case "total_hed":
+        return (
+          <span className="font-semibold text-green-600">
+            {toNumber(item.total_hed).toFixed(1)}h
+          </span>
+        );
+
+      case "total_hen":
+        return (
+          <span className="font-semibold text-blue-600">
+            {toNumber(item.total_hen).toFixed(1)}h
+          </span>
+        );
+
+      case "total_hefd":
+        return (
+          <span className="font-semibold text-orange-600">
+            {toNumber(item.total_hefd).toFixed(1)}h
+          </span>
+        );
+
+      case "total_hefn":
+        return (
+          <span className="font-semibold text-indigo-600">
+            {toNumber(item.total_hefn).toFixed(1)}h
+          </span>
+        );
+
+      case "total_rn":
+        return (
+          <span className="font-semibold text-purple-600">
+            {toNumber(item.total_rn).toFixed(1)}h
+          </span>
+        );
+
+      case "total_rd":
+        return (
+          <span className="font-semibold text-red-600">
+            {toNumber(item.total_rd).toFixed(1)}h
+          </span>
         );
 
       default:
-        // Manejo de columnas de días y otras columnas numéricas
+        // ✅ Manejo de columnas de días con recargos detallados
         if (column.isDayColumn) {
-          const dayData = item.dias?.find((d) => d.dia === column.day);
-          const hasHours = dayData && dayData.horas > 0;
+          const dayData = item.dias_laborales?.find(
+            (d) => d.dia === column.day,
+          );
+
+          const hasHours = dayData && toNumber(dayData.total_horas) > 0;
+
+          if (!hasHours) {
+            return (
+              <div className="text-gray-400 font-medium text-center py-2">
+                -
+              </div>
+            );
+          }
+
+          // ✅ Extraer recargos del día
+          const recargosDelDia = {
+            hed: toNumber(dayData.hed),
+            hen: toNumber(dayData.hen),
+            hefd: toNumber(dayData.hefd),
+            hefn: toNumber(dayData.hefn),
+            rn: toNumber(dayData.rn),
+            rd: toNumber(dayData.rd),
+          };
+
+          // Verificar si tiene algún recargo
+          const tieneRecargos = Object.values(recargosDelDia).some(
+            (val) => val > 0,
+          );
 
           return (
-            <div
-              className={`text-sm font-medium ${
-                hasHours
-                  ? dayData.es_especial
-                    ? "text-red-900 bg-red-100 px-2 py-1 rounded"
-                    : "text-emerald-900 bg-emerald-50 px-2 py-1 rounded"
-                  : "text-gray-400"
-              }`}
-            >
-              {hasHours ? dayData.horas : "-"}
+            <div className="text-xs w-full py-1">
+              {/* ✅ Horas trabajadas - Siempre visible */}
+              <div
+                className={`font-bold text-center mb-1 px-1 py-1 rounded ${dayData.es_domingo || dayData.es_festivo
+                  ? "text-red-800 bg-red-100 border border-red-200"
+                  : "text-emerald-800 bg-emerald-100 border border-emerald-200"
+                  }`}
+              >
+                {toNumber(dayData.total_horas).toFixed(1)}h
+              </div>
+
+              {/* ✅ Indicador de día especial si no hay recargos pero es domingo/festivo */}
+              {!tieneRecargos && (dayData.es_domingo || dayData.es_festivo) && (
+                <div className="text-center mt-1">
+                  <span className="text-xs bg-gray-100 text-gray-600 px-1 py-0.5 rounded">
+                    {dayData.es_domingo ? "🗓️ DOM" : "🎉 FES"}
+                  </span>
+                </div>
+              )}
             </div>
-          );
-        }
-
-        // Manejo de otras columnas de resumen
-        if (column.key === "total_horas_trabajadas") {
-          return (
-            <span className="font-semibold text-emerald-600">
-              {item.total_horas}
-            </span>
-          );
-        }
-
-        if (column.key === "dias_laborales") {
-          return (
-            <span className="font-semibold text-blue-600">
-              {item.total_dias}
-            </span>
-          );
-        }
-
-        if (column.key === "numero_planilla") {
-          return (
-            <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-              {item.planilla}
-            </span>
           );
         }
 
         return (
           <span className="text-sm text-gray-900">
-            {item[column.key] || "0"}
+            {getItemValue(item, column.key) || "0"}
           </span>
         );
     }
   };
 
-  const renderFilterDropdown = (column) => {
+  const renderFilterDropdown = (column: Column) => {
     if (!column.filterable) return null;
 
-    const filterKey = {
+    const COLUMN_TO_FILTER_MAPPING: Record<string, FilterKey> = {
       conductor: "conductores",
       empresa: "empresas",
       numero_planilla: "planillas",
       vehiculo: "placas",
       estado: "estados",
-    }[column.key];
+    };
 
+    const filterKey = COLUMN_TO_FILTER_MAPPING[column.key];
     if (!filterKey || !showFilters[filterKey]) return null;
 
     const values = getUniqueValues(filterKey);
@@ -604,8 +1173,8 @@ const CanvasRecargosDashboard = () => {
     return (
       <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-48 overflow-y-auto">
         <div className="space-y-2">
-          {values.map((value) => (
-            <label key={value} className="flex items-center space-x-2 text-xs">
+          {values.map((value: any) => (
+            <label key={value} className="flex items-center space-x-2 text-xs cursor-pointer">
               <input
                 type="checkbox"
                 checked={activeFilters.includes(value)}
@@ -623,301 +1192,398 @@ const CanvasRecargosDashboard = () => {
   const totalPages = Math.ceil(processedData.length / itemsPerPage);
   const activeFiltersCount = Object.values(filters).flat().length;
 
+  // ✅ Funciones para manejar el modal de edición
+  const handleEditRecargo = (recargoId: string) => {
+    setModalFormIsOpen(true);
+    setRecargoId(recargoId);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-emerald-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-emerald-600 rounded-xl flex items-center justify-center">
-                <BarChart3 size={24} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Planilla de Recargos - Canvas View
-                </h1>
-                <p className="text-sm text-gray-500">
-                  Vista de tabla avanzada con filtros inteligentes
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              {/* Selector de mes/año */}
-              <div className="flex items-center space-x-2 bg-gray-50 rounded-lg px-3 py-2 border">
-                <Calendar size={16} className="text-gray-500" />
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="border-none bg-transparent text-sm font-medium focus:outline-none"
-                >
-                  {[
-                    "Enero",
-                    "Febrero",
-                    "Marzo",
-                    "Abril",
-                    "Mayo",
-                    "Junio",
-                    "Julio",
-                    "Agosto",
-                    "Septiembre",
-                    "Octubre",
-                    "Noviembre",
-                    "Diciembre",
-                  ].map((month, index) => (
-                    <option key={index} value={index + 1}>
-                      {month}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="border-none bg-transparent text-sm font-medium focus:outline-none"
-                >
-                  <option value={2024}>2024</option>
-                  <option value={2025}>2025</option>
-                </select>
-              </div>
-              <ModalNewRecargo
-                currentMonth={selectedMonth}
-                currentYear={selectedYear}
-              />
-              <ModalConfiguracion />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Panel de estadísticas compacto */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6 py-4">
-          <div className="grid grid-cols-6 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-600">
-                {statistics.totalRegistros}
-              </div>
-              <div className="text-xs text-gray-500">Registros</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {statistics.totalHoras}
-              </div>
-              <div className="text-xs text-gray-500">Horas Totales</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {statistics.totalHED}
-              </div>
-              <div className="text-xs text-gray-500">HE Diurnas</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-emerald-600">
-                {statistics.totalHEN}
-              </div>
-              <div className="text-xs text-gray-500">HE Nocturnas</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-amber-600">
-                {statistics.empresasActivas}
-              </div>
-              <div className="text-xs text-gray-500">Empresas</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                ${(statistics.totalValor / 1000000).toFixed(1)}M
-              </div>
-              <div className="text-xs text-gray-500">Valor Total</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Barra de herramientas */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {/* Búsqueda global */}
-              <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  type="text"
-                  placeholder="Buscar en todos los campos..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
-                />
-              </div>
-
-              {/* Indicadores de filtros activos */}
-              {activeFiltersCount > 0 && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">
-                    Filtros activos:
-                  </span>
-                  <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
-                    {activeFiltersCount}
-                  </span>
-                  <button
-                    onClick={clearAllFilters}
-                    className="text-xs text-red-600 hover:text-red-800 underline"
-                  >
-                    Limpiar todos
-                  </button>
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-emerald-50">
+        {/* Header */}
+        <header className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="px-4 sm:px-6 py-4">
+            <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+              {/* Left section - Logo and title */}
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <BarChart3 size={20} className="text-white sm:w-6 sm:h-6" />
                 </div>
-              )}
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
+                    Planilla de Recargos
+                  </h1>
+                  <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">
+                    Vista de tabla avanzada con filtros inteligentes
+                  </p>
+                  <p className="text-xs text-gray-500 sm:hidden">Canvas View</p>
+                </div>
+              </div>
+
+              {/* Right section - Controls */}
+              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
+                {/* Date selector - responsive */}
+                <div className="flex items-center space-x-2 bg-gray-50 rounded-lg px-3 py-2 border w-full sm:w-auto">
+                  <Calendar size={16} className="text-gray-500 flex-shrink-0" />
+                  <div className="flex items-center space-x-1 sm:space-x-2 flex-1 sm:flex-initial">
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) =>
+                        setSelectedMonth(parseInt(e.target.value))
+                      }
+                      className="border-none bg-transparent text-xs sm:text-sm font-medium focus:outline-none flex-1 sm:flex-initial min-w-0"
+                    >
+                      {[
+                        "Ene",
+                        "Feb",
+                        "Mar",
+                        "Abr",
+                        "May",
+                        "Jun",
+                        "Jul",
+                        "Ago",
+                        "Sep",
+                        "Oct",
+                        "Nov",
+                        "Dic",
+                      ].map((month, index) => (
+                        <option
+                          key={index}
+                          value={index + 1}
+                          className="hidden sm:block"
+                        >
+                          {
+                            [
+                              "Enero",
+                              "Febrero",
+                              "Marzo",
+                              "Abril",
+                              "Mayo",
+                              "Junio",
+                              "Julio",
+                              "Agosto",
+                              "Septiembre",
+                              "Octubre",
+                              "Noviembre",
+                              "Diciembre",
+                            ][index]
+                          }
+                        </option>
+                      ))}
+                      {/* Mobile short names */}
+                      {[
+                        "Ene",
+                        "Feb",
+                        "Mar",
+                        "Abr",
+                        "May",
+                        "Jun",
+                        "Jul",
+                        "Ago",
+                        "Sep",
+                        "Oct",
+                        "Nov",
+                        "Dic",
+                      ].map((month, index) => (
+                        <option
+                          key={`mobile-${index}`}
+                          value={index + 1}
+                          className="sm:hidden"
+                        >
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-gray-400 hidden sm:inline">|</span>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) =>
+                        setSelectedYear(parseInt(e.target.value))
+                      }
+                      className="border-none bg-transparent text-xs sm:text-sm font-medium focus:outline-none"
+                    >
+                      <option value={2024}>2024</option>
+                      <option value={2025}>2025</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center space-x-2 sm:space-x-3">
+                  <Button
+                    onPress={handleOpenFormModal}
+                    color="success"
+                    variant="flat"
+                    radius="sm"
+                    startContent={<PlusIcon className="w-5 h-5" />}
+                  >
+                    Nuevo recargo
+                  </Button>
+                  <ModalConfiguracion />
+                </div>
+              </div>
             </div>
+          </div>
+        </header>
 
-            <div className="flex items-center space-x-4">
-              {/* Selección múltiple */}
-              {selectedRows.size > 0 && (
-                <span className="text-sm text-gray-600">
-                  {selectedRows.size} seleccionados
-                </span>
-              )}
-
-              {/* Paginación compacta */}
-              <div className="flex items-center space-x-2 text-sm">
-                <span className="text-gray-600">
-                  {(currentPage - 1) * itemsPerPage + 1}-
-                  {Math.min(currentPage * itemsPerPage, processedData.length)}{" "}
-                  de {processedData.length}
-                </span>
-                <select
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(parseInt(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="border border-gray-300 rounded px-2 py-1 text-xs"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
+        {/* Panel de estadísticas compacto */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="px-6 py-4">
+            <div className="grid grid-cols-11 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600">
+                  {statistics.totalRegistros}
+                </div>
+                <div className="text-xs text-gray-500">Registros</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600">
+                  {statistics.totalDias}
+                </div>
+                <div className="text-xs text-gray-500">Días Totales</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600">
+                  {statistics.totalHoras}
+                </div>
+                <div className="text-xs text-gray-500">Horas Totales</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {statistics.totalHED}
+                </div>
+                <div className="text-xs text-gray-500">HE Diurnas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {statistics.totalHEN}
+                </div>
+                <div className="text-xs text-gray-500">HE Nocturnas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">
+                  {statistics.totalHEFD}
+                </div>
+                <div className="text-xs text-gray-500">HEF Diurna</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">
+                  {statistics.totalHEFN}
+                </div>
+                <div className="text-xs text-gray-500">HEF Nocturna</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {statistics.totalRN}
+                </div>
+                <div className="text-xs text-gray-500">RE Nocturnas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">
+                  {statistics.totalRD}
+                </div>
+                <div className="text-xs text-gray-500">RE Dominical</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-amber-600">
+                  {statistics.empresasActivas}
+                </div>
+                <div className="text-xs text-gray-500">Empresas</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  ${(statistics.totalValor / 1000000).toFixed(1)}M
+                </div>
+                <div className="text-xs text-gray-500">Valor Total</div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabla Canvas */}
-      <div className="flex-1 overflow-auto bg-white">
-        <div className="relative">
-          {/* Headers */}
-          <div className="sticky top-0 z-10 bg-gray-50 border-b-2 border-gray-300">
-            <div className="flex">
-              {columns.map((column, index) => {
-                // Determinar el estilo del header según el tipo de columna
-                let headerClass =
-                  "relative border-r border-gray-300 bg-gray-50";
+        {/* Barra de herramientas */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                {/* Búsqueda global */}
+                <div className="relative">
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Buscar en todos los campos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                  />
+                </div>
 
-                if (column.fixed) {
-                  headerClass =
-                    "relative border-r border-gray-300 bg-slate-100";
-                } else if (column.isDayColumn) {
-                  if (column.isSunday) {
-                    headerClass =
-                      "relative border-r border-gray-300 bg-emerald-600 text-white";
-                  } else if (column.isHoliday) {
-                    headerClass =
-                      "relative border-r border-gray-300 bg-red-500 text-white";
-                  } else {
-                    headerClass =
-                      "relative border-r border-gray-300 bg-emerald-50";
-                  }
-                } else if (column.isSummary) {
-                  headerClass = "relative border-r border-gray-300 bg-green-50";
-                }
+                {/* Indicadores de filtros activos */}
+                {activeFiltersCount > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">
+                      Filtros activos:
+                    </span>
+                    <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
+                      {activeFiltersCount}
+                    </span>
+                    <Button
+                      onPress={clearAllFilters}
+                      variant="light"
+                      color="danger"
+                      radius="none"
+                      className="text-sm text-red-600 hover:text-red-800 border-b-1"
+                    >
+                      Limpiar todos los filtros
+                    </Button>
+                  </div>
+                )}
+              </div>
 
-                return (
-                  <div
-                    key={column.key}
-                    className={headerClass}
-                    style={{
-                      width: column.width,
-                      minWidth: column.width,
+              <div className="flex items-center space-x-4">
+                {/* Selección múltiple */}
+                {selectedRows.size > 0 && (
+                  <span className="text-sm text-gray-600">
+                    {selectedRows.size} seleccionados
+                  </span>
+                )}
+
+                {/* Paginación compacta */}
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-gray-600">
+                    {(currentPage - 1) * itemsPerPage + 1}-
+                    {Math.min(currentPage * itemsPerPage, processedData.length)}{" "}
+                    de {processedData.length}
+                  </span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(parseInt(e.target.value));
+                      setCurrentPage(1);
                     }}
+                    className="border border-gray-300 rounded px-2 py-1 text-xs"
                   >
-                    <div className="p-2 flex items-center justify-between">
-                      <div
-                        className={`flex-1 text-xs font-bold ${
-                          column.isSunday || column.isHoliday
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabla Canvas */}
+        <div className="flex-1 overflow-auto bg-white">
+          <div className="relative">
+            {/* Headers */}
+            <div className="sticky top-0 z-10 bg-gray-50 border-b-2 border-gray-300">
+              <div className="flex">
+                {columns.map((column: Column) => {
+                  // Determinar el estilo del header según el tipo de columna
+                  let headerClass =
+                    "relative border-r border-gray-300 bg-gray-50";
+
+                  if (column.fixed) {
+                    headerClass =
+                      "relative border-r border-gray-300 bg-slate-100";
+                  } else if (column.isDayColumn) {
+                    if (column.isSunday) {
+                      headerClass =
+                        "relative border-r border-gray-300 bg-emerald-600 text-white";
+                    } else if (column.isHoliday) {
+                      headerClass =
+                        "relative border-r border-gray-300 bg-red-500 text-white";
+                    } else {
+                      headerClass =
+                        "relative border-r border-gray-300 bg-emerald-50";
+                    }
+                  } else if (column.isSummary) {
+                    headerClass =
+                      "relative border-r border-gray-300 bg-green-50";
+                  }
+
+                  return (
+                    <div
+                      key={column.key}
+                      className={headerClass}
+                      style={{
+                        width: column.width,
+                        minWidth: column.width,
+                      }}
+                    >
+                      <div className="p-2 flex items-center justify-between">
+                        <div
+                          className={`flex-1 text-xs font-bold ${column.isSunday || column.isHoliday
                             ? "text-white"
                             : "text-gray-700"
-                        } ${
-                          column.align === "center"
-                            ? "text-center"
-                            : column.align === "right"
-                              ? "text-right"
-                              : "text-left"
-                        }`}
-                      >
-                        <div className="whitespace-pre-line leading-tight">
-                          {column.isDayColumn ? (
-                            <div className="text-center">
-                              <div className="font-bold">{column.label}</div>
-                              {column.isSunday && (
-                                <div className="text-xs opacity-90">DOM</div>
-                              )}
-                              {column.isHoliday && (
-                                <div className="text-xs opacity-90">FES</div>
-                              )}
-                            </div>
-                          ) : (
-                            column.label
-                          )}
+                            } ${column.align === "center"
+                              ? "text-center"
+                              : column.align === "right"
+                                ? "text-right"
+                                : "text-left"
+                            }`}
+                        >
+                          <div className="whitespace-pre-line leading-tight">
+                            {column.isDayColumn ? (
+                              <div className="text-center">
+                                <div className="font-bold">{column.label}</div>
+                                {column.isSunday && (
+                                  <div className="text-xs opacity-90">DOM</div>
+                                )}
+                                {column.isHoliday && (
+                                  <div className="text-xs opacity-90">FES</div>
+                                )}
+                              </div>
+                            ) : (
+                              column.label
+                            )}
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center space-x-1 ml-1">
-                        {/* Sort button */}
-                        {column.sortable && (
-                          <button
-                            onClick={() => handleSort(column.key)}
-                            className={`p-1 hover:bg-gray-200 rounded transition-colors ${
-                              column.isSunday || column.isHoliday
+                        <div className="flex items-center space-x-1 ml-1">
+                          {/* Sort button */}
+                          {column.sortable && (
+                            <button
+                              onClick={() => handleSort(column.key)}
+                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${column.isSunday || column.isHoliday
                                 ? "hover:bg-white/20"
                                 : ""
-                            }`}
-                          >
-                            <ArrowUpDown
-                              size={10}
-                              className={`${
-                                sortField === column.key
+                                }`}
+                            >
+                              <ArrowUpDown
+                                size={10}
+                                className={`cursor-pointer ${sortField === column.key
                                   ? "text-emerald-600"
                                   : column.isSunday || column.isHoliday
                                     ? "text-white"
                                     : "text-gray-400"
-                              }`}
-                            />
-                          </button>
-                        )}
+                                  }`}
+                              />
+                            </button>
+                          )}
 
-                        {/* Filter button - solo para columnas específicas */}
-                        {column.filterable && (
-                          <button
-                            onClick={() =>
-                              toggleFilter(
-                                column.key === "conductor"
-                                  ? "conductores"
-                                  : column.key === "empresa"
-                                    ? "empresas"
-                                    : column.key === "numero_planilla"
-                                      ? "planillas"
-                                      : column.key === "vehiculo"
-                                        ? "placas"
-                                        : "estados",
-                              )
-                            }
-                            className={`p-1 hover:bg-gray-200 rounded transition-colors ${
-                              filters[
+                          {/* Filter button - solo para columnas específicas */}
+                          {column.filterable && (
+                            <button
+                              onClick={() =>
+                                toggleFilter(
+                                  column.key === "conductor"
+                                    ? "conductores"
+                                    : column.key === "empresa"
+                                      ? "empresas"
+                                      : column.key === "numero_planilla"
+                                        ? "planillas"
+                                        : column.key === "vehiculo"
+                                          ? "placas"
+                                          : "estados",
+                                )
+                              }
+                              className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${filters[
                                 column.key === "conductor"
                                   ? "conductores"
                                   : column.key === "empresa"
@@ -930,19 +1596,33 @@ const CanvasRecargosDashboard = () => {
                               ]?.length > 0
                                 ? "text-emerald-600"
                                 : "text-gray-400"
-                            }`}
-                          >
-                            <Filter size={10} />
-                          </button>
-                        )}
+                                }`}
+                            >
+                              <Filter size={10} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Dropdown de filtro */}
-                    {renderFilterDropdown(column)}
-                  </div>
-                );
-              })}
+                      {/* Dropdown de filtro */}
+                      {renderFilterDropdown(column)}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Header de selección múltiple */}
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedRows.size === paginatedData.length &&
+                    paginatedData.length > 0
+                  }
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+              </div>
             </div>
 
             {/* Header de selección múltiple */}
@@ -959,215 +1639,212 @@ const CanvasRecargosDashboard = () => {
             </div>
           </div>
 
-          {/* Header de selección múltiple */}
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-            <input
-              type="checkbox"
-              checked={
-                selectedRows.size === paginatedData.length &&
-                paginatedData.length > 0
-              }
-              onChange={handleSelectAll}
-              className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-            />
-          </div>
-        </div>
-
-        {/* Filas de datos con columnas de días */}
-        <div className="divide-y divide-gray-200">
-          {paginatedData.map((item, rowIndex) => (
-            <div
-              key={item.id}
-              className={`flex hover:bg-emerald-50 transition-colors ${
-                selectedRows.has(item.id) ? "bg-emerald-50" : ""
-              } ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-            >
-              {columns.map((column) => {
-                // Determinar el estilo de la celda según el tipo de columna
-                let cellClass =
-                  "border-r border-gray-200 p-2 flex items-center";
-
-                if (column.fixed) {
-                  cellClass += " bg-slate-50";
-                } else if (column.isDayColumn) {
-                  const hasHours = item[column.key] > 0;
-                  if (column.isSunday) {
-                    cellClass += hasHours
-                      ? " bg-emerald-100"
-                      : " bg-emerald-50";
-                  } else if (column.isHoliday) {
-                    cellClass += hasHours ? " bg-red-100" : " bg-red-50";
-                  } else {
-                    cellClass += hasHours ? " bg-green-50" : " bg-gray-50";
-                  }
-                } else if (column.isSummary) {
-                  cellClass += " bg-green-25";
-                }
-
-                return (
-                  <div
-                    key={`${item.id}-${column.key}`}
-                    className={cellClass}
-                    style={{
-                      width: column.width,
-                      minWidth: column.width,
-                      justifyContent:
-                        column.align === "center"
-                          ? "center"
-                          : column.align === "right"
-                            ? "flex-end"
-                            : "flex-start",
-                    }}
-                  >
-                    {renderCell(item, column)}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-
-        {/* Estado vacío mejorado */}
-        {paginatedData.length === 0 && (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search size={32} className="text-gray-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No se encontraron registros
-              </h3>
-              <p className="text-gray-500 mb-4">
-                {searchTerm || activeFiltersCount > 0
-                  ? "Intenta ajustar los filtros o términos de búsqueda"
-                  : "No hay datos disponibles para este período"}
-              </p>
-              {(searchTerm || activeFiltersCount > 0) && (
-                <button
-                  onClick={clearAllFilters}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-                >
-                  Limpiar filtros
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Footer con paginación y información adicional */}
-      <div className="bg-white border-t border-gray-200">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
-                {Math.min(currentPage * itemsPerPage, processedData.length)} de{" "}
-                {processedData.length} registros
-              </span>
-
-              <div className="text-sm text-gray-500">
-                Mes:{" "}
-                {
-                  [
-                    "Enero",
-                    "Febrero",
-                    "Marzo",
-                    "Abril",
-                    "Mayo",
-                    "Junio",
-                    "Julio",
-                    "Agosto",
-                    "Septiembre",
-                    "Octubre",
-                    "Noviembre",
-                    "Diciembre",
-                  ][selectedMonth - 1]
-                }{" "}
-                {selectedYear}({getDaysInMonth(selectedMonth, selectedYear)}{" "}
-                días)
-              </div>
-
-              {selectedRows.size > 0 && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-emerald-600 font-medium">
-                    {selectedRows.size} elementos seleccionados
-                  </span>
-                  <button
-                    onClick={() => setSelectedRows(new Set())}
-                    className="text-xs text-gray-600 hover:text-gray-800 underline"
-                  >
-                    Deseleccionar todo
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Controles de paginación */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          {/* Filas de datos con columnas de días */}
+          <div className="divide-y divide-gray-200">
+            {paginatedData.map((item, rowIndex) => (
+              <div
+                key={item.id}
+                className={`flex hover:bg-emerald-50 transition-colors ${selectedRows.has(item.id) ? "bg-emerald-50" : ""
+                  } ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
               >
-                <ChevronLeft size={16} />
-              </button>
+                {columns.map((column: Column) => {
+                  // Determinar el estilo de la celda según el tipo de columna
+                  let cellClass =
+                    "border-r border-gray-200 p-2 flex items-center";
 
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
+                  if (column.fixed) {
+                    cellClass += " bg-slate-50";
+                  } else if (column.isDayColumn) {
+                    const hasHours = getItemValue(item, column.key) > 0;
+                    if (column.isSunday) {
+                      cellClass += hasHours
+                        ? " bg-emerald-100"
+                        : " bg-emerald-50";
+                    } else if (column.isHoliday) {
+                      cellClass += hasHours ? " bg-red-100" : " bg-red-50";
+                    } else {
+                      cellClass += hasHours ? " bg-green-50" : " bg-gray-50";
+                    }
+                  } else if (column.isSummary) {
+                    cellClass += " bg-green-25";
                   }
 
                   return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setCurrentPage(pageNum)}
-                      className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                        currentPage === pageNum
-                          ? "bg-emerald-600 text-white"
-                          : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                      }`}
+                    <div
+                      key={`${item.id}-${column.key}`}
+                      className={cellClass}
+                      style={{
+                        width: column.width,
+                        minWidth: column.width,
+                        justifyContent:
+                          column.align === "center"
+                            ? "center"
+                            : column.align === "right"
+                              ? "flex-end"
+                              : "flex-start",
+                      }}
                     >
-                      {pageNum}
-                    </button>
+                      {renderCell(item, column as Column)}
+                    </div>
                   );
                 })}
+              </div>
+            ))}
+          </div>
 
-                {totalPages > 5 && currentPage < totalPages - 2 && (
-                  <>
-                    <span className="px-2 text-gray-500">...</span>
+          {/* Estado vacío mejorado */}
+          {paginatedData.length === 0 && (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Search size={32} className="text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No se encontraron registros
+                </h3>
+                <p className="text-gray-500 mb-4">
+                  {searchTerm || activeFiltersCount > 0
+                    ? "Intenta ajustar los filtros o términos de búsqueda"
+                    : "No hay datos disponibles para este período"}
+                </p>
+                {(searchTerm || activeFiltersCount > 0) && (
+                  <Button
+                    onPress={clearAllFilters}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer con paginación y información adicional */}
+        <div className="bg-white border-t border-gray-200">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
+                  {Math.min(currentPage * itemsPerPage, processedData.length)}{" "}
+                  de {processedData.length} registros
+                </span>
+
+                <div className="text-sm text-gray-500">
+                  Mes:{" "}
+                  {
+                    [
+                      "Enero",
+                      "Febrero",
+                      "Marzo",
+                      "Abril",
+                      "Mayo",
+                      "Junio",
+                      "Julio",
+                      "Agosto",
+                      "Septiembre",
+                      "Octubre",
+                      "Noviembre",
+                      "Diciembre",
+                    ][selectedMonth - 1]
+                  }{" "}
+                  {selectedYear}{" "}({getDaysInMonth(selectedMonth, selectedYear)}{" "}
+                  días)
+                </div>
+
+                {selectedRows.size > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-emerald-600 font-medium">
+                      {selectedRows.size} elementos seleccionados
+                    </span>
                     <button
-                      onClick={() => setCurrentPage(totalPages)}
-                      className="px-3 py-1 text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                      onClick={() => setSelectedRows(new Set())}
+                      className="text-xs text-gray-600 hover:text-gray-800 underline"
                     >
-                      {totalPages}
+                      Deseleccionar todo
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
 
-              <button
-                onClick={() =>
-                  setCurrentPage(Math.min(totalPages, currentPage + 1))
-                }
-                disabled={currentPage === totalPages}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight size={16} />
-              </button>
+              {/* Controles de paginación */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                <div className="flex items-center space-x-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1 text-sm rounded-lg transition-colors ${currentPage === pageNum
+                          ? "bg-emerald-600 text-white"
+                          : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <>
+                      <span className="px-2 text-gray-500">...</span>
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        className="px-3 py-1 text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        {totalPages}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+      <ModalFormRecargo
+        currentMonth={selectedMonth}
+        currentYear={selectedYear}
+        recargoId={recargoId}
+        isOpen={modalFormIsOpen}
+        onClose={handleOpenFormModal}
+      />
+      <ModalVisualizarRecargo
+        recargoId={viewModalState.recargoId}
+        isOpen={viewModalState.isOpen}
+        onClose={() => setViewModalState({ isOpen: false, recargoId: null })}
+      />
+    </>
   );
 };
 

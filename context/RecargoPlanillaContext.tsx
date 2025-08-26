@@ -6,7 +6,6 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  useMemo,
 } from "react";
 import { AxiosError, isAxiosError } from "axios";
 import { Conductor, Empresa, Vehiculo } from "@/types";
@@ -39,25 +38,19 @@ interface FiltrosRecargo {
 
 interface DiaLaboral {
   id: string;
-  recargo_planilla_id: string;
   dia: number;
-  hora_inicio: number;
-  hora_fin: number;
+  hora_inicio: string;
+  hora_fin: string;
   total_horas: number;
+  es_especial: boolean;
+  es_domingo: boolean;
+  es_festivo: boolean;
   hed: number;
   hen: number;
   hefd: number;
   hefn: number;
   rn: number;
   rd: number;
-  es_festivo: boolean;
-  es_domingo: boolean;
-  observaciones?: string;
-  creado_por_id: string;
-  actualizado_por_id: string;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt?: string;
 }
 
 // ✅ NUEVAS INTERFACES PARA TIPOS DE RECARGO
@@ -115,8 +108,8 @@ interface TiposRecargoData {
 interface ConfiguracionSalario {
   id: string;
   empresa_id: string | null;
-  salario_basico: string; // Viene como string del backend
-  valor_hora_trabajador: string; // Viene como string del backend
+  salario_basico: number; // Viene como number del backend
+  valor_hora_trabajador: number; // Viene como number del backend
   horas_mensuales_base: number;
   vigencia_desde: string;
   vigencia_hasta: string | null;
@@ -160,62 +153,104 @@ interface FiltrosConfigSalario {
   limit?: number;
 }
 
-interface RecargoResponse {
+export interface RecargoDetallado {
   id: string;
-  conductor_id: string;
-  vehiculo_id: string;
-  empresa_id: string;
-  numero_planilla: string;
-  mes: number;
-  año: number;
-  total_dias_laborados: number;
-  total_horas_trabajadas: number;
-  total_horas_ordinarias: number;
+  planilla: string | null;
+  conductor: Conductor;
+  vehiculo: Vehiculo;
+  empresa: Empresa;
+  total_horas: number;
+  total_dias: number;
   total_hed: number;
   total_hen: number;
   total_hefd: number;
   total_hefn: number;
   total_rn: number;
   total_rd: number;
-  archivo_planilla_url?: string;
-  archivo_planilla_nombre?: string;
-  archivo_planilla_tipo?: string;
-  archivo_planilla_tamaño?: number;
-  estado: "borrador" | "activo" | "procesado" | "anulado";
-  observaciones?: string;
-  version: number;
-  creado_por_id?: string;
-  actualizado_por_id?: string;
+  dias_laborales: DiaLaboral[];
+}
+
+export interface RecargoResponse {
+  success: boolean;
+  data: {
+    mes: number;
+    año: number;
+    total_recargos: number;
+    recargo: RecargoDetallado;
+  };
+  message: string;
+}
+
+export interface DiaLaboralPlanilla {
+  /** Identificador único del día laboral */
+  id: string;
+
+  /** ID del recargo planilla al que pertenece este día */
+  recargo_planilla_id: string;
+
+  /** Día del mes (1-31) */
+  dia: number;
+
+  /** Hora de inicio en formato decimal (ej: 8.5 = 8:30) */
+  hora_inicio: number;
+
+  /** Hora de fin en formato decimal (ej: 17.5 = 17:30) */
+  hora_fin: number;
+
+  /** Total de horas trabajadas en el día */
+  total_horas: number;
+
+  /** Horas Extra Diurnas del día (25%) */
+  hed: number;
+
+  /** Horas Extra Nocturnas del día (75%) */
+  hen: number;
+
+  /** Horas Extra Festivas Diurnas del día (100%) */
+  hefd: number;
+
+  /** Horas Extra Festivas Nocturnas del día (150%) */
+  hefn: number;
+
+  /** Recargo Nocturno del día (35%) */
+  rn: number;
+
+  /** Recargo Dominical del día (75%) */
+  rd: number;
+
+  /** Indica si el día es festivo */
+  es_festivo: boolean;
+
+  /** Indica si el día es domingo */
+  es_domingo: boolean;
+
+  /** Observaciones específicas del día */
+  observaciones?: string | null;
+
+  /** ID del usuario que creó el registro */
+  creado_por_id?: string | null;
+
+  /** ID del usuario que actualizó el registro por última vez */
+  actualizado_por_id?: string | null;
+
+  /** Fecha y hora de creación del registro */
   created_at: string;
+
+  /** Fecha y hora de última actualización del registro */
   updated_at: string;
-  deleted_at?: string;
-  // Relaciones opcionales (según include)
-  dias_laborales?: DiaLaboral[];
-  conductor?: {
-    id: string;
-    nombre: string;
-    apellido: string;
-    numero_identificacion: string;
-  };
-  vehiculo?: {
-    id: string;
-    placa: string;
-    marca: string;
-    modelo: string;
-  };
-  empresa?: {
-    id: string;
-    nombre: string;
-    nit: string;
-  };
+
+  /** Fecha y hora de eliminación lógica (soft delete) */
+  deleted_at?: string | null;
 }
 
 // Datos optimizados para canvas
-interface CanvasRecargo {
+export interface CanvasRecargo {
   id: string;
   planilla: string;
-  conductor: string;
-  vehiculo: string;
+  conductor: Conductor;
+  vehiculo: Vehiculo;
+  empresa: Empresa;
+  numero_planilla: string;
   total_horas: number;
   total_dias: number;
   dias: {
@@ -226,6 +261,14 @@ interface CanvasRecargo {
   valor_total: number;
   total_hed: number;
   total_hen: number;
+  total_horas_trabajadas: number;
+  total_dias_laborados: number;
+  total_hefd: number;
+  total_hefn: number;
+  total_rn: number;
+  total_rd: number;
+  dias_laborales: DiaLaboralPlanilla[];
+  estado: "activo" | "inactivo" | "pendiente" | "aprobado" | "rechazado";
 }
 
 interface CanvasData {
@@ -233,26 +276,6 @@ interface CanvasData {
   año: number;
   total_recargos: number;
   recargos: CanvasRecargo[];
-}
-
-// Respuesta paginada
-interface RecargosData {
-  recargos: RecargoResponse[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPrevPage: boolean;
-  };
-  metadata?: {
-    query_time_ms: number;
-    filters_applied: string[];
-    total_results: number;
-    include_dias_laborales: boolean;
-    summary_only: boolean;
-  };
 }
 
 export interface ValidationError {
@@ -273,7 +296,6 @@ interface RecargoContextType {
   conductores: Conductor[];
   vehiculos: Vehiculo[];
   empresas: Empresa[];
-  recargos: RecargoResponse[];
 
   // ✅ NUEVOS ESTADOS PARA TIPOS DE RECARGO Y CONFIGURACIÓN
   tiposRecargo: TipoRecargo[];
@@ -304,15 +326,18 @@ interface RecargoContextType {
   registrarRecargo: (
     recargoData: any,
   ) => Promise<{ success: boolean; data?: any }>;
+  actualizarRecargo: (
+    id: string,
+    recargoData: any,
+  ) => Promise<{ success: boolean; data?: any }>;
 
   // Funciones optimizadas para obtener recargos
-  obtenerRecargos: (filtros?: FiltrosRecargo) => Promise<RecargosData>;
   obtenerRecargosParaCanvas: (
     mes: number,
     año: number,
     empresa_id?: string,
   ) => Promise<CanvasData>;
-  obtenerRecargoPorId: (id: string) => Promise<RecargoResponse | null>;
+  obtenerRecargoPorId: (id: string) => Promise<RecargoResponse>;
 
   // ✅ NUEVAS FUNCIONES PARA TIPOS DE RECARGO
   obtenerTiposRecargo: (
@@ -387,7 +412,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const [conductores, setConductores] = useState<Conductor[]>([]);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [recargos, setRecargos] = useState<RecargoResponse[]>([]);
 
   // ✅ NUEVOS ESTADOS PARA TIPOS DE RECARGO Y CONFIGURACIÓN
   const [tiposRecargo, setTiposRecargo] = useState<TipoRecargo[]>([]);
@@ -468,10 +492,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     return Date.now() - lastFetchTime < CACHE_TTL;
   }, []);
 
-  // ===============================================
-  // ✅ FUNCIONES EXISTENTES (sin cambios significativos)
-  // ===============================================
-
   // OBTENER CONDUCTORES CON CACHE (sin cambios)
   const obtenerConductores = useCallback(
     async (force = false): Promise<void> => {
@@ -480,7 +500,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         isCacheValid(lastFetch.conductores) &&
         conductores.length > 0
       ) {
-        console.log("📋 Usando conductores desde cache");
         return;
       }
 
@@ -515,7 +534,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const obtenerVehiculos = useCallback(
     async (force = false): Promise<void> => {
       if (!force && isCacheValid(lastFetch.vehiculos) && vehiculos.length > 0) {
-        console.log("🚗 Usando vehículos desde cache");
         return;
       }
 
@@ -546,7 +564,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const obtenerEmpresas = useCallback(
     async (force = false): Promise<void> => {
       if (!force && isCacheValid(lastFetch.empresas) && empresas.length > 0) {
-        console.log("🏢 Usando empresas desde cache");
         return;
       }
 
@@ -572,15 +589,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     [empresas.length, lastFetch.empresas, isCacheValid, handleApiError],
   );
 
-  // ===============================================
-  // ✅ NUEVAS FUNCIONES PARA CONFIGURACIÓN DE SALARIOS
-  // ===============================================
-
   // OBTENER CONFIGURACIONES DE SALARIO CON CACHE
   const obtenerConfiguracionesSalario = useCallback(
-    async (
-      filtros: FiltrosConfigSalario = {},
-    ): Promise<ConfiguracionesSalarioData> => {
+    async (filtros: FiltrosConfigSalario = {}): Promise<any> => {
       const isSimpleRequest = !filtros.empresa_id && !filtros.page;
 
       if (
@@ -588,7 +599,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         isCacheValid(lastFetch.configuracionesSalario) &&
         configuracionesSalario.length > 0
       ) {
-        console.log("💰 Usando configuraciones de salario desde cache");
         return {
           data: configuracionesSalario,
           pagination: {
@@ -618,9 +628,11 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         >(`/api/configuraciones-salario?${params.toString()}`);
 
         if (response.data.success) {
-          // Actualizar cache solo si es una consulta simple
+          // ✅ CORRECCIÓN: Extraer solo el array de datos para el estado
           if (isSimpleRequest) {
-            setConfiguracionesSalario(response.data.data);
+            // Destructuring para mayor claridad
+
+            setConfiguracionesSalario(response.data.data); // ← Cambio aquí: solo el array
             setLastFetch((prev) => ({
               ...prev,
               configuracionesSalario: Date.now(),
@@ -935,68 +947,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     [clearError, handleApiError],
   );
 
-  // OBTENER RECARGOS CON FILTROS (sin cambios)
-  const obtenerRecargos = useCallback(
-    async (filtros: FiltrosRecargo = {}): Promise<RecargosData> => {
-      setLoading(true);
-      clearError();
-
-      try {
-        console.log("🔍 Obteniendo recargos con filtros:", filtros);
-
-        const params = new URLSearchParams();
-
-        // Construir parámetros
-        Object.entries(filtros).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== "") {
-            params.append(key, value.toString());
-          }
-        });
-
-        const startTime = Date.now();
-        const response = await apiClient.get<ApiResponse<RecargosData>>(
-          `/api/recargos?${params.toString()}`,
-        );
-
-        const requestTime = Date.now() - startTime;
-        console.log(`⏱️ Request completado en ${requestTime}ms`);
-
-        if (response.data.success) {
-          const recargosData = response.data.data;
-
-          // Actualizar estado solo si no es una consulta específica
-          if (!filtros.only_summary) {
-            setRecargos(recargosData.recargos);
-            setLastFetch((prev) => ({ ...prev, recargos: Date.now() }));
-          }
-
-          return recargosData;
-        } else {
-          throw new Error(response.data.message || "Error al obtener recargos");
-        }
-      } catch (err) {
-        console.error("❌ Error obteniendo recargos:", err);
-        const errorMessage = handleApiError(err, "Error al obtener recargos");
-        setError(errorMessage);
-
-        return {
-          recargos: [],
-          pagination: {
-            total: 0,
-            page: 1,
-            limit: 10,
-            totalPages: 0,
-            hasNextPage: false,
-            hasPrevPage: false,
-          },
-        };
-      } finally {
-        setLoading(false);
-      }
-    },
-    [clearError, handleApiError],
-  );
-
   // OBTENER RECARGOS PARA CANVAS (sin cambios)
   const obtenerRecargosParaCanvas = useCallback(
     async (
@@ -1049,17 +999,17 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // OBTENER RECARGO POR ID (sin cambios)
   const obtenerRecargoPorId = useCallback(
-    async (id: string): Promise<RecargoResponse | null> => {
+    async (id: string): Promise<RecargoResponse> => {
       setLoading(true);
       clearError();
 
       try {
-        const response = await apiClient.get<ApiResponse<RecargoResponse>>(
+        const response = await apiClient.get<RecargoResponse>(
           `/api/recargos/${id}`,
         );
 
         if (response.data.success) {
-          return response.data.data;
+          return response.data;
         } else {
           throw new Error(response.data.message || "Error al obtener recargo");
         }
@@ -1075,6 +1025,72 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     [clearError, handleApiError],
   );
 
+  const actualizarRecargo = useCallback(
+    async (
+      id: string,
+      recargoData: any,
+    ): Promise<{ success: boolean; data?: any }> => {
+      setLoading(true);
+      clearError();
+
+      try {
+        let response;
+
+        // ✅ Validar que el ID sea válido
+        if (!id || typeof id !== "string") {
+          throw new Error("ID del recargo es requerido");
+        }
+
+        if (recargoData instanceof FormData) {
+          // ✅ Si es FormData (con archivos)
+          response = await apiClient.put<ApiResponse<any>>(
+            `/api/recargos/${id}`,
+            recargoData,
+          );
+        } else {
+          // ✅ Si es JSON
+          response = await apiClient.put<ApiResponse<any>>(
+            `/api/recargos/${id}`,
+            recargoData,
+            {
+              headers: { "Content-Type": "application/json" },
+            },
+          );
+        }
+
+        if (response.data.success) {
+          // ✅ Invalidar cache de recargos para que se recarguen
+          setLastFetch((prev) => ({ ...prev, recargos: undefined }));
+
+          // ✅ También invalidar el cache del recargo individual si existe
+          setLastFetch((prev) => ({
+            ...prev,
+            [`recargo_${id}`]: undefined,
+          }));
+
+          return {
+            success: true,
+            data: response.data.data,
+          };
+        } else {
+          setError(response.data.message || "Error al actualizar el recargo");
+          return { success: false };
+        }
+      } catch (err) {
+        console.error("❌ Error al actualizar recargo:", err);
+        const errorMessage = handleApiError(
+          err,
+          "Error al actualizar el recargo",
+        );
+        setError(errorMessage);
+        return { success: false };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [clearError, handleApiError, setLastFetch],
+  );
+
   // OBTENER TIPOS DE RECARGO CON CACHE
   const obtenerTiposRecargo = useCallback(
     async (filtros: FiltrosTipoRecargo = {}): Promise<TiposRecargoData> => {
@@ -1085,7 +1101,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         isCacheValid(lastFetch.tiposRecargo) &&
         tiposRecargo.length > 0
       ) {
-        console.log("🔧 Usando tipos de recargo desde cache");
         return {
           data: tiposRecargo,
           pagination: {
@@ -1114,12 +1129,10 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           `/api/tipos-recargo?${params.toString()}`,
         );
 
-        console.log(response);
-
         if (response.data.success) {
-          // Actualizar cache solo si es una consulta simple
+          // ✅ CORRECCIÓN: Extraer solo el array de datos para el estado
           if (isSimpleRequest) {
-            setTiposRecargo(response.data.data);
+            setTiposRecargo(response.data.data); // ← Cambio aquí: .data.data
             setLastFetch((prev) => ({ ...prev, tiposRecargo: Date.now() }));
           }
 
@@ -1165,7 +1178,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         >(`/api/tipos-recargo/por-categoria/${categoria}`);
 
         if (response.data.success) {
-          return response.data.data.data;
+          return response.data.data;
         } else {
           throw new Error(
             response.data.message || "Error al obtener tipos por categoría",
@@ -1417,10 +1430,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     [clearError, handleApiError],
   );
 
-  // ===============================================
-  // ✅ FUNCIONES DE REFRESH FORZADO (actualizadas)
-  // ===============================================
-
   const refrescarConductores = useCallback(
     () => obtenerConductores(true),
     [obtenerConductores],
@@ -1446,10 +1455,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     setLastFetch((prev) => ({ ...prev, configuracionesSalario: undefined }));
     await obtenerConfiguracionesSalario();
   }, [obtenerConfiguracionesSalario]);
-
-  // ===============================================
-  // ✅ INICIALIZACIÓN OPTIMIZADA (actualizada)
-  // ===============================================
 
   useEffect(() => {
     const inicializar = async () => {
@@ -1478,7 +1483,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     conductores,
     vehiculos,
     empresas,
-    recargos,
 
     // ✅ NUEVOS ESTADOS
     tiposRecargo,
@@ -1498,9 +1502,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     // Funciones existentes
     clearError,
     registrarRecargo,
-    obtenerRecargos,
     obtenerRecargosParaCanvas,
     obtenerRecargoPorId,
+    actualizarRecargo,
 
     // ✅ NUEVAS FUNCIONES PARA TIPOS DE RECARGO
     obtenerTiposRecargo,

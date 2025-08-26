@@ -281,7 +281,6 @@ export const calcularRecargoDominical = (
   diasFestivos: number[] = [],
 ): number => {
   // Solo si es domingo o festivo
-  console.log(dia, mes, año, totalHoras, diasFestivos);
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     // Si trabajó 10 horas o menos, todas son recargo dominical
     // Si trabajó más de 10, solo las primeras 10 son recargo dominical
@@ -361,8 +360,6 @@ export const calcularTodasLasHoras = (
     esFestivo: esDiaFestivo(dia, diasFestivos),
     esDomingoOFestivo: esDomingoOFestivo(dia, mes, año, diasFestivos),
   };
-
-  console.log(resultados);
 
   return resultados;
 };
@@ -460,6 +457,15 @@ export const validarParametros = (parametros: ParametrosCalculo): string[] => {
   }
 
   return errores;
+};
+
+export const formatearCOP = (valor: number): string => {
+  return new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(valor);
 };
 
 // ===== EXPORT DEFAULT =====
