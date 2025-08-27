@@ -7,7 +7,7 @@
 // ===== TIPOS E INTERFACES =====
 
 export interface ParametrosCalculo {
-  dia: number;
+  dia: string;
   mes: number;
   año: number;
   horaInicial: number;
@@ -61,8 +61,8 @@ export const HORAS_LIMITE = {
  * @param año - Año
  * @returns true si es domingo
  */
-export const esDomingo = (dia: number, mes: number, año: number): boolean => {
-  const fecha = new Date(año, mes - 1, dia);
+export const esDomingo = (dia: string, mes: number, año: number): boolean => {
+  const fecha = new Date(año, mes - 1, Number(dia));
   return fecha.getDay() === 0; // 0 = domingo
 };
 
@@ -73,10 +73,10 @@ export const esDomingo = (dia: number, mes: number, año: number): boolean => {
  * @returns true si es día festivo
  */
 export const esDiaFestivo = (
-  dia: number,
+  dia: string,
   diasFestivos: number[] = [],
 ): boolean => {
-  return diasFestivos.includes(dia);
+  return diasFestivos.includes(Number(dia));
 };
 
 /**
@@ -88,7 +88,7 @@ export const esDiaFestivo = (
  * @returns true si es domingo o festivo
  */
 export const esDomingoOFestivo = (
-  dia: number,
+  dia: string,
   mes: number,
   año: number,
   diasFestivos: number[] = [],
@@ -135,13 +135,14 @@ export const parsearHora = (horaString: string): number => {
  * Fórmula: =IF(COUNTIF($R$6:$S$12,C9) > 0, 0, IF(F9>10,F9-10,0))
  */
 export const calcularHoraExtraDiurna = (
-  dia: number,
+  dia: string,
   mes: number,
   año: number,
   totalHoras: number,
   diasFestivos: number[] = [],
 ): number => {
   // Si es domingo o festivo, no hay horas extra diurnas normales
+  console.log(totalHoras);
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     return 0;
   }
@@ -159,7 +160,7 @@ export const calcularHoraExtraDiurna = (
  * Fórmula: =IF(COUNTIF($R$6:$S$12,C9) > 0, 0, IF(AND(F9>10,E9>21),E9-21,0))
  */
 export const calcularHoraExtraNocturna = (
-  dia: number,
+  dia: string,
   mes: number,
   año: number,
   horaFinal: number,
@@ -187,7 +188,7 @@ export const calcularHoraExtraNocturna = (
  * Fórmula: =IF(COUNTIF($R$6:$S$12,C9) > 0, IF(F9>10,F9-10,0),0)
  */
 export const calcularHoraExtraFestivaDiurna = (
-  dia: number,
+  dia: string,
   mes: number,
   año: number,
   totalHoras: number,
@@ -208,7 +209,7 @@ export const calcularHoraExtraFestivaDiurna = (
  * Fórmula: =IF(COUNTIF($R$6:$S$12,C9) > 0, IF(AND(F9>10,E9>21),E9-21,0), 0)
  */
 export const calcularHoraExtraFestivaNocturna = (
-  dia: number,
+  dia: string,
   mes: number,
   año: number,
   horaFinal: number,
@@ -234,7 +235,7 @@ export const calcularHoraExtraFestivaNocturna = (
  * Fórmula: =IF(C9<>"",IF(AND(D9<>"",E9<>""),(IF(D9<6,6-D9)+IF(E9>21,IF((D9>21),E9-D9,E9-21))),0),0)
  */
 export const calcularRecargoNocturno = (
-  dia: number,
+  dia: string,
   horaInicial: number,
   horaFinal: number,
 ): number => {
@@ -244,7 +245,7 @@ export const calcularRecargoNocturno = (
   }
 
   // Si no hay horas registradas, retornar 0
-  if (!horaInicial || !horaFinal) {
+  if (typeof horaInicial !== "number" || typeof horaFinal !== "number") {
     return 0;
   }
 
@@ -274,7 +275,7 @@ export const calcularRecargoNocturno = (
  * Fórmula: =IF(COUNTIF($R$6:$S$12,C9) > 0, IF(F9<=10,F9,10), 0)
  */
 export const calcularRecargoDominical = (
-  dia: number,
+  dia: string,
   mes: number,
   año: number,
   totalHoras: number,
@@ -418,7 +419,7 @@ export const obtenerDomingosDelMes = (mes: number, año: number): number[] => {
   const diasEnMes = new Date(año, mes, 0).getDate();
 
   for (let dia = 1; dia <= diasEnMes; dia++) {
-    if (esDomingo(dia, mes, año)) {
+    if (esDomingo(dia.toString(), mes, año)) {
       domingos.push(dia);
     }
   }
@@ -432,7 +433,7 @@ export const obtenerDomingosDelMes = (mes: number, año: number): number[] => {
 export const validarParametros = (parametros: ParametrosCalculo): string[] => {
   const errores: string[] = [];
 
-  if (parametros.dia < 1 || parametros.dia > 31) {
+  if (Number(parametros.dia) < 1 || Number(parametros.dia) > 31) {
     errores.push("El día debe estar entre 1 y 31");
   }
 
@@ -466,6 +467,128 @@ export const formatearCOP = (valor: number): string => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(valor);
+};
+
+// ===== LÓGICA DE DÍAS FESTIVOS COLOMBIA =====
+// Festivos fijos en Colombia (misma fecha cada año)
+export const festivosFijos = [
+  { mes: 1, dia: 1, nombre: "Año Nuevo" },
+  { mes: 5, dia: 1, nombre: "Día del Trabajo" },
+  { mes: 7, dia: 20, nombre: "Día de la Independencia" },
+  { mes: 8, dia: 7, nombre: "Batalla de Boyacá" },
+  { mes: 12, dia: 8, nombre: "Inmaculada Concepción" },
+  { mes: 12, dia: 25, nombre: "Navidad" },
+];
+
+// Función para calcular Semana Santa (varía cada año)
+export const calcularSemanaSanta = (año: number) => {
+  const a = año % 19;
+  const b = Math.floor(año / 100);
+  const c = año % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const n = Math.floor((h + l - 7 * m + 114) / 31);
+  const p = (h + l - 7 * m + 114) % 31;
+
+  const domingoRamos = new Date(año, n - 1, p + 1 - 7);
+  const juevesSanto = new Date(año, n - 1, p + 1 - 3);
+  const viernesSanto = new Date(año, n - 1, p + 1 - 2);
+  const domingoPascua = new Date(año, n - 1, p + 1);
+
+  return {
+    domingoRamos,
+    juevesSanto,
+    viernesSanto,
+    domingoPascua,
+  };
+};
+
+// Función para calcular festivos que se trasladan al lunes
+export const calcularFestivosLunes = (año: number) => {
+  const festivos = [
+    { mes: 1, dia: 6, nombre: "Reyes Magos" },
+    { mes: 3, dia: 19, nombre: "San José" },
+    { mes: 6, dia: 29, nombre: "San Pedro y San Pablo" },
+    { mes: 8, dia: 15, nombre: "Asunción de la Virgen" },
+    { mes: 10, dia: 12, nombre: "Día de la Raza" },
+    { mes: 11, dia: 1, nombre: "Todos los Santos" },
+    { mes: 11, dia: 11, nombre: "Independencia de Cartagena" },
+  ];
+
+  return festivos.map((festivo) => {
+    const fecha = new Date(año, festivo.mes - 1, festivo.dia);
+    const diaSemana = fecha.getDay();
+
+    // Si no es lunes (1), calcular el próximo lunes
+    if (diaSemana !== 1) {
+      const diasHastaLunes = diaSemana === 0 ? 1 : 8 - diaSemana;
+      fecha.setDate(fecha.getDate() + diasHastaLunes);
+    }
+
+    return {
+      fecha,
+      nombre: festivo.nombre,
+      original: new Date(año, festivo.mes - 1, festivo.dia),
+    };
+  });
+};
+
+// Función principal para obtener todos los festivos del año
+export const obtenerFestivosCompletos = (año: number) => {
+  const festivos = [];
+
+  // Agregar festivos fijos
+  festivosFijos.forEach((festivo) => {
+    festivos.push({
+      fecha: new Date(año, festivo.mes - 1, festivo.dia),
+      nombre: festivo.nombre,
+      tipo: "fijo",
+    });
+  });
+
+  // Agregar Semana Santa
+  const semanaSanta = calcularSemanaSanta(año);
+  festivos.push(
+    {
+      fecha: semanaSanta.juevesSanto,
+      nombre: "Jueves Santo",
+      tipo: "religioso",
+    },
+    {
+      fecha: semanaSanta.viernesSanto,
+      nombre: "Viernes Santo",
+      tipo: "religioso",
+    },
+  );
+
+  // Agregar festivos que se trasladan al lunes
+  const festivosLunes = calcularFestivosLunes(año);
+  festivosLunes.forEach((festivo) => {
+    festivos.push({
+      fecha: festivo.fecha,
+      nombre: festivo.nombre,
+      tipo: "trasladado",
+    });
+  });
+
+  // Ordenar por fecha y formatear para el componente
+  return festivos
+    .sort((a, b) => a.fecha - b.fecha)
+    .map((festivo) => ({
+      dia: festivo.fecha.getDate(),
+      mes: festivo.fecha.getMonth() + 1, // +1 porque getMonth() devuelve 0-11
+      año: festivo.fecha.getFullYear(),
+      nombre: festivo.nombre,
+      tipo: festivo.tipo,
+      fechaCompleta: festivo.fecha.toISOString().split("T")[0], // YYYY-MM-DD
+    }));
 };
 
 // ===== EXPORT DEFAULT =====

@@ -25,7 +25,11 @@ import {
   CheckCircle,
   Timer,
 } from "lucide-react";
-import { RecargoDetallado, RecargoResponse, useRecargo } from "@/context/RecargoPlanillaContext";
+import {
+  RecargoDetallado,
+  RecargoResponse,
+  useRecargo,
+} from "@/context/RecargoPlanillaContext";
 import { addToast } from "@heroui/toast";
 
 interface ModalVisualizarRecargoProps {
@@ -156,7 +160,11 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
 
     // ✅ Totales desde el backend (ya calculados)
     const totales = useMemo(() => {
-      if (!recargo || !recargo.dias_laborales || !Array.isArray(recargo.dias_laborales)) {
+      if (
+        !recargo ||
+        !recargo.dias_laborales ||
+        !Array.isArray(recargo.dias_laborales)
+      ) {
         return {
           totalHoras: 0,
           totalesRecargos: { HED: 0, HEN: 0, HEFD: 0, HEFN: 0, RN: 0, RD: 0 },
@@ -173,12 +181,12 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
           RN: acumulador.RN + (dia.rn || 0),
           RD: acumulador.RD + (dia.rd || 0),
         }),
-        { HED: 0, HEN: 0, HEFD: 0, HEFN: 0, RN: 0, RD: 0 }
+        { HED: 0, HEN: 0, HEFD: 0, HEFN: 0, RN: 0, RD: 0 },
       );
 
-      console.log('Totales calculados:', {
+      console.log("Totales calculados:", {
         totalHoras: recargo.total_horas,
-        totalesRecargos
+        totalesRecargos,
       });
 
       return {
@@ -186,7 +194,7 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
         totalesRecargos,
       };
     }, [recargo]);
-    
+
     // ✅ Componente de Card de Día memoizado
     const DiaCard = React.memo(
       ({ dia, index }: { dia: DiaLaboral; index: number }) => {
@@ -206,10 +214,11 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
         return (
           <Card
             key={`dia-${dia.dia}-${index}`}
-            className={`border-2 ${dia.es_especial
-              ? "border-red-200 bg-red-50"
-              : "border-gray-200 bg-white"
-              }`}
+            className={`border-2 ${
+              dia.es_especial
+                ? "border-red-200 bg-red-50"
+                : "border-gray-200 bg-white"
+            }`}
           >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between w-full">

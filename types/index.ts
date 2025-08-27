@@ -33,7 +33,8 @@ export type DiaLaboral = {
   año: string;
   horaInicio: string;
   horaFin: string;
-  esFestivo: boolean
+  esDomingo: boolean;
+  esFestivo: boolean;
 };
 
 export type ConfiguracionSalario = {
@@ -57,6 +58,9 @@ export type ConfiguracionSalario = {
 
   /** Fecha hasta la cual es válida (null = sin límite) */
   vigencia_hasta: Date | string | null;
+
+  /** Paga dias festivos con bono */
+  paga_dias_festivos?: boolean;
 
   /** Estado activo de la configuración */
   activo: boolean;

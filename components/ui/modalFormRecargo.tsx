@@ -42,120 +42,7 @@ import { useRecargo } from "@/context/RecargoPlanillaContext";
 import { addToast } from "@heroui/toast";
 import TablaConRecargos from "./tableRecargos";
 import UploadPlanilla from "../uploadPlanilla";
-
-// ===== LÓGICA DE DÍAS FESTIVOS COLOMBIA =====
-// Festivos fijos en Colombia (misma fecha cada año)
-const festivosFijos = [
-  { mes: 1, dia: 1, nombre: "Año Nuevo" },
-  { mes: 5, dia: 1, nombre: "Día del Trabajo" },
-  { mes: 7, dia: 20, nombre: "Día de la Independencia" },
-  { mes: 8, dia: 7, nombre: "Batalla de Boyacá" },
-  { mes: 12, dia: 8, nombre: "Inmaculada Concepción" },
-  { mes: 12, dia: 25, nombre: "Navidad" }
-];
-
-// Función para calcular Semana Santa (varía cada año)
-const calcularSemanaSanta = (año) => {
-  const a = año % 19;
-  const b = Math.floor(año / 100);
-  const c = año % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const n = Math.floor((h + l - 7 * m + 114) / 31);
-  const p = (h + l - 7 * m + 114) % 31;
-
-  const domingoRamos = new Date(año, n - 1, p + 1 - 7);
-  const juevesSanto = new Date(año, n - 1, p + 1 - 3);
-  const viernesSanto = new Date(año, n - 1, p + 1 - 2);
-  const domingoPascua = new Date(año, n - 1, p + 1);
-
-  return {
-    domingoRamos,
-    juevesSanto,
-    viernesSanto,
-    domingoPascua
-  };
-};
-
-// Función para calcular festivos que se trasladan al lunes
-const calcularFestivosLunes = (año : number) => {
-  const festivos = [
-    { mes: 1, dia: 6, nombre: "Reyes Magos" },
-    { mes: 3, dia: 19, nombre: "San José" },
-    { mes: 6, dia: 29, nombre: "San Pedro y San Pablo" },
-    { mes: 8, dia: 15, nombre: "Asunción de la Virgen" },
-    { mes: 10, dia: 12, nombre: "Día de la Raza" },
-    { mes: 11, dia: 1, nombre: "Todos los Santos" },
-    { mes: 11, dia: 11, nombre: "Independencia de Cartagena" }
-  ];
-
-  return festivos.map(festivo => {
-    const fecha = new Date(año, festivo.mes - 1, festivo.dia);
-    const diaSemana = fecha.getDay();
-
-    // Si no es lunes (1), calcular el próximo lunes
-    if (diaSemana !== 1) {
-      const diasHastaLunes = diaSemana === 0 ? 1 : 8 - diaSemana;
-      fecha.setDate(fecha.getDate() + diasHastaLunes);
-    }
-
-    return {
-      fecha,
-      nombre: festivo.nombre,
-      original: new Date(año, festivo.mes - 1, festivo.dia)
-    };
-  });
-};
-
-// Función principal para obtener todos los festivos del año
-const obtenerFestivosCompletos = (año : number) => {
-  const festivos = [];
-
-  // Agregar festivos fijos
-  festivosFijos.forEach(festivo => {
-    festivos.push({
-      fecha: new Date(año, festivo.mes - 1, festivo.dia),
-      nombre: festivo.nombre,
-      tipo: 'fijo'
-    });
-  });
-
-  // Agregar Semana Santa
-  const semanaSanta = calcularSemanaSanta(año);
-  festivos.push(
-    { fecha: semanaSanta.juevesSanto, nombre: "Jueves Santo", tipo: 'religioso' },
-    { fecha: semanaSanta.viernesSanto, nombre: "Viernes Santo", tipo: 'religioso' }
-  );
-
-  // Agregar festivos que se trasladan al lunes
-  const festivosLunes = calcularFestivosLunes(año);
-  festivosLunes.forEach(festivo => {
-    festivos.push({
-      fecha: festivo.fecha,
-      nombre: festivo.nombre,
-      tipo: 'trasladado'
-    });
-  });
-
-  // Ordenar por fecha y formatear para el componente
-  return festivos
-    .sort((a, b) => a.fecha - b.fecha)
-    .map(festivo => ({
-      dia: festivo.fecha.getDate(),
-      mes: festivo.fecha.getMonth() + 1, // +1 porque getMonth() devuelve 0-11
-      año: festivo.fecha.getFullYear(),
-      nombre: festivo.nombre,
-      tipo: festivo.tipo,
-      fechaCompleta: festivo.fecha.toISOString().split('T')[0] // YYYY-MM-DD
-    }));
-};
+import { esDomingo } from "@/helpers";
 
 interface Option {
   value: string;
@@ -189,7 +76,7 @@ const CustomTab: React.FC<TabProps> = ({
   isActive,
   isCompleted,
   onClick,
-  editMode = false
+  editMode = false,
 }) => {
   return (
     <button
@@ -197,37 +84,37 @@ const CustomTab: React.FC<TabProps> = ({
       className={`
         relative flex items-center gap-3 px-6 py-4 font-medium text-sm
         transition-all duration-200 border-b-2 hover:bg-gray-50 flex-1
-        ${isActive
-          ? editMode
-            ? 'text-blue-600 border-blue-500 bg-blue-50/50'
-            : 'text-emerald-600 border-emerald-500 bg-emerald-50/50'
-          : 'text-gray-600 border-transparent hover:text-gray-800'
+        ${
+          isActive
+            ? editMode
+              ? "text-blue-600 border-blue-500 bg-blue-50/50"
+              : "text-emerald-600 border-emerald-500 bg-emerald-50/50"
+            : "text-gray-600 border-transparent hover:text-gray-800"
         } cursor-pointer
       `}
     >
       {/* Indicador de completado */}
       <div className="flex-shrink-0">
         {isCompleted ? (
-          <CheckCircle
-            size={16}
-            className="text-green-500"
-          />
+          <CheckCircle size={16} className="text-green-500" />
         ) : (
-          <Circle
-            size={16}
-            className="text-gray-400"
-          />
+          <Circle size={16} className="text-gray-400" />
         )}
       </div>
 
       {/* Icono y label */}
       <div className="flex items-center gap-2">
-        <span className={`
-          ${isActive
-            ? editMode ? 'text-blue-600' : 'text-emerald-600'
-            : 'text-gray-500'
+        <span
+          className={`
+          ${
+            isActive
+              ? editMode
+                ? "text-blue-600"
+                : "text-emerald-600"
+              : "text-gray-500"
           }
-        `}>
+        `}
+        >
           {icon}
         </span>
         <span>{label}</span>
@@ -244,9 +131,7 @@ interface TabsContainerProps {
 const TabsContainer: React.FC<TabsContainerProps> = ({ children }) => {
   return (
     <div className="w-full">
-      <div className="flex border-b border-gray-200 bg-white">
-        {children}
-      </div>
+      <div className="flex border-b border-gray-200 bg-white">{children}</div>
     </div>
   );
 };
@@ -261,47 +146,47 @@ const TabContent: React.FC<TabContentProps> = ({ children, isActive }) => {
   if (!isActive) return null;
 
   return (
-    <div className="py-4 animate-in fade-in-0 duration-200">
-      {children}
-    </div>
+    <div className="py-4 animate-in fade-in-0 duration-200">{children}</div>
   );
 };
 
 // ===== COMPONENTE CHIP PERSONALIZADO =====
 interface ChipProps {
   children: React.ReactNode;
-  color?: 'success' | 'warning' | 'danger' | 'default';
-  variant?: 'flat' | 'solid';
-  size?: 'sm' | 'md';
+  color?: "success" | "warning" | "danger" | "default";
+  variant?: "flat" | "solid";
+  size?: "sm" | "md";
 }
 
 const Chip: React.FC<ChipProps> = ({
   children,
-  color = 'default',
-  variant = 'flat',
-  size = 'sm'
+  color = "default",
+  variant = "flat",
+  size = "sm",
 }) => {
   const getColorClasses = () => {
     const baseClasses = {
-      success: 'bg-green-100 text-green-800 border-green-200',
-      warning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      danger: 'bg-red-100 text-red-800 border-red-200',
-      default: 'bg-gray-100 text-gray-800 border-gray-200'
+      success: "bg-green-100 text-green-800 border-green-200",
+      warning: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      danger: "bg-red-100 text-red-800 border-red-200",
+      default: "bg-gray-100 text-gray-800 border-gray-200",
     };
     return baseClasses[color];
   };
 
   const sizeClasses = {
-    sm: 'px-2 py-1 text-xs',
-    md: 'px-3 py-1.5 text-sm'
+    sm: "px-2 py-1 text-xs",
+    md: "px-3 py-1.5 text-sm",
   };
 
   return (
-    <span className={`
+    <span
+      className={`
       inline-flex items-center rounded-full font-medium border
       ${getColorClasses()}
       ${sizeClasses[size]}
-    `}>
+    `}
+    >
       {children}
     </span>
   );
@@ -424,6 +309,8 @@ export default function ModalFormRecargo({
   onClose,
 }: ModalNewRecargoProps) {
   const {
+    diasFestivos,
+    selectedMonth,
     conductores,
     vehiculos,
     empresas,
@@ -436,16 +323,6 @@ export default function ModalFormRecargo({
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [activeTab, setActiveTab] = useState("informacion");
   const [editMode, setEditMode] = useState(false);
-
-  // ===== ESTADO PARA DÍAS FESTIVOS =====
-  const [diasFestivos, setDiasFestivos] = useState<Array<{
-    dia: number;
-    mes: number;
-    año: number;
-    nombre: string;
-    tipo: string;
-    fechaCompleta: string;
-  }>>([]);
 
   const [formData, setFormData] = useState({
     conductorId: "",
@@ -469,20 +346,10 @@ export default function ModalFormRecargo({
       año: new Date().getFullYear().toString(),
       horaInicio: "",
       horaFin: "",
-      esFestivo: false
+      esDomingo: false,
+      esFestivo: false,
     },
   ]);
-
-  // ===== EFFECT PARA CARGAR DÍAS FESTIVOS =====
-  useEffect(() => {
-    if (isOpen) {
-      // Cargar festivos para el año actual
-      const festivos = obtenerFestivosCompletos(currentYear);
-      setDiasFestivos(festivos);
-
-      console.log(`Festivos ${currentYear} cargados:`, festivos);
-    }
-  }, [isOpen, currentYear]);
 
   // Función para cargar datos del recargo a editar
   const cargarDatosRecargo = async (id: string) => {
@@ -507,7 +374,8 @@ export default function ModalFormRecargo({
             año: currentYear.toString(),
             horaInicio: detalle.hora_inicio,
             horaFin: detalle.hora_fin,
-            esFestivo: detalle.es_festivo
+            esDomingo: detalle.es_domingo,
+            esFestivo: detalle.es_festivo,
           }));
 
           setDiasLaborales(diasCargados);
@@ -545,7 +413,8 @@ export default function ModalFormRecargo({
         año: new Date().getFullYear().toString(),
         horaInicio: "",
         horaFin: "",
-        esFestivo: false
+        esDomingo: false,
+        esFestivo: false,
       },
     ]);
     setIsLoading(false);
@@ -616,7 +485,8 @@ export default function ModalFormRecargo({
         año: new Date().getFullYear().toString(),
         horaInicio: "",
         horaFin: "",
-        esFestivo: false
+        esDomingo: false,
+        esFestivo: false,
       };
       setDiasLaborales([...diasLaborales, nuevoDia]);
     }
@@ -699,8 +569,8 @@ export default function ModalFormRecargo({
       // Función auxiliar para verificar si un día es festivo
       const verificarEsFestivo = (dia: number): boolean => {
         return diasFestivos
-          .filter(f => f.mes === currentMonth)
-          .some(f => f.dia === dia);
+          .filter((f) => f.mes === currentMonth)
+          .some((f) => f.dia === dia);
       };
 
       const recargoData = {
@@ -714,6 +584,7 @@ export default function ModalFormRecargo({
           dia: dia.dia,
           horaInicio: dia.horaInicio,
           horaFin: dia.horaFin,
+          esDomingo: esDomingo(parseInt(dia.dia), currentMonth, currentYear), // ✅ CAMPO AGREGADO COMO BOOLEAN
           esFestivo: verificarEsFestivo(parseInt(dia.dia)), // ✅ CAMPO AGREGADO COMO BOOLEAN
         })),
         ...(editMode && {
@@ -729,7 +600,7 @@ export default function ModalFormRecargo({
 
       if (editMode && recargoId) {
         await actualizarRecargo(recargoId, formDataToSend);
-        onClose();
+        // onClose();
       } else {
         await registrarRecargo(formDataToSend);
         onClose();
@@ -751,17 +622,17 @@ export default function ModalFormRecargo({
   // Definir tabs
   const tabs = [
     {
-      id: 'informacion',
-      label: 'Información Principal',
+      id: "informacion",
+      label: "Información Principal",
       icon: <Users size={18} />,
-      completed: tabCompleted.informacion
+      completed: tabCompleted.informacion,
     },
     {
-      id: 'horarios',
-      label: 'Horarios de Trabajo',
+      id: "horarios",
+      label: "Horarios de Trabajo",
       icon: <Clock size={18} />,
-      completed: tabCompleted.horarios
-    }
+      completed: tabCompleted.horarios,
+    },
   ];
 
   return (
@@ -823,7 +694,12 @@ export default function ModalFormRecargo({
                       )}
                       {/* Mostrar cantidad de festivos cargados */}
                       <span className="ml-2 text-emerald-600 font-medium">
-                        • {diasFestivos.length} festivos detectados
+                        •{" "}
+                        {
+                          diasFestivos.filter((f) => f.mes === selectedMonth)
+                            .length
+                        }{" "}
+                        festivos detectados
                       </span>
                     </p>
                   </div>
@@ -873,7 +749,7 @@ export default function ModalFormRecargo({
                   </TabsContainer>
 
                   {/* Tab: Información Principal */}
-                  <TabContent isActive={activeTab === 'informacion'}>
+                  <TabContent isActive={activeTab === "informacion"}>
                     <div className="space-y-6">
                       {/* Campos principales */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -966,8 +842,7 @@ export default function ModalFormRecargo({
                             options={empresaOptions}
                             value={
                               empresaOptions.find(
-                                (option) =>
-                                  option.value === formData.empresaId,
+                                (option) => option.value === formData.empresaId,
                               ) || null
                             }
                             onChange={(selectedOption) => {
@@ -1036,14 +911,22 @@ export default function ModalFormRecargo({
                           {/* Archivo existente */}
                           {editMode && archivoExistente && (
                             <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                              <FileText size={20} className="text-blue-600 flex-shrink-0" />
+                              <FileText
+                                size={20}
+                                className="text-blue-600 flex-shrink-0"
+                              />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-blue-800 truncate">
                                   {archivoExistente.nombre}
                                 </p>
                                 {archivoExistente.tamaño && (
                                   <p className="text-xs text-blue-600">
-                                    {(archivoExistente.tamaño / 1024 / 1024).toFixed(2)} MB
+                                    {(
+                                      archivoExistente.tamaño /
+                                      1024 /
+                                      1024
+                                    ).toFixed(2)}{" "}
+                                    MB
                                   </p>
                                 )}
                               </div>
@@ -1079,13 +962,19 @@ export default function ModalFormRecargo({
                           {/* Archivo nuevo seleccionado */}
                           {archivoAdjunto && (
                             <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                              <FileText size={20} className="text-green-600 flex-shrink-0" />
+                              <FileText
+                                size={20}
+                                className="text-green-600 flex-shrink-0"
+                              />
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-green-800 truncate">
                                   {archivoAdjunto.name}
                                 </p>
                                 <p className="text-xs text-green-600">
-                                  {(archivoAdjunto.size / 1024 / 1024).toFixed(2)} MB
+                                  {(archivoAdjunto.size / 1024 / 1024).toFixed(
+                                    2,
+                                  )}{" "}
+                                  MB
                                 </p>
                               </div>
                               <Button
@@ -1105,14 +994,16 @@ export default function ModalFormRecargo({
                   </TabContent>
 
                   {/* Tab: Horarios de Trabajo */}
-                  <TabContent isActive={activeTab === 'horarios'}>
+                  <TabContent isActive={activeTab === "horarios"}>
                     <div className="space-y-6">
                       {/* Header */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Calendar
                             size={24}
-                            className={editMode ? "text-blue-600" : "text-emerald-600"}
+                            className={
+                              editMode ? "text-blue-600" : "text-emerald-600"
+                            }
                           />
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900">
@@ -1127,7 +1018,9 @@ export default function ModalFormRecargo({
                         <div className="flex items-center gap-4">
                           <Chip
                             size="sm"
-                            color={diasLaborales.length >= 10 ? "warning" : "success"}
+                            color={
+                              diasLaborales.length >= 10 ? "warning" : "success"
+                            }
                           >
                             {diasLaborales.length}/15 días
                           </Chip>
@@ -1155,9 +1048,8 @@ export default function ModalFormRecargo({
                             mes={currentMonth}
                             año={currentYear}
                             diasFestivos={diasFestivos
-                              .filter(f => f.mes === currentMonth)
-                              .map(f => f.dia)
-                            }
+                              .filter((f) => f.mes === currentMonth)
+                              .map((f) => f.dia)}
                           />
                         </CardBody>
                       </Card>
@@ -1171,10 +1063,11 @@ export default function ModalFormRecargo({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <div
-                    className={`w-2 h-2 rounded-full ${progress.completed === progress.total
-                      ? "bg-green-500"
-                      : "bg-amber-500"
-                      }`}
+                    className={`w-2 h-2 rounded-full ${
+                      progress.completed === progress.total
+                        ? "bg-green-500"
+                        : "bg-amber-500"
+                    }`}
                   />
                   {progress.completed === progress.total
                     ? "Formulario completo"

@@ -78,7 +78,7 @@ const CustomTab: React.FC<TabProps> = ({
   icon,
   count,
   isActive,
-  onClick
+  onClick,
 }) => {
   return (
     <button
@@ -86,26 +86,30 @@ const CustomTab: React.FC<TabProps> = ({
       className={`
         relative flex items-center gap-2 px-4 py-3 font-medium text-sm
         transition-all duration-200 border-b-2 hover:bg-gray-50 flex-1
-        ${isActive
-          ? 'text-blue-600 border-blue-500 bg-blue-50/50'
-          : 'text-gray-600 border-transparent hover:text-gray-800'
+        ${
+          isActive
+            ? "text-blue-600 border-blue-500 bg-blue-50/50"
+            : "text-gray-600 border-transparent hover:text-gray-800"
         } cursor-pointer
       `}
     >
-      <span className={`
-        ${isActive ? 'text-blue-600' : 'text-gray-500'}
-      `}>
+      <span
+        className={`
+        ${isActive ? "text-blue-600" : "text-gray-500"}
+      `}
+      >
         {icon}
       </span>
       <span>{label}</span>
       {count !== undefined && (
-        <span className={`
+        <span
+          className={`
           inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full
-          ${isActive
-            ? 'bg-blue-100 text-blue-800'
-            : 'bg-gray-100 text-gray-600'
+          ${
+            isActive ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-600"
           }
-        `}>
+        `}
+        >
           {count}
         </span>
       )}
@@ -121,9 +125,7 @@ interface TabsContainerProps {
 const TabsContainer: React.FC<TabsContainerProps> = ({ children }) => {
   return (
     <div className="w-full">
-      <div className="flex border-b border-gray-200 bg-white">
-        {children}
-      </div>
+      <div className="flex border-b border-gray-200 bg-white">{children}</div>
     </div>
   );
 };
@@ -138,73 +140,85 @@ const TabContent: React.FC<TabContentProps> = ({ children, isActive }) => {
   if (!isActive) return null;
 
   return (
-    <div className="py-6 animate-in fade-in-0 duration-200">
-      {children}
-    </div>
+    <div className="py-6 animate-in fade-in-0 duration-200">{children}</div>
   );
 };
 
 // ===== COMPONENTE CHIP PERSONALIZADO =====
 interface ChipProps {
   children: React.ReactNode;
-  color?: 'primary' | 'success' | 'warning' | 'danger' | 'secondary' | 'default';
-  variant?: 'flat' | 'bordered' | 'solid';
-  size?: 'sm' | 'md';
+  color?:
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "secondary"
+    | "default";
+  variant?: "flat" | "bordered" | "solid";
+  size?: "sm" | "md";
 }
 
 const Chip: React.FC<ChipProps> = ({
   children,
-  color = 'default',
-  variant = 'flat',
-  size = 'sm'
+  color = "default",
+  variant = "flat",
+  size = "sm",
 }) => {
   const getColorClasses = () => {
     const colorMap = {
-      primary: variant === 'flat'
-        ? 'bg-blue-100 text-blue-800 border-blue-200'
-        : variant === 'bordered'
-          ? 'border-blue-500 text-blue-600 bg-transparent'
-          : 'bg-blue-600 text-white',
-      success: variant === 'flat'
-        ? 'bg-green-100 text-green-800 border-green-200'
-        : variant === 'bordered'
-          ? 'border-green-500 text-green-600 bg-transparent'
-          : 'bg-green-600 text-white',
-      warning: variant === 'flat'
-        ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
-        : variant === 'bordered'
-          ? 'border-yellow-500 text-yellow-600 bg-transparent'
-          : 'bg-yellow-600 text-white',
-      danger: variant === 'flat'
-        ? 'bg-red-100 text-red-800 border-red-200'
-        : variant === 'bordered'
-          ? 'border-red-500 text-red-600 bg-transparent'
-          : 'bg-red-600 text-white',
-      secondary: variant === 'flat'
-        ? 'bg-purple-100 text-purple-800 border-purple-200'
-        : variant === 'bordered'
-          ? 'border-purple-500 text-purple-600 bg-transparent'
-          : 'bg-purple-600 text-white',
-      default: variant === 'flat'
-        ? 'bg-gray-100 text-gray-800 border-gray-200'
-        : variant === 'bordered'
-          ? 'border-gray-300 text-gray-600 bg-transparent'
-          : 'bg-gray-600 text-white'
+      primary:
+        variant === "flat"
+          ? "bg-blue-100 text-blue-800 border-blue-200"
+          : variant === "bordered"
+            ? "border-blue-500 text-blue-600 bg-transparent"
+            : "bg-blue-600 text-white",
+      success:
+        variant === "flat"
+          ? "bg-green-100 text-green-800 border-green-200"
+          : variant === "bordered"
+            ? "border-green-500 text-green-600 bg-transparent"
+            : "bg-green-600 text-white",
+      warning:
+        variant === "flat"
+          ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+          : variant === "bordered"
+            ? "border-yellow-500 text-yellow-600 bg-transparent"
+            : "bg-yellow-600 text-white",
+      danger:
+        variant === "flat"
+          ? "bg-red-100 text-red-800 border-red-200"
+          : variant === "bordered"
+            ? "border-red-500 text-red-600 bg-transparent"
+            : "bg-red-600 text-white",
+      secondary:
+        variant === "flat"
+          ? "bg-purple-100 text-purple-800 border-purple-200"
+          : variant === "bordered"
+            ? "border-purple-500 text-purple-600 bg-transparent"
+            : "bg-purple-600 text-white",
+      default:
+        variant === "flat"
+          ? "bg-gray-100 text-gray-800 border-gray-200"
+          : variant === "bordered"
+            ? "border-gray-300 text-gray-600 bg-transparent"
+            : "bg-gray-600 text-white",
     };
     return colorMap[color];
   };
 
   const sizeClasses = {
-    sm: 'px-2 py-1 text-xs',
-    md: 'px-3 py-1.5 text-sm'
+    sm: "px-2 py-1 text-xs",
+    md: "px-3 py-1.5 text-sm",
   };
 
   return (
-    <span className={`
+    <span
+      className={`
       inline-flex items-center rounded-full font-medium border
       ${getColorClasses()}
       ${sizeClasses[size]}
-    `}>
+    `}
+    >
       {children}
     </span>
   );
@@ -215,8 +229,12 @@ export default function ModalConfiguracion() {
   const [selectedTab, setSelectedTab] = useState<string>("tipos-recargo");
 
   // Estados para edición
-  const [editingTipoRecargo, setEditingTipoRecargo] = useState<number | null>(null);
-  const [editingConfigSalario, setEditingConfigSalario] = useState<number | null>(null);
+  const [editingTipoRecargo, setEditingTipoRecargo] = useState<number | null>(
+    null,
+  );
+  const [editingConfigSalario, setEditingConfigSalario] = useState<
+    number | null
+  >(null);
   const [showNewTipoRecargo, setShowNewTipoRecargo] = useState(false);
   const [showNewConfigSalario, setShowNewConfigSalario] = useState(false);
 
@@ -712,17 +730,17 @@ export default function ModalConfiguracion() {
   // Definir tabs
   const tabs = [
     {
-      id: 'tipos-recargo',
-      label: 'Tipos de Recargo',
+      id: "tipos-recargo",
+      label: "Tipos de Recargo",
       icon: <Clock className="w-4 h-4" />,
-      count: tiposRecargo.length
+      count: tiposRecargo.length,
     },
     {
-      id: 'configuracion-salario',
-      label: 'Configuración Salarial',
+      id: "configuracion-salario",
+      label: "Configuración Salarial",
       icon: <DollarSign className="w-4 h-4" />,
-      count: configuracionesSalario.length
-    }
+      count: configuracionesSalario.length,
+    },
   ];
 
   return (
@@ -776,7 +794,7 @@ export default function ModalConfiguracion() {
                   </TabsContainer>
 
                   {/* Tab: Tipos de Recargo */}
-                  <TabContent isActive={selectedTab === 'tipos-recargo'}>
+                  <TabContent isActive={selectedTab === "tipos-recargo"}>
                     <div className="space-y-6">
                       {/* Header */}
                       <div className="flex items-center justify-between">
@@ -785,8 +803,8 @@ export default function ModalConfiguracion() {
                             Tipos de Recargo Configurados
                           </h3>
                           <p className="text-small text-gray-500">
-                            Gestiona todos los tipos de recargos y horas
-                            extras disponibles
+                            Gestiona todos los tipos de recargos y horas extras
+                            disponibles
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -824,10 +842,11 @@ export default function ModalConfiguracion() {
                           {tiposRecargo.map((tipo) => (
                             <Card
                               key={tipo.id}
-                              className={`w-full ${tipo.activo
+                              className={`w-full ${
+                                tipo.activo
                                   ? "border-l-4 border-l-blue-500"
                                   : "border-l-4 border-l-gray-300"
-                                } ${editingTipoRecargo?.toString() === tipo.id ? "opacity-50" : ""}`}
+                              } ${editingTipoRecargo?.toString() === tipo.id ? "opacity-50" : ""}`}
                             >
                               <CardBody className="p-4">
                                 <div className="flex items-start justify-between">
@@ -912,8 +931,7 @@ export default function ModalConfiguracion() {
                                           </span>
                                         </div>
                                         <p className="text-medium font-bold">
-                                          {tipo.es_valor_fijo &&
-                                            tipo.valor_fijo
+                                          {tipo.es_valor_fijo && tipo.valor_fijo
                                             ? `${parseFloat(tipo.valor_fijo).toLocaleString()}`
                                             : "N/A"}
                                         </p>
@@ -1005,7 +1023,9 @@ export default function ModalConfiguracion() {
                   </TabContent>
 
                   {/* Tab: Configuración Salarial */}
-                  <TabContent isActive={selectedTab === 'configuracion-salario'}>
+                  <TabContent
+                    isActive={selectedTab === "configuracion-salario"}
+                  >
                     <div className="space-y-6">
                       {/* Header */}
                       <div className="flex items-center justify-between">
@@ -1127,10 +1147,11 @@ export default function ModalConfiguracion() {
                           {configuracionesSalario.map((config) => (
                             <Card
                               key={config.id}
-                              className={`w-full ${config.activo
+                              className={`w-full ${
+                                config.activo
                                   ? "border-l-4 border-l-green-500"
                                   : "border-l-4 border-l-gray-300"
-                                } ${editingConfigSalario?.toString() === config.id ? "opacity-50" : ""}`}
+                              } ${editingConfigSalario?.toString() === config.id ? "opacity-50" : ""}`}
                             >
                               <CardBody className="p-4">
                                 <div className="flex items-start justify-between">
@@ -1138,15 +1159,11 @@ export default function ModalConfiguracion() {
                                     <div className="flex items-center gap-3 mb-3">
                                       <Chip
                                         color={
-                                          config.activo
-                                            ? "success"
-                                            : "default"
+                                          config.activo ? "success" : "default"
                                         }
                                         variant="flat"
                                       >
-                                        {config.activo
-                                          ? "Activa"
-                                          : "Inactiva"}
+                                        {config.activo ? "Activa" : "Inactiva"}
                                       </Chip>
 
                                       {config.empresa ? (

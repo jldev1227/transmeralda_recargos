@@ -10,31 +10,7 @@ import React, {
 import { AxiosError, isAxiosError } from "axios";
 import { Conductor, Empresa, Vehiculo } from "@/types";
 import { apiClient } from "@/config/apiClient";
-
-// ✅ INTERFACES MEJORADAS Y ORGANIZADAS
-
-// Filtros optimizados para diferentes casos de uso
-interface FiltrosRecargo {
-  conductor_id?: string;
-  vehiculo_id?: string;
-  empresa_id?: string;
-  mes?: number;
-  año?: number;
-  estado?: "borrador" | "activo" | "procesado" | "anulado";
-  numero_planilla?: string;
-  page?: number;
-  limit?: number;
-  // Opciones de optimización
-  include_dias?: boolean;
-  only_summary?: boolean;
-  sort_by?:
-    | "created_at"
-    | "numero_planilla"
-    | "mes"
-    | "año"
-    | "total_horas_trabajadas";
-  sort_order?: "ASC" | "DESC";
-}
+import { obtenerFestivosCompletos } from "@/helpers";
 
 interface DiaLaboral {
   id: string;
@@ -59,17 +35,11 @@ interface TipoRecargo {
   codigo: string;
   nombre: string;
   descripcion: string;
-  categoria:
-    | "HORAS_EXTRAS"
-    | "RECARGOS"
-    | "FESTIVOS"
-    | "SEGURIDAD_SOCIAL"
-    | "PRESTACIONES"
-    | "OTROS";
   subcategoria: string;
-  porcentaje: string; // Viene como string del backend
+  porcentaje: number; // Viene como string del backend
+  adicional: boolean;
   es_valor_fijo: boolean;
-  valor_fijo: string | null;
+  valor_fijo: number | null;
   aplica_festivos: boolean | null;
   aplica_domingos: boolean | null;
   aplica_nocturno: boolean | null;
@@ -176,7 +146,7 @@ export interface RecargoResponse {
     mes: number;
     año: number;
     total_recargos: number;
-    recargo: RecargoDetallado;
+    recargos: RecargoDetallado;
   };
   message: string;
 }
@@ -290,8 +260,19 @@ export interface ApiResponse<T> {
   errores?: ValidationError[];
 }
 
+interface Festivos {
+  dia: number;
+  mes: number;
+  año: number;
+  nombre: string;
+  tipo: string;
+  fechaCompleta: string;
+}
+
 // ✅ INTERFAZ DEL CONTEXTO MEJORADA CON NUEVAS FUNCIONALIDADES
 interface RecargoContextType {
+  // Estado de festivos
+  diasFestivos: Festivos[];
   // Estados de datos existentes
   conductores: Conductor[];
   vehiculos: Vehiculo[];
@@ -320,6 +301,11 @@ interface RecargoContextType {
     tiposRecargo?: number;
     configuracionesSalario?: number;
   };
+
+  selectedMonth: number;
+  selectedYear: number;
+  setSelectedMonth: React.Dispatch<React.SetStateAction<number>>;
+  setSelectedYear: React.Dispatch<React.SetStateAction<number>>;
 
   // Funciones principales existentes
   clearError: () => void;
@@ -412,6 +398,15 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const [conductores, setConductores] = useState<Conductor[]>([]);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
+
+  // ===== ESTADO PARA DÍAS FESTIVOS =====
+  // Estados principales
+  const today = new Date();
+
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // getMonth() devuelve 0-11
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+
+  const [diasFestivos, setDiasFestivos] = useState<Festivos[]>([]);
 
   // ✅ NUEVOS ESTADOS PARA TIPOS DE RECARGO Y CONFIGURACIÓN
   const [tiposRecargo, setTiposRecargo] = useState<TipoRecargo[]>([]);
@@ -891,10 +886,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [clearError, handleApiError],
   );
-
-  // ===============================================
-  // ✅ FUNCIONES DE RECARGOS EXISTENTES (sin cambios)
-  // ===============================================
 
   // REGISTRAR RECARGO MEJORADO (sin cambios)
   const registrarRecargo = useCallback(
@@ -1470,6 +1461,12 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Obtener configuración vigente por separado
         await obtenerConfiguracionSalarioVigente();
+
+        // Cargar festivos para el año actual
+        const festivos = obtenerFestivosCompletos(selectedYear);
+
+        console.log(festivos);
+        setDiasFestivos(festivos);
       } catch (error) {
         console.error("❌ Error en inicialización:", error);
       }
@@ -1479,6 +1476,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []); // Solo ejecutar una vez
 
   const recargoContext: RecargoContextType = {
+    // Dias festivos
+    diasFestivos,
+
     // Estados de datos existentes
     conductores,
     vehiculos,
@@ -1498,6 +1498,11 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     // ✅ NUEVOS ESTADOS DE LOADING
     loadingTiposRecargo,
     loadingConfigSalario,
+
+    selectedMonth,
+    selectedYear,
+    setSelectedMonth,
+    setSelectedYear,
 
     // Funciones existentes
     clearError,

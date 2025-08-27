@@ -107,12 +107,6 @@ interface Column {
 }
 
 const CanvasRecargosDashboard = () => {
-  // Estados principales
-  const today = new Date();
-
-  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // getMonth() devuelve 0-11
-  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
-
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("conductor");
   const [sortDirection, setSortDirection] = useState("asc");
@@ -134,7 +128,15 @@ const CanvasRecargosDashboard = () => {
     });
   };
 
-  const { configuracionesSalario, tiposRecargo } = useRecargo();
+  const {
+    diasFestivos,
+    configuracionesSalario,
+    tiposRecargo,
+    selectedMonth,
+    selectedYear,
+    setSelectedMonth,
+    setSelectedYear,
+  } = useRecargo();
   const {
     canvasData,
     loading: canvasLoading,
@@ -182,16 +184,9 @@ const CanvasRecargosDashboard = () => {
   }, []);
 
   // Función para verificar si un día es festivo (simulado)
-  const isHoliday = useCallback((day: number, month: number, year: number) => {
-    // Simulamos algunos días festivos
-    const holidays = [
-      { month: 1, day: 1 }, // Año nuevo
-      { month: 5, day: 1 }, // Día del trabajo
-      { month: 7, day: 20 }, // Día de la independencia
-      { month: 12, day: 25 }, // Navidad
-    ];
-    return holidays.some(
-      (holiday) => holiday.month === month && holiday.day === day,
+  const isHoliday = useCallback((day: number, month: number) => {
+    return diasFestivos.some(
+      (holiday) => holiday.mes === month && holiday.dia === day,
     );
   }, []);
 
@@ -259,7 +254,7 @@ const CanvasRecargosDashboard = () => {
     const dayColumns = Array.from({ length: daysInCurrentMonth }, (_, i) => {
       const day = i + 1;
       const isSundayDay = isSunday(day, selectedMonth, selectedYear);
-      const isHolidayDay = isHoliday(day, selectedMonth, selectedYear);
+      const isHolidayDay = isHoliday(day, selectedMonth);
 
       return {
         key: `day_${day}`,
@@ -493,7 +488,8 @@ const CanvasRecargosDashboard = () => {
           item.empresa?.nombre
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          item.empresa?.nit.replace(/\./g, "")
+          item.empresa?.nit
+            .replace(/\./g, "")
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
           item.numero_planilla
@@ -563,22 +559,22 @@ const CanvasRecargosDashboard = () => {
 
   // Estadísticas
   const statistics = useMemo(() => {
-    if (!processedData || !Array.isArray(processedData) || processedData.length === 0) {
+    if (
+      !processedData ||
+      !Array.isArray(processedData) ||
+      processedData.length === 0
+    ) {
       return {
         totalRegistros: 0,
-        totalHoras: '0.0',
+        totalHoras: "0.0",
         totalValor: 0,
-        totalHED: '0.0',
-        totalHEN: '0.0',
-        totalHEFD: '0.0',
-        totalHEFN: '0.0',
-        totalRN: '0.0',
-        totalRD: '0.0',
-        totalRF: '0.0', // Recargo festivo
-        totalRDF: '0.0', // Recargo dominical festivo
-        totalHEDN: '0.0', // Horas extras diurnas nocturnas
-        totalHEDD: '0.0', // Horas extras diurnas dominicales
-        totalDias: '0.0',
+        totalHED: "0.0",
+        totalHEN: "0.0",
+        totalHEFD: "0.0",
+        totalHEFN: "0.0",
+        totalRN: "0.0",
+        totalRD: "0.0",
+        totalDias: "0.0",
         empresasActivas: 0,
       };
     }
@@ -590,11 +586,9 @@ const CanvasRecargosDashboard = () => {
     );
 
     const totalesDias = processedData.reduce(
-      (acc, item) => acc + (item.dias_laborales.length),
+      (acc, item) => acc + item.dias_laborales.length,
       0,
     );
-
-    console.log(processedData)
 
     const totalValor = processedData.reduce(
       (acc, item) => acc + (item.valor_total || 0),
@@ -610,23 +604,14 @@ const CanvasRecargosDashboard = () => {
         totalHEFN: acc.totalHEFN + (item.total_hefn || 0),
         totalRN: acc.totalRN + (item.total_rn || 0),
         totalRD: acc.totalRD + (item.total_rd || 0),
-        // Tipos adicionales de recargos que podrían existir
-        totalRF: acc.totalRF + (item.total_rf || 0),
-        totalRDF: acc.totalRDF + (item.total_rdf || 0),
-        totalHEDN: acc.totalHEDN + (item.total_hedn || 0),
-        totalHEDD: acc.totalHEDD + (item.total_hedd || 0),
       }),
       {
-        totalHED: 0,   // Horas Extras Diurnas
-        totalHEN: 0,   // Horas Extras Nocturnas
-        totalHEFD: 0,  // Horas Extras Festivas Diurnas
-        totalHEFN: 0,  // Horas Extras Festivas Nocturnas
-        totalRN: 0,    // Recargo Nocturno
-        totalRD: 0,    // Recargo Dominical
-        totalRF: 0,    // Recargo Festivo
-        totalRDF: 0,   // Recargo Dominical Festivo
-        totalHEDN: 0,  // Horas Extras Diurnas Nocturnas
-        totalHEDD: 0,  // Horas Extras Diurnas Dominicales
+        totalHED: 0, // Horas Extras Diurnas
+        totalHEN: 0, // Horas Extras Nocturnas
+        totalHEFD: 0, // Horas Extras Festivas Diurnas
+        totalHEFN: 0, // Horas Extras Festivas Nocturnas
+        totalRN: 0, // Recargo Nocturno
+        totalRD: 0, // Recargo Dominical
       },
     );
 
@@ -634,7 +619,7 @@ const CanvasRecargosDashboard = () => {
     const empresasActivas = new Set(
       processedData
         .map((item) => item.empresa?.id)
-        .filter((id) => id !== null && id !== undefined)
+        .filter((id) => id !== null && id !== undefined),
     ).size;
 
     const resultado = {
@@ -647,11 +632,7 @@ const CanvasRecargosDashboard = () => {
       totalHEFN: totalesRecargos.totalHEFN.toFixed(1),
       totalRN: totalesRecargos.totalRN.toFixed(1),
       totalRD: totalesRecargos.totalRD.toFixed(1),
-      totalRF: totalesRecargos.totalRF.toFixed(1),
-      totalRDF: totalesRecargos.totalRDF.toFixed(1),
-      totalHEDN: totalesRecargos.totalHEDN.toFixed(1),
-      totalHEDD: totalesRecargos.totalHEDD.toFixed(1),
-      totalDias: (totalesDias).toFixed(1),
+      totalDias: totalesDias.toFixed(1),
       empresasActivas: empresasActivas,
     };
 
@@ -809,10 +790,6 @@ const CanvasRecargosDashboard = () => {
     const configuracionSalario = obtenerSalarioBase(item);
 
     if (!configuracionSalario) {
-      console.warn(
-        "No se encontró configuración de salario para la empresa:",
-        item.empresa.nombre,
-      );
       return 0;
     }
 
@@ -822,8 +799,12 @@ const CanvasRecargosDashboard = () => {
 
     let totalGeneral = 0;
 
-    const totalFestivos = item.dias_laborales.filter(dia => dia.es_festivo).length;
-    const totalDomingos = item.dias_laborales.filter(dia => dia.es_domingo).length;
+    const totalFestivos = item.dias_laborales.filter(
+      (dia) => dia.es_festivo,
+    ).length;
+    const totalDomingos = item.dias_laborales.filter(
+      (dia) => dia.es_domingo,
+    ).length;
 
     // Filtrar tipos de recargo activos y ordenar por orden de cálculo
     const tiposActivos = tiposRecargo
@@ -835,15 +816,13 @@ const CanvasRecargosDashboard = () => {
       let valorCalculado = 0; // ✅ Mover la declaración aquí para que esté disponible en todo el scope
 
       // Si la configuración paga días festivos, calcular recargo especial para RD
-      if (pagaDiasFestivos && (tipoRecargo.codigo === 'RD')) {
+      if (pagaDiasFestivos && tipoRecargo.codigo === "RD") {
         const valorDiarioBase = configuracionSalario.salario_basico / 30;
 
-        console.log(configuracionSalario.salario_basico, valorDiarioBase)
-        const porcentaje = parseFloat(tipoRecargo.porcentaje);
+        const porcentaje = tipoRecargo.porcentaje;
 
         // ✅ Validar que el porcentaje sea válido
         if (isNaN(porcentaje)) {
-          console.warn(`Porcentaje inválido para ${tipoRecargo.codigo}: ${tipoRecargo.porcentaje}`);
           continue;
         }
 
@@ -852,7 +831,6 @@ const CanvasRecargosDashboard = () => {
         // Total de días festivos/domingos (evitar duplicados)
         const totalDiasEspeciales = totalFestivos + totalDomingos;
 
-        console.log(totalDiasEspeciales, "dias especiales", valorRecargo)
         valorCalculado = totalDiasEspeciales * valorRecargo;
 
         // ✅ Agregar al total y continuar con el siguiente tipo de recargo
@@ -860,12 +838,12 @@ const CanvasRecargosDashboard = () => {
         continue;
       }
 
-      const campoHoras = MAPEO_CAMPOS_HORAS[
-        tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
-      ];
+      const campoHoras =
+        MAPEO_CAMPOS_HORAS[
+          tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
+        ];
 
       if (!campoHoras) {
-        console.warn(`Campo de horas no encontrado para: ${tipoRecargo.codigo}`);
         continue;
       }
 
@@ -878,23 +856,20 @@ const CanvasRecargosDashboard = () => {
 
       if (tipoRecargo.es_valor_fijo && tipoRecargo.valor_fijo) {
         // Para valores fijos (como COVID)
-        const valorFijo = parseFloat(tipoRecargo.valor_fijo);
+        const valorFijo = tipoRecargo.valor_fijo;
         if (isNaN(valorFijo)) {
-          console.warn(`Valor fijo inválido para ${tipoRecargo.codigo}: ${tipoRecargo.valor_fijo}`);
           continue;
         }
         valorCalculado = valorFijo;
       } else {
         // Para porcentajes
-        const porcentaje = parseFloat(tipoRecargo.porcentaje);
+        const porcentaje = tipoRecargo.porcentaje;
 
         if (isNaN(porcentaje)) {
-          console.warn(`Porcentaje inválido para ${tipoRecargo.codigo}: ${tipoRecargo.porcentaje}`);
           continue;
         }
 
         if (isNaN(valorPorHora) || valorPorHora <= 0) {
-          console.warn(`Valor por hora inválido: ${valorPorHora}`);
           continue;
         }
 
@@ -909,16 +884,9 @@ const CanvasRecargosDashboard = () => {
 
       // ✅ Validar el resultado antes de sumarlo
       if (isNaN(valorCalculado)) {
-        console.warn(`Valor calculado es NaN para ${tipoRecargo.codigo}`, {
-          horasTrabajadas,
-          valorPorHora,
-          porcentaje: tipoRecargo.porcentaje,
-          valorFijo: tipoRecargo.valor_fijo
-        });
         continue;
       }
 
-      console.log(`${tipoRecargo.codigo}: ${horasTrabajadas}h × ${valorPorHora} = ${valorCalculado}`);
       totalGeneral += valorCalculado;
     }
 
@@ -926,7 +894,6 @@ const CanvasRecargosDashboard = () => {
   };
 
   const renderCell = (item: CanvasRecargo, column: Column) => {
-
     switch (column.key) {
       case "select":
         return (
@@ -1035,7 +1002,7 @@ const CanvasRecargosDashboard = () => {
       case "promedio_diario":
         return (
           <span className="font-semibold text-emerald-600">
-            {(item.total_horas / item.total_dias) || 0}h
+            {(item.total_horas / item.total_dias).toFixed(2) || 0}h
           </span>
         );
 
@@ -1125,10 +1092,11 @@ const CanvasRecargosDashboard = () => {
             <div className="text-xs w-full py-1">
               {/* ✅ Horas trabajadas - Siempre visible */}
               <div
-                className={`font-bold text-center mb-1 px-1 py-1 rounded ${dayData.es_domingo || dayData.es_festivo
-                  ? "text-red-800 bg-red-100 border border-red-200"
-                  : "text-emerald-800 bg-emerald-100 border border-emerald-200"
-                  }`}
+                className={`font-bold text-center mb-1 px-1 py-1 rounded ${
+                  dayData.es_domingo || dayData.es_festivo
+                    ? "text-red-800 bg-red-100 border border-red-200"
+                    : "text-emerald-800 bg-emerald-100 border border-emerald-200"
+                }`}
               >
                 {toNumber(dayData.total_horas).toFixed(1)}h
               </div>
@@ -1173,17 +1141,24 @@ const CanvasRecargosDashboard = () => {
     return (
       <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-48 overflow-y-auto">
         <div className="space-y-2">
-          {values.map((value: any) => (
-            <label key={value} className="flex items-center space-x-2 text-xs cursor-pointer">
-              <input
-                type="checkbox"
-                checked={activeFilters.includes(value)}
-                onChange={() => updateFilter(filterKey, value)}
-                className="w-3 h-3 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-              />
-              <span className="text-gray-700 truncate">{value}</span>
-            </label>
-          ))}
+          {values.length > 0 ? (
+            values.map((value: any) => (
+              <label
+                key={value}
+                className="flex items-center space-x-2 text-xs cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={activeFilters.includes(value)}
+                  onChange={() => updateFilter(filterKey, value)}
+                  className="w-3 h-3 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                />
+                <span className="text-gray-700 truncate">{value}</span>
+              </label>
+            ))
+          ) : (
+            <span className="text-gray-700 truncate">No hay valores</span>
+          )}
         </div>
       </div>
     );
@@ -1492,7 +1467,10 @@ const CanvasRecargosDashboard = () => {
                     headerClass =
                       "relative border-r border-gray-300 bg-slate-100";
                   } else if (column.isDayColumn) {
-                    if (column.isSunday) {
+                    if (column.isSunday && column.isHoliday) {
+                      headerClass =
+                        "relative border-r border-gray-300 bg-amber-600 text-white";
+                    } else if (column.isSunday) {
                       headerClass =
                         "relative border-r border-gray-300 bg-emerald-600 text-white";
                     } else if (column.isHoliday) {
@@ -1518,15 +1496,17 @@ const CanvasRecargosDashboard = () => {
                     >
                       <div className="p-2 flex items-center justify-between">
                         <div
-                          className={`flex-1 text-xs font-bold ${column.isSunday || column.isHoliday
-                            ? "text-white"
-                            : "text-gray-700"
-                            } ${column.align === "center"
+                          className={`flex-1 text-xs font-bold ${
+                            column.isSunday || column.isHoliday
+                              ? "text-white"
+                              : "text-gray-700"
+                          } ${
+                            column.align === "center"
                               ? "text-center"
                               : column.align === "right"
                                 ? "text-right"
                                 : "text-left"
-                            }`}
+                          }`}
                         >
                           <div className="whitespace-pre-line leading-tight">
                             {column.isDayColumn ? (
@@ -1550,19 +1530,21 @@ const CanvasRecargosDashboard = () => {
                           {column.sortable && (
                             <button
                               onClick={() => handleSort(column.key)}
-                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${column.isSunday || column.isHoliday
-                                ? "hover:bg-white/20"
-                                : ""
-                                }`}
+                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${
+                                column.isSunday || column.isHoliday
+                                  ? "hover:bg-white/20"
+                                  : ""
+                              }`}
                             >
                               <ArrowUpDown
                                 size={10}
-                                className={`cursor-pointer ${sortField === column.key
-                                  ? "text-emerald-600"
-                                  : column.isSunday || column.isHoliday
-                                    ? "text-white"
-                                    : "text-gray-400"
-                                  }`}
+                                className={`cursor-pointer ${
+                                  sortField === column.key
+                                    ? "text-emerald-600"
+                                    : column.isSunday || column.isHoliday
+                                      ? "text-white"
+                                      : "text-gray-400"
+                                }`}
                               />
                             </button>
                           )}
@@ -1583,20 +1565,21 @@ const CanvasRecargosDashboard = () => {
                                           : "estados",
                                 )
                               }
-                              className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${filters[
-                                column.key === "conductor"
-                                  ? "conductores"
-                                  : column.key === "empresa"
-                                    ? "empresas"
-                                    : column.key === "numero_planilla"
-                                      ? "planillas"
-                                      : column.key === "vehiculo"
-                                        ? "placas"
-                                        : "estados"
-                              ]?.length > 0
-                                ? "text-emerald-600"
-                                : "text-gray-400"
-                                }`}
+                              className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${
+                                filters[
+                                  column.key === "conductor"
+                                    ? "conductores"
+                                    : column.key === "empresa"
+                                      ? "empresas"
+                                      : column.key === "numero_planilla"
+                                        ? "planillas"
+                                        : column.key === "vehiculo"
+                                          ? "placas"
+                                          : "estados"
+                                ]?.length > 0
+                                  ? "text-emerald-600"
+                                  : "text-gray-400"
+                              }`}
                             >
                               <Filter size={10} />
                             </button>
@@ -1644,8 +1627,9 @@ const CanvasRecargosDashboard = () => {
             {paginatedData.map((item, rowIndex) => (
               <div
                 key={item.id}
-                className={`flex hover:bg-emerald-50 transition-colors ${selectedRows.has(item.id) ? "bg-emerald-50" : ""
-                  } ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
+                className={`flex hover:bg-emerald-50 transition-colors ${
+                  selectedRows.has(item.id) ? "bg-emerald-50" : ""
+                } ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
               >
                 {columns.map((column: Column) => {
                   // Determinar el estilo de la celda según el tipo de columna
@@ -1656,7 +1640,9 @@ const CanvasRecargosDashboard = () => {
                     cellClass += " bg-slate-50";
                   } else if (column.isDayColumn) {
                     const hasHours = getItemValue(item, column.key) > 0;
-                    if (column.isSunday) {
+                    if (column.isSunday && column.isHoliday) {
+                      cellClass += hasHours ? " bg-amber-100" : " bg-amber-50";
+                    } else if (column.isSunday) {
                       cellClass += hasHours
                         ? " bg-emerald-100"
                         : " bg-emerald-50";
@@ -1749,7 +1735,7 @@ const CanvasRecargosDashboard = () => {
                       "Diciembre",
                     ][selectedMonth - 1]
                   }{" "}
-                  {selectedYear}{" "}({getDaysInMonth(selectedMonth, selectedYear)}{" "}
+                  {selectedYear} ({getDaysInMonth(selectedMonth, selectedYear)}{" "}
                   días)
                 </div>
 
@@ -1795,10 +1781,11 @@ const CanvasRecargosDashboard = () => {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-1 text-sm rounded-lg transition-colors ${currentPage === pageNum
-                          ? "bg-emerald-600 text-white"
-                          : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
+                        className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                          currentPage === pageNum
+                            ? "bg-emerald-600 text-white"
+                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        }`}
                       >
                         {pageNum}
                       </button>
