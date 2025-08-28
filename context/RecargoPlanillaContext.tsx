@@ -261,6 +261,26 @@ export interface ApiResponse<T> {
   errores?: ValidationError[];
 }
 
+// Tipo específico para la respuesta de tipos de recargo
+export interface TiposRecargoApiResponse extends ApiResponse<TipoRecargo[]> {
+  data: TipoRecargo[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPrevPage: boolean;
+  };
+  metadata?: {
+    filtros_aplicados: Record<string, any>;
+    ordenamiento: {
+      campo: string;
+      direccion: string;
+    };
+  };
+}
+
 interface Festivos {
   dia: number;
   mes: number;
@@ -1117,19 +1137,26 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         });
 
-        const response = await apiClient.get<ApiResponse<TiposRecargoData>>(
+        const response = await apiClient.get<TiposRecargoApiResponse>(
           `/api/tipos-recargo?${params.toString()}`,
         );
 
         if (response.data.success) {
-          // ✅ CORRECCIÓN: Extraer solo el array de datos para el estado
           if (isSimpleRequest) {
-            setTiposRecargo(response.data.data.data); // ← Aquí accedes al array
+            // ✅ Ahora TypeScript entiende que es TipoRecargo[]
+            setTiposRecargo(response.data.data);
             setLastFetch((prev) => ({ ...prev, tiposRecargo: Date.now() }));
           }
 
-          return response.data.data;
+          // ✅ Retorna la estructura completa
+          // ✅ Retorna la estructura completa TiposRecargoData
+          return {
+            data: response.data.data,
+            pagination: response.data.pagination,
+            metadata: response.data.metadata,
+          };
         } else {
+          // ✅ AGREGADO: Manejar caso cuando success es false
           throw new Error(
             response.data.message || "Error al obtener tipos de recargo",
           );
