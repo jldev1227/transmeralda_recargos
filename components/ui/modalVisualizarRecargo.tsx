@@ -19,17 +19,11 @@ import {
   Calendar,
   Clock,
   FileText,
-  Download,
-  Share2,
   AlertCircle,
   CheckCircle,
   Timer,
 } from "lucide-react";
-import {
-  RecargoDetallado,
-  RecargoResponse,
-  useRecargo,
-} from "@/context/RecargoPlanillaContext";
+import { RecargoDetallado, useRecargo } from "@/context/RecargoPlanillaContext";
 import { addToast } from "@heroui/toast";
 
 interface ModalVisualizarRecargoProps {
@@ -184,11 +178,6 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
         { HED: 0, HEN: 0, HEFD: 0, HEFN: 0, RN: 0, RD: 0 },
       );
 
-      console.log("Totales calculados:", {
-        totalHoras: recargo.total_horas,
-        totalesRecargos,
-      });
-
       return {
         totalHoras: recargo.total_horas || 0,
         totalesRecargos,
@@ -311,6 +300,8 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
         );
       },
     );
+
+    DiaCard.displayName = "DiaCard";
 
     return (
       <Modal

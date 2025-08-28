@@ -147,7 +147,10 @@ const CanvasRecargosDashboard = () => {
   const [modalFormIsOpen, setModalFormIsOpen] = useState(false);
   const [recargoId, setRecargoId] = useState("");
 
-  const recargos = canvasData?.recargos || [];
+  const recargos = useMemo(
+    () => canvasData?.recargos || [],
+    [canvasData?.recargos],
+  );
 
   // Estados de filtros
   const [filters, setFilters] = useState<Filters>({
@@ -505,7 +508,7 @@ const CanvasRecargosDashboard = () => {
       );
     }
     if (filters.estados.length > 0) {
-      result = result.filter((item) => filters.estados.includes("activo"));
+      result = result.filter((item) => filters.estados.includes(item.estado));
     }
     if (filters.planillas.length > 0) {
       result = result.filter((item) =>

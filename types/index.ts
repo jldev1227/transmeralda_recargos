@@ -5,14 +5,14 @@ export type IconSvgProps = SVGProps<SVGSVGElement> & {
 };
 
 export type Conductor = {
-  id: number;
+  id: string;
   nombre: string;
   apellido: string;
   numero_identificacion: number;
 };
 
 export type Vehiculo = {
-  id: number;
+  id: string;
   placa: string;
   marca: string;
   linea: string;
@@ -29,12 +29,22 @@ export type Empresa = {
 export type DiaLaboral = {
   id: string;
   dia: string;
-  mes: string;
-  año: string;
-  horaInicio: string;
-  horaFin: string;
-  esDomingo: boolean;
-  esFestivo: boolean;
+  mes?: string;
+  año?: string;
+  hora_inicio: string;
+  hora_fin: string;
+  es_domingo: boolean;
+  es_festivo: boolean;
+};
+
+export type DiaLaboralServidor = {
+  id: string;
+  dia: number; // Viene como número del servidor
+  hora_inicio: string;
+  hora_fin: string;
+  es_domingo: boolean;
+  es_festivo: boolean;
+  // No tiene mes ni año
 };
 
 export type ConfiguracionSalario = {

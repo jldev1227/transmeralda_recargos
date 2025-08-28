@@ -932,7 +932,7 @@ export default function ModalConfiguracion() {
                                         </div>
                                         <p className="text-medium font-bold">
                                           {tipo.es_valor_fijo && tipo.valor_fijo
-                                            ? `${parseFloat(tipo.valor_fijo).toLocaleString()}`
+                                            ? `${tipo.valor_fijo.toLocaleString()}`
                                             : "N/A"}
                                         </p>
                                       </div>
@@ -1085,9 +1085,7 @@ export default function ModalConfiguracion() {
                                 </div>
                                 <p className="text-large font-bold text-green-900 font-mono">
                                   $
-                                  {parseFloat(
-                                    configuracionSalarioVigente.salario_basico,
-                                  ).toLocaleString()}
+                                  {configuracionSalarioVigente.salario_basico.toLocaleString()}
                                 </p>
                               </div>
 
@@ -1100,9 +1098,7 @@ export default function ModalConfiguracion() {
                                 </div>
                                 <p className="text-large font-bold text-green-900 font-mono">
                                   $
-                                  {parseFloat(
-                                    configuracionSalarioVigente.valor_hora_trabajador,
-                                  ).toLocaleString()}
+                                  {configuracionSalarioVigente.valor_hora_trabajador.toLocaleString()}
                                 </p>
                               </div>
 
@@ -1216,9 +1212,7 @@ export default function ModalConfiguracion() {
                                         </span>
                                         <p className="font-mono text-medium font-semibold text-gray-900">
                                           $
-                                          {parseFloat(
-                                            config.salario_basico,
-                                          ).toLocaleString()}
+                                          {config.salario_basico.toLocaleString()}
                                         </p>
                                       </div>
                                       <div>
@@ -1227,9 +1221,7 @@ export default function ModalConfiguracion() {
                                         </span>
                                         <p className="font-mono text-medium font-semibold text-gray-900">
                                           $
-                                          {parseFloat(
-                                            config.valor_hora_trabajador,
-                                          ).toLocaleString()}
+                                          {config.valor_hora_trabajador.toLocaleString()}
                                         </p>
                                       </div>
                                       <div>

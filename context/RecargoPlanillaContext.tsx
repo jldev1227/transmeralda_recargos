@@ -35,6 +35,7 @@ interface TipoRecargo {
   codigo: string;
   nombre: string;
   descripcion: string;
+  categoria: string;
   subcategoria: string;
   porcentaje: number; // Viene como string del backend
   adicional: boolean;
@@ -146,7 +147,7 @@ export interface RecargoResponse {
     mes: number;
     año: number;
     total_recargos: number;
-    recargos: RecargoDetallado;
+    recargo: RecargoDetallado;
   };
   message: string;
 }
@@ -323,7 +324,7 @@ interface RecargoContextType {
     año: number,
     empresa_id?: string,
   ) => Promise<CanvasData>;
-  obtenerRecargoPorId: (id: string) => Promise<RecargoResponse>;
+  obtenerRecargoPorId: (id: string) => Promise<RecargoResponse | null>;
 
   // ✅ NUEVAS FUNCIONES PARA TIPOS DE RECARGO
   obtenerTiposRecargo: (
@@ -619,7 +620,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         const response = await apiClient.get<
-          ApiResponse<ConfiguracionesSalarioData>
+          ApiResponse<ConfiguracionSalario[]>
         >(`/api/configuraciones-salario?${params.toString()}`);
 
         if (response.data.success) {
@@ -990,7 +991,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // OBTENER RECARGO POR ID (sin cambios)
   const obtenerRecargoPorId = useCallback(
-    async (id: string): Promise<RecargoResponse> => {
+    async (id: string): Promise<RecargoResponse | null> => {
       setLoading(true);
       clearError();
 
@@ -1123,7 +1124,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         if (response.data.success) {
           // ✅ CORRECCIÓN: Extraer solo el array de datos para el estado
           if (isSimpleRequest) {
-            setTiposRecargo(response.data.data); // ← Cambio aquí: .data.data
+            setTiposRecargo(response.data.data.data); // ← Aquí accedes al array
             setLastFetch((prev) => ({ ...prev, tiposRecargo: Date.now() }));
           }
 
@@ -1164,9 +1165,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     async (categoria: string): Promise<TipoRecargo[]> => {
       try {
         setLoadingTiposRecargo(true);
-        const response = await apiClient.get<
-          ApiResponse<{ data: TipoRecargo[] }>
-        >(`/api/tipos-recargo/por-categoria/${categoria}`);
+        const response = await apiClient.get<ApiResponse<TipoRecargo[]>>(
+          `/api/tipos-recargo/por-categoria/${categoria}`,
+        );
 
         if (response.data.success) {
           return response.data.data;
@@ -1465,7 +1466,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         // Cargar festivos para el año actual
         const festivos = obtenerFestivosCompletos(selectedYear);
 
-        console.log(festivos);
         setDiasFestivos(festivos);
       } catch (error) {
         console.error("❌ Error en inicialización:", error);

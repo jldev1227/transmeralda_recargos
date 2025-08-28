@@ -37,7 +37,13 @@ import ReactSelect, {
   OptionProps,
   GroupBase,
 } from "react-select";
-import { Conductor, DiaLaboral, Empresa, Vehiculo } from "@/types";
+import {
+  Conductor,
+  DiaLaboral,
+  DiaLaboralServidor,
+  Empresa,
+  Vehiculo,
+} from "@/types";
 import { useRecargo } from "@/context/RecargoPlanillaContext";
 import { addToast } from "@heroui/toast";
 import TablaConRecargos from "./tableRecargos";
@@ -154,14 +160,12 @@ const TabContent: React.FC<TabContentProps> = ({ children, isActive }) => {
 interface ChipProps {
   children: React.ReactNode;
   color?: "success" | "warning" | "danger" | "default";
-  variant?: "flat" | "solid";
   size?: "sm" | "md";
 }
 
 const Chip: React.FC<ChipProps> = ({
   children,
   color = "default",
-  variant = "flat",
   size = "sm",
 }) => {
   const getColorClasses = () => {
@@ -344,10 +348,10 @@ export default function ModalFormRecargo({
       dia: "",
       mes: "",
       año: new Date().getFullYear().toString(),
-      horaInicio: "",
-      horaFin: "",
-      esDomingo: false,
-      esFestivo: false,
+      hora_inicio: "",
+      hora_fin: "",
+      es_domingo: false,
+      es_festivo: false,
     },
   ]);
 
@@ -355,8 +359,8 @@ export default function ModalFormRecargo({
   const cargarDatosRecargo = async (id: string) => {
     try {
       setIsLoadingData(true);
-      const { data } = await obtenerRecargoPorId(id);
-      const recargo = data.recargo;
+      const response = await obtenerRecargoPorId(id);
+      const recargo = response?.data.recargo;
 
       if (recargo) {
         setFormData({
@@ -367,16 +371,18 @@ export default function ModalFormRecargo({
         });
 
         if (recargo.dias_laborales && recargo.dias_laborales.length > 0) {
-          const diasCargados = recargo.dias_laborales.map((detalle) => ({
-            id: detalle.id,
-            dia: detalle.dia.toString(),
-            mes: currentMonth.toString(),
-            año: currentYear.toString(),
-            horaInicio: detalle.hora_inicio,
-            horaFin: detalle.hora_fin,
-            esDomingo: detalle.es_domingo,
-            esFestivo: detalle.es_festivo,
-          }));
+          const diasCargados = recargo.dias_laborales.map(
+            (detalle: DiaLaboralServidor) => ({
+              id: detalle.id,
+              dia: detalle.dia.toString(), // ✅ Convertir a string
+              mes: currentMonth.toString(), // ✅ Convertir a string
+              año: currentYear.toString(), // ✅ Convertir a string
+              hora_inicio: detalle.hora_inicio,
+              hora_fin: detalle.hora_fin,
+              es_domingo: detalle.es_domingo,
+              es_festivo: detalle.es_festivo,
+            }),
+          );
 
           setDiasLaborales(diasCargados);
         }
@@ -411,10 +417,10 @@ export default function ModalFormRecargo({
         dia: "",
         mes: "",
         año: new Date().getFullYear().toString(),
-        horaInicio: "",
-        horaFin: "",
-        esDomingo: false,
-        esFestivo: false,
+        hora_inicio: "",
+        hora_fin: "",
+        es_domingo: false,
+        es_festivo: false,
       },
     ]);
     setIsLoading(false);
@@ -438,7 +444,7 @@ export default function ModalFormRecargo({
     if (formData.conductorId) completed++;
     if (formData.vehiculoId) completed++;
     if (formData.empresaId) completed++;
-    if (diasLaborales.some((dia) => dia.dia && dia.horaInicio && dia.horaFin))
+    if (diasLaborales.some((dia) => dia.dia && dia.hora_inicio && dia.hora_fin))
       completed++;
 
     return { completed, total };
@@ -453,7 +459,7 @@ export default function ModalFormRecargo({
         ? true
         : false,
     horarios: diasLaborales.some(
-      (dia) => dia.dia && dia.horaInicio && dia.horaFin,
+      (dia) => dia.dia && dia.hora_inicio && dia.hora_fin,
     ),
   };
 
@@ -483,10 +489,10 @@ export default function ModalFormRecargo({
         dia: "",
         mes: "",
         año: new Date().getFullYear().toString(),
-        horaInicio: "",
-        horaFin: "",
-        esDomingo: false,
-        esFestivo: false,
+        hora_inicio: "",
+        hora_fin: "",
+        es_domingo: false,
+        es_festivo: false,
       };
       setDiasLaborales([...diasLaborales, nuevoDia]);
     }
@@ -550,7 +556,7 @@ export default function ModalFormRecargo({
     }
 
     if (
-      diasLaborales.some((dia) => !dia.dia || !dia.horaInicio || !dia.horaFin)
+      diasLaborales.some((dia) => !dia.dia || !dia.hora_inicio || !dia.hora_fin)
     ) {
       addToast({
         title: "Información incompleta",
@@ -582,9 +588,9 @@ export default function ModalFormRecargo({
         año: currentYear,
         dias_laborales: diasLaborales.map((dia) => ({
           dia: dia.dia,
-          horaInicio: dia.horaInicio,
-          horaFin: dia.horaFin,
-          esDomingo: esDomingo(parseInt(dia.dia), currentMonth, currentYear), // ✅ CAMPO AGREGADO COMO BOOLEAN
+          horaInicio: dia.hora_inicio,
+          horaFin: dia.hora_fin,
+          esDomingo: esDomingo(dia.dia, currentMonth, currentYear), // ✅ CAMPO AGREGADO COMO BOOLEAN
           esFestivo: verificarEsFestivo(parseInt(dia.dia)), // ✅ CAMPO AGREGADO COMO BOOLEAN
         })),
         ...(editMode && {
@@ -600,7 +606,7 @@ export default function ModalFormRecargo({
 
       if (editMode && recargoId) {
         await actualizarRecargo(recargoId, formDataToSend);
-        // onClose();
+        onClose();
       } else {
         await registrarRecargo(formDataToSend);
         onClose();

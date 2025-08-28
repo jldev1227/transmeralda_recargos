@@ -129,19 +129,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Cargar perfil al inicializar
+  // Effect para cargar perfil (solo una vez)
   useEffect(() => {
     fetchUserProfile();
+  }, [fetchUserProfile]);
 
-    // Establecer un tiempo máximo para la inicialización
-    const timeoutId = setTimeout(() => {
-      if (initializing) {
+  // Effect para timeout de inicialización
+  useEffect(() => {
+    if (initializing) {
+      const timeoutId = setTimeout(() => {
         setInitializing(false);
-      }
-    }, 5000); // 5 segundos máximo de espera
+      }, 5000);
 
-    return () => clearTimeout(timeoutId);
-  }, []);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [initializing]);
 
   // Determinar si el usuario está autenticado
   const isAuthenticated = !!user;

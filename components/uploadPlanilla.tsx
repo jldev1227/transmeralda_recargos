@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
 import { Button } from "@heroui/button";
 import { Card, CardBody } from "@heroui/card";
-import { Upload, FileText, Image, X, Eye, AlertCircle } from "lucide-react";
+import { Upload, FileText, ImageIcon, X, Eye, AlertCircle } from "lucide-react";
+import Image from "next/image";
 
 interface ArchivoAdjunto {
   file: File;
@@ -168,7 +169,7 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
                 onClick={() => setShowPreview(true)}
               >
                 {archivo.preview ? (
-                  <img
+                  <Image
                     src={archivo.preview}
                     alt="Preview"
                     className="w-full h-full object-cover"
@@ -176,7 +177,7 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
                 ) : archivo.file.type === "application/pdf" ? (
                   <FileText size={20} className="text-danger" />
                 ) : (
-                  <Image size={20} className="text-default-400" />
+                  <ImageIcon size={20} className="text-default-400" />
                 )}
               </div>
 
@@ -249,7 +250,7 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
               {/* Contenido del preview */}
               <div className="flex-1 flex items-center justify-center overflow-auto">
                 {archivo.preview ? (
-                  <img
+                  <Image
                     src={archivo.preview}
                     alt={archivo.file.name}
                     className="max-w-full max-h-full object-contain"
@@ -313,18 +314,6 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
                 PDF, JPG, PNG • Máx {maxSizeMB}MB
               </p>
             </div>
-
-            <Button
-              color="primary"
-              variant="flat"
-              size="sm"
-              onPress={(e) => {
-                e.stopPropagation();
-                fileInputRef.current?.click();
-              }}
-            >
-              Seleccionar
-            </Button>
           </div>
 
           <input

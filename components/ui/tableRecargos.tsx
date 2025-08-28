@@ -63,12 +63,12 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
   // Función para calcular todos los recargos de un día
   const calcularRecargos = (dia: DiaLaboral) => {
     const diaNum = parseInt(dia.dia);
-    const horaInicio = parseFloat(dia.horaInicio) || 0;
-    const horaFin = parseFloat(dia.horaFin) || 0;
-    const totalHoras = calcularTotalHoras(dia.horaInicio, dia.horaFin);
+    const horaInicio = parseFloat(dia.hora_inicio) || 0;
+    const horaFin = parseFloat(dia.hora_fin) || 0;
+    const totalHoras = calcularTotalHoras(dia.hora_inicio, dia.hora_fin);
 
     // Si no hay datos válidos, retornar ceros
-    if (!dia.dia || !dia.horaInicio || !dia.horaFin || totalHoras <= 0) {
+    if (!dia.dia || !dia.hora_inicio || !dia.hora_fin || totalHoras <= 0) {
       return {
         HED: 0,
         HEN: 0,
@@ -78,25 +78,6 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
         RD: 0,
       };
     }
-
-    console.log({
-      HED:
-        calcularHoraExtraDiurna(
-          diaNum.toString(),
-          mes,
-          año,
-          totalHoras,
-          diasFestivos,
-        ) -
-        calcularHoraExtraNocturna(
-          diaNum.toString(),
-          mes,
-          año,
-          horaFin,
-          totalHoras,
-          diasFestivos,
-        ),
-    });
 
     return {
       HED:
@@ -171,7 +152,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
     };
 
     diasLaborales.forEach((dia) => {
-      const horasTotales = calcularTotalHoras(dia.horaInicio, dia.horaFin);
+      const horasTotales = calcularTotalHoras(dia.hora_inicio, dia.hora_fin);
       if (horasTotales > 0) {
         totales.totalHoras += horasTotales;
         const recargos = calcularRecargos(dia);
@@ -185,11 +166,6 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
     });
 
     return totales;
-  };
-
-  // Función para formatear el valor de recargo
-  const formatearRecargo = (valor: number): string => {
-    return valor > 0 ? valor.toFixed(1) : "0";
   };
 
   // Función para obtener el color del chip según el tipo de recargo
@@ -317,7 +293,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                     min="0"
                     max="24"
                     step="0.5"
-                    value={dia.horaInicio}
+                    value={dia.hora_inicio}
                     onValueChange={(value) => {
                       const numValue = parseFloat(value);
                       if (
@@ -326,7 +302,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                           numValue <= 24 &&
                           (numValue * 2) % 1 === 0)
                       ) {
-                        actualizarDiaLaboral(dia.id, "horaInicio", value);
+                        actualizarDiaLaboral(dia.id, "hora_inicio", value);
                       }
                     }}
                     startContent={<Clock size={14} />}
@@ -345,7 +321,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                     min="0"
                     max="24"
                     step="0.5"
-                    value={dia.horaFin}
+                    value={dia.hora_fin}
                     onValueChange={(value) => {
                       const numValue = parseFloat(value);
                       if (
@@ -354,7 +330,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                           numValue <= 24 &&
                           (numValue * 2) % 1 === 0)
                       ) {
-                        actualizarDiaLaboral(dia.id, "horaFin", value);
+                        actualizarDiaLaboral(dia.id, "hora_fin", value);
                       }
                     }}
                     startContent={<Clock size={14} />}
@@ -367,11 +343,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
                 {/* TOTAL HORAS */}
                 <TableCell>
-                  {dia.horaInicio && dia.horaFin ? (
+                  {dia.hora_inicio && dia.hora_fin ? (
                     <span className="text-default-600 font-medium">
                       {(() => {
-                        const inicio = parseFloat(dia.horaInicio);
-                        const fin = parseFloat(dia.horaFin);
+                        const inicio = parseFloat(dia.hora_inicio);
+                        const fin = parseFloat(dia.hora_fin);
                         const diferencia = fin - inicio;
 
                         if (diferencia < 0) {
@@ -738,9 +714,9 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                   diasLaborales.filter(
                     (dia) =>
                       dia.dia &&
-                      dia.horaInicio &&
-                      dia.horaFin &&
-                      calcularTotalHoras(dia.horaInicio, dia.horaFin) > 0,
+                      dia.hora_inicio &&
+                      dia.hora_fin &&
+                      calcularTotalHoras(dia.hora_inicio, dia.hora_fin) > 0,
                   ).length
                 }
               </strong>

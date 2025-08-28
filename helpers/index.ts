@@ -142,7 +142,6 @@ export const calcularHoraExtraDiurna = (
   diasFestivos: number[] = [],
 ): number => {
   // Si es domingo o festivo, no hay horas extra diurnas normales
-  console.log(totalHoras);
   if (esDomingoOFestivo(dia, mes, año, diasFestivos)) {
     return 0;
   }
@@ -540,9 +539,15 @@ export const calcularFestivosLunes = (año: number) => {
   });
 };
 
+interface FestivoTemporal {
+  fecha: Date;
+  nombre: string;
+  tipo: string;
+}
+
 // Función principal para obtener todos los festivos del año
 export const obtenerFestivosCompletos = (año: number) => {
-  const festivos = [];
+  const festivos: FestivoTemporal[] = [];
 
   // Agregar festivos fijos
   festivosFijos.forEach((festivo) => {
@@ -580,14 +585,17 @@ export const obtenerFestivosCompletos = (año: number) => {
 
   // Ordenar por fecha y formatear para el componente
   return festivos
-    .sort((a, b) => a.fecha - b.fecha)
+    .sort(
+      (a: FestivoTemporal, b: FestivoTemporal) =>
+        a.fecha.getTime() - b.fecha.getTime(),
+    )
     .map((festivo) => ({
       dia: festivo.fecha.getDate(),
-      mes: festivo.fecha.getMonth() + 1, // +1 porque getMonth() devuelve 0-11
+      mes: festivo.fecha.getMonth() + 1,
       año: festivo.fecha.getFullYear(),
       nombre: festivo.nombre,
       tipo: festivo.tipo,
-      fechaCompleta: festivo.fecha.toISOString().split("T")[0], // YYYY-MM-DD
+      fechaCompleta: festivo.fecha.toISOString().split("T")[0],
     }));
 };
 
