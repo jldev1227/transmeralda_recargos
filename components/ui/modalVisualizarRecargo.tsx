@@ -202,6 +202,7 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
 
         return (
           <Card
+            shadow="sm"
             key={`dia-${dia.dia}-${index}`}
             className={`border-2 ${
               dia.es_especial

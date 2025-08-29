@@ -1475,11 +1475,16 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     await obtenerConfiguracionesSalario();
   }, [obtenerConfiguracionesSalario]);
 
+  const cargarFestivos = async () => {
+    const festivos = obtenerFestivosCompletos(selectedYear);
+    setDiasFestivos(festivos);
+  };
+
   useEffect(() => {
     const inicializar = async () => {
       try {
-        // Cargar datos básicos en paralelo
         await Promise.all([
+          cargarFestivos(),
           obtenerConductores(),
           obtenerVehiculos(),
           obtenerEmpresas(),
@@ -1487,20 +1492,13 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           obtenerConfiguracionesSalario(),
         ]);
 
-        // Obtener configuración vigente por separado
         await obtenerConfiguracionSalarioVigente();
-
-        // Cargar festivos para el año actual
-        const festivos = obtenerFestivosCompletos(selectedYear);
-
-        setDiasFestivos(festivos);
       } catch (error) {
         console.error("❌ Error en inicialización:", error);
       }
     };
-
     inicializar();
-  }, []); // Solo ejecutar una vez
+  }, []);
 
   const recargoContext: RecargoContextType = {
     // Dias festivos

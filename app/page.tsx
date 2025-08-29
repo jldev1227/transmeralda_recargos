@@ -186,12 +186,18 @@ const CanvasRecargosDashboard = () => {
     return date.getDay() === 0;
   }, []);
 
-  // Función para verificar si un día es festivo (simulado)
-  const isHoliday = useCallback((day: number, month: number) => {
-    return diasFestivos.some(
-      (holiday) => holiday.mes === month && holiday.dia === day,
-    );
-  }, []);
+  // Función para verificar si un día es festivo
+  const isHoliday = useCallback(
+    (day: number, month: number) => {
+      return diasFestivos.some(
+        (holiday) =>
+          holiday.mes === month &&
+          holiday.dia === day &&
+          holiday.año === selectedYear,
+      );
+    },
+    [diasFestivos, selectedYear],
+  ); // ✅ Agregar dependencias correctas
 
   // Configuración de columnas dinámicas
   const columns = useMemo(() => {
@@ -234,7 +240,7 @@ const CanvasRecargosDashboard = () => {
         fixed: true,
       },
       {
-        key: "numero_planilla",
+        key: "planilla",
         label: "PLANILLA",
         width: "120px",
         sortable: true,
@@ -367,6 +373,15 @@ const CanvasRecargosDashboard = () => {
     return [...baseColumns, ...dayColumns, ...summaryColumns];
   }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday]);
 
+  const MAPEO_CAMPOS_HORAS = {
+    HED: "total_hed", // Horas Extra Diurnas
+    HEN: "total_hen", // Horas Extra Nocturnas
+    HEFD: "total_hefd", // Horas Extra Festivas Diurnas
+    HEFN: "total_hefn", // Horas Extra Festivas Nocturnas
+    RN: "total_rn", // Recargo Nocturno
+    RD: "total_rd", // Recargo Dominical Diurno
+  } as const;
+
   const calcularTotalesRecargos = (diasLaborales: DiaLaboralPlanilla[]) => {
     if (!diasLaborales || diasLaborales.length === 0) {
       return {
@@ -418,8 +433,8 @@ const CanvasRecargosDashboard = () => {
         return item.empresa?.nombre;
       case "vehiculo":
         return item.vehiculo?.placa;
-      case "numero_planilla":
-        return item.numero_planilla;
+      case "planilla":
+        return item.planilla;
       case "total_horas":
         return item.total_horas;
       case "total_hed":
@@ -456,7 +471,7 @@ const CanvasRecargosDashboard = () => {
             value = "activo"; // Por ahora todos son activos
             break;
           case "planillas":
-            value = item.numero_planilla || "";
+            value = item.planilla || "";
             break;
           case "placas":
             value = item.vehiculo?.placa || "";
@@ -495,13 +510,17 @@ const CanvasRecargosDashboard = () => {
             .replace(/\./g, "")
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          item.numero_planilla
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()),
+          item.planilla?.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
     // Aplicar filtros
+    if (filters.conductores.length > 0) {
+      result = result.filter((item) => {
+        const nombreCompleto = `${item.conductor?.nombre} ${item.conductor?.apellido}`;
+        return filters.conductores.includes(nombreCompleto);
+      });
+    }
     if (filters.empresas.length > 0) {
       result = result.filter((item) =>
         filters.empresas.includes(item.empresa?.nombre),
@@ -512,7 +531,7 @@ const CanvasRecargosDashboard = () => {
     }
     if (filters.planillas.length > 0) {
       result = result.filter((item) =>
-        filters.planillas.includes(item.numero_planilla),
+        filters.planillas.includes(item.planilla),
       );
     }
     if (filters.placas.length > 0) {
@@ -553,200 +572,6 @@ const CanvasRecargosDashboard = () => {
 
     return result;
   }, [processedDataWithTotals, searchTerm, filters, sortField, sortDirection]);
-
-  // Datos paginados
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return processedData.slice(startIndex, startIndex + itemsPerPage);
-  }, [processedData, currentPage, itemsPerPage]);
-
-  // Estadísticas
-  const statistics = useMemo(() => {
-    if (
-      !processedData ||
-      !Array.isArray(processedData) ||
-      processedData.length === 0
-    ) {
-      return {
-        totalRegistros: 0,
-        totalHoras: "0.0",
-        totalValor: 0,
-        totalHED: "0.0",
-        totalHEN: "0.0",
-        totalHEFD: "0.0",
-        totalHEFN: "0.0",
-        totalRN: "0.0",
-        totalRD: "0.0",
-        totalDias: "0.0",
-        empresasActivas: 0,
-      };
-    }
-
-    // Calcular totales básicos
-    const totalHoras = processedData.reduce(
-      (acc, item) => acc + (item.total_horas || item.total_horas || 0),
-      0,
-    );
-
-    const totalesDias = processedData.reduce(
-      (acc, item) => acc + item.dias_laborales.length,
-      0,
-    );
-
-    const totalValor = processedData.reduce(
-      (acc, item) => acc + (item.valor_total || 0),
-      0,
-    );
-
-    // Calcular todos los tipos de recargos
-    const totalesRecargos = processedData.reduce(
-      (acc, item) => ({
-        totalHED: acc.totalHED + (item.total_hed || 0),
-        totalHEN: acc.totalHEN + (item.total_hen || 0),
-        totalHEFD: acc.totalHEFD + (item.total_hefd || 0),
-        totalHEFN: acc.totalHEFN + (item.total_hefn || 0),
-        totalRN: acc.totalRN + (item.total_rn || 0),
-        totalRD: acc.totalRD + (item.total_rd || 0),
-      }),
-      {
-        totalHED: 0, // Horas Extras Diurnas
-        totalHEN: 0, // Horas Extras Nocturnas
-        totalHEFD: 0, // Horas Extras Festivas Diurnas
-        totalHEFN: 0, // Horas Extras Festivas Nocturnas
-        totalRN: 0, // Recargo Nocturno
-        totalRD: 0, // Recargo Dominical
-      },
-    );
-
-    // Calcular empresas únicas
-    const empresasActivas = new Set(
-      processedData
-        .map((item) => item.empresa?.id)
-        .filter((id) => id !== null && id !== undefined),
-    ).size;
-
-    const resultado = {
-      totalRegistros: processedData.length,
-      totalHoras: totalHoras.toFixed(1),
-      totalValor: totalValor,
-      totalHED: totalesRecargos.totalHED.toFixed(1),
-      totalHEN: totalesRecargos.totalHEN.toFixed(1),
-      totalHEFD: totalesRecargos.totalHEFD.toFixed(1),
-      totalHEFN: totalesRecargos.totalHEFN.toFixed(1),
-      totalRN: totalesRecargos.totalRN.toFixed(1),
-      totalRD: totalesRecargos.totalRD.toFixed(1),
-      totalDias: totalesDias.toFixed(1),
-      empresasActivas: empresasActivas,
-    };
-
-    return resultado;
-  }, [processedData]);
-
-  // Handlers
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
-  const handleSelectRow = (id: string) => {
-    const newSelected = new Set(selectedRows);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedRows(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (selectedRows.size === paginatedData.length) {
-      setSelectedRows(new Set());
-    } else {
-      setSelectedRows(new Set(paginatedData.map((item) => item.id)));
-    }
-  };
-
-  const toggleFilter = (type: FilterKey) => {
-    setShowFilters((prev) => ({
-      ...prev,
-      [type]: !prev[type],
-    }));
-  };
-
-  const updateFilter = (type: FilterKey, value: string) => {
-    setFilters((prev) => {
-      const currentValues = prev[type] || [];
-      const newValues = currentValues.includes(value)
-        ? currentValues.filter((v) => v !== value)
-        : [...currentValues, value];
-      return { ...prev, [type]: newValues };
-    });
-  };
-
-  const clearAllFilters = () => {
-    setFilters({
-      conductores: [],
-      empresas: [],
-      estados: [],
-      planillas: [],
-      placas: [],
-    });
-    setSearchTerm("");
-  };
-
-  const getItemValue = (item: CanvasRecargo, columnKey: string): any => {
-    // Mapeo de propiedades conocidas
-    const knownProperties: Record<string, keyof CanvasRecargo> = {
-      id: "id",
-      planilla: "planilla",
-      conductor: "conductor",
-      vehiculo: "vehiculo",
-      total_horas: "total_horas",
-      total_dias: "total_dias",
-      valor_total: "valor_total",
-      total_hed: "total_hed",
-      total_hen: "total_hen",
-    };
-
-    // Si es una propiedad conocida, accederla directamente
-    if (knownProperties[columnKey]) {
-      return item[knownProperties[columnKey]];
-    }
-
-    // Para columnas de días (día_1, día_2, etc.)
-    const dayMatch = columnKey.match(/^día?_(\d+)$/);
-    if (dayMatch) {
-      const dayNumber = parseInt(dayMatch[1], 10);
-      const dayData = item.dias.find((d) => d.dia === dayNumber);
-      return dayData?.horas || 0;
-    }
-
-    // Para propiedades dinámicas, usar type assertion con verificación
-    const itemWithDynamicProps = item as CanvasRecargo & Record<string, any>;
-    return itemWithDynamicProps[columnKey] || 0;
-  };
-
-  const toNumber = (value: number | string | null | undefined): number => {
-    if (value === null || value === undefined || value === "") {
-      return 0;
-    }
-
-    const num = typeof value === "string" ? parseFloat(value) : value;
-    return isNaN(num) ? 0 : num;
-  };
-
-  const MAPEO_CAMPOS_HORAS = {
-    HED: "total_hed", // Horas Extra Diurnas
-    HEN: "total_hen", // Horas Extra Nocturnas
-    HEFD: "total_hefd", // Horas Extra Festivas Diurnas
-    HEFN: "total_hefn", // Horas Extra Festivas Nocturnas
-    RN: "total_rn", // Recargo Nocturno
-    RD: "total_rd", // Recargo Dominical Diurno
-  } as const;
 
   const obtenerSalarioBase = (
     item: CanvasRecargo,
@@ -896,6 +721,191 @@ const CanvasRecargosDashboard = () => {
     return totalGeneral;
   };
 
+  // Datos paginados
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return processedData.slice(startIndex, startIndex + itemsPerPage);
+  }, [processedData, currentPage, itemsPerPage]);
+
+  // Estadísticas
+  const statistics = useMemo(() => {
+    if (
+      !processedData ||
+      !Array.isArray(processedData) ||
+      processedData.length === 0
+    ) {
+      return {
+        totalRegistros: 0,
+        totalHoras: "0.0",
+        totalValor: 0,
+        totalHED: "0.0",
+        totalHEN: "0.0",
+        totalHEFD: "0.0",
+        totalHEFN: "0.0",
+        totalRN: "0.0",
+        totalRD: "0.0",
+        totalDias: "0.0",
+        empresasActivas: 0,
+      };
+    }
+
+    // Calcular totales básicos
+    const totalHoras = processedData.reduce(
+      (acc, item) => acc + (item.total_horas || item.total_horas || 0),
+      0,
+    );
+
+    const totalesDias = processedData.reduce(
+      (acc, item) => acc + item.dias_laborales.length,
+      0,
+    );
+
+    const totalValor = processedData.reduce(
+      (acc, item) => acc + obtenerTotalRecargos(item),
+      0,
+    );
+
+    // Calcular todos los tipos de recargos
+    const totalesRecargos = processedData.reduce(
+      (acc, item) => ({
+        totalHED: acc.totalHED + (item.total_hed || 0),
+        totalHEN: acc.totalHEN + (item.total_hen || 0),
+        totalHEFD: acc.totalHEFD + (item.total_hefd || 0),
+        totalHEFN: acc.totalHEFN + (item.total_hefn || 0),
+        totalRN: acc.totalRN + (item.total_rn || 0),
+        totalRD: acc.totalRD + (item.total_rd || 0),
+      }),
+      {
+        totalHED: 0, // Horas Extras Diurnas
+        totalHEN: 0, // Horas Extras Nocturnas
+        totalHEFD: 0, // Horas Extras Festivas Diurnas
+        totalHEFN: 0, // Horas Extras Festivas Nocturnas
+        totalRN: 0, // Recargo Nocturno
+        totalRD: 0, // Recargo Dominical
+      },
+    );
+
+    // Calcular empresas únicas
+    const empresasActivas = new Set(
+      processedData
+        .map((item) => item.empresa?.id)
+        .filter((id) => id !== null && id !== undefined),
+    ).size;
+
+    const resultado = {
+      totalRegistros: processedData.length,
+      totalHoras: totalHoras.toFixed(1),
+      totalValor: totalValor,
+      totalHED: totalesRecargos.totalHED.toFixed(1),
+      totalHEN: totalesRecargos.totalHEN.toFixed(1),
+      totalHEFD: totalesRecargos.totalHEFD.toFixed(1),
+      totalHEFN: totalesRecargos.totalHEFN.toFixed(1),
+      totalRN: totalesRecargos.totalRN.toFixed(1),
+      totalRD: totalesRecargos.totalRD.toFixed(1),
+      totalDias: totalesDias.toFixed(1),
+      empresasActivas: empresasActivas,
+    };
+
+    return resultado;
+  }, [processedData]);
+
+  // Handlers
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const handleSelectRow = (id: string) => {
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedRows.size === paginatedData.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(paginatedData.map((item) => item.id)));
+    }
+  };
+
+  const toggleFilter = (type: FilterKey) => {
+    setShowFilters((prev) => ({
+      ...prev,
+      [type]: !prev[type],
+    }));
+  };
+
+  const updateFilter = (type: FilterKey, value: string) => {
+    setFilters((prev) => {
+      const currentValues = prev[type] || [];
+      const newValues = currentValues.includes(value)
+        ? currentValues.filter((v) => v !== value)
+        : [...currentValues, value];
+      return { ...prev, [type]: newValues };
+    });
+  };
+
+  const clearAllFilters = () => {
+    setFilters({
+      conductores: [],
+      empresas: [],
+      estados: [],
+      planillas: [],
+      placas: [],
+    });
+    setSearchTerm("");
+  };
+
+  const getItemValue = (item: CanvasRecargo, columnKey: string): any => {
+    // Mapeo de propiedades conocidas
+    const knownProperties: Record<string, keyof CanvasRecargo> = {
+      id: "id",
+      planilla: "planilla",
+      conductor: "conductor",
+      vehiculo: "vehiculo",
+      total_horas: "total_horas",
+      total_dias: "total_dias",
+      valor_total: "valor_total",
+      total_hed: "total_hed",
+      total_hen: "total_hen",
+    };
+
+    // Si es una propiedad conocida, accederla directamente
+    if (knownProperties[columnKey]) {
+      return item[knownProperties[columnKey]];
+    }
+
+    // Para columnas de días (día_1, día_2, etc.)
+    const dayMatch = columnKey.match(/^día?_(\d+)$/);
+    if (dayMatch) {
+      const dayNumber = parseInt(dayMatch[1], 10);
+      const dayData = item.dias.find((d) => d.dia === dayNumber);
+      return dayData?.horas || 0;
+    }
+
+    // Para propiedades dinámicas, usar type assertion con verificación
+    const itemWithDynamicProps = item as CanvasRecargo & Record<string, any>;
+    return itemWithDynamicProps[columnKey] || 0;
+  };
+
+  const toNumber = (value: number | string | null | undefined): number => {
+    if (value === null || value === undefined || value === "") {
+      return 0;
+    }
+
+    const num = typeof value === "string" ? parseFloat(value) : value;
+    return isNaN(num) ? 0 : num;
+  };
+
   const renderCell = (item: CanvasRecargo, column: Column) => {
     switch (column.key) {
       case "select":
@@ -974,10 +984,10 @@ const CanvasRecargosDashboard = () => {
           </span>
         );
 
-      case "numero_planilla":
+      case "planilla":
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-            {item.numero_planilla}
+            {item.planilla}
           </span>
         );
 
@@ -990,8 +1000,8 @@ const CanvasRecargosDashboard = () => {
 
       case "estado":
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            ACTIVO
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 uppercase">
+            {item.estado}
           </span>
         );
 
@@ -1130,7 +1140,7 @@ const CanvasRecargosDashboard = () => {
     const COLUMN_TO_FILTER_MAPPING: Record<string, FilterKey> = {
       conductor: "conductores",
       empresa: "empresas",
-      numero_planilla: "planillas",
+      planilla: "planillas",
       vehiculo: "placas",
       estado: "estados",
     };
@@ -1304,137 +1314,307 @@ const CanvasRecargosDashboard = () => {
             </div>
           </div>
         </header>
-
-        {/* Panel de estadísticas compacto */}
+        {/* Panel de estadísticas responsive */}
         <div className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4">
-            <div className="grid grid-cols-11 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600">
-                  {statistics.totalRegistros}
+          <div className="px-4 sm:px-6 py-4">
+            {/* Vista móvil - Cards compactas con las métricas más importantes */}
+            <div className="block sm:hidden">
+              {/* Resumen principal móvil */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-emerald-700">
+                    {statistics.totalRegistros}
+                  </div>
+                  <div className="text-xs text-emerald-600">Registros</div>
                 </div>
-                <div className="text-xs text-gray-500">Registros</div>
+                <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-3 text-center">
+                  <div className="text-xl font-bold text-green-700">
+                    {formatearCOP(statistics.totalValor)}
+                  </div>
+                  <div className="text-xs text-green-600">Valor Total</div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600">
-                  {statistics.totalDias}
+
+              {/* Métricas secundarias móvil - 3 columnas */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-sm font-semibold text-gray-700">
+                    {statistics.totalHoras}
+                  </div>
+                  <div className="text-xs text-gray-500">Horas</div>
                 </div>
-                <div className="text-xs text-gray-500">Días Totales</div>
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-sm font-semibold text-gray-700">
+                    {statistics.totalDias}
+                  </div>
+                  <div className="text-xs text-gray-500">Días</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <div className="text-sm font-semibold text-amber-600">
+                    {statistics.empresasActivas}
+                  </div>
+                  <div className="text-xs text-gray-500">Empresas</div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600">
-                  {statistics.totalHoras}
+            </div>
+
+            {/* Vista tablet - Grid responsive */}
+            <div className="hidden sm:block md:hidden">
+              <div className="grid grid-cols-4 gap-4">
+                {/* Fila principal */}
+                <div className="text-center">
+                  <div className="text-xl font-bold text-gray-600">
+                    {statistics.totalRegistros}
+                  </div>
+                  <div className="text-xs text-gray-500">Registros</div>
                 </div>
-                <div className="text-xs text-gray-500">Horas Totales</div>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-gray-600">
+                    {statistics.totalHoras}
+                  </div>
+                  <div className="text-xs text-gray-500">Horas Totales</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xl font-bold text-amber-600">
+                    {statistics.empresasActivas}
+                  </div>
+                  <div className="text-xs text-gray-500">Empresas</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-600">
+                    {formatearCOP(statistics.totalValor)}
+                  </div>
+                  <div className="text-xs text-gray-500">Valor Total</div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {statistics.totalHED}
+
+              {/* Segunda fila tablet */}
+              <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
+                <div className="text-center">
+                  <div className="text-lg font-bold text-green-600">
+                    {statistics.totalHED}
+                  </div>
+                  <div className="text-xs text-gray-500">HE Diurnas</div>
                 </div>
-                <div className="text-xs text-gray-500">HE Diurnas</div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-blue-600">
+                    {statistics.totalHEN}
+                  </div>
+                  <div className="text-xs text-gray-500">HE Nocturnas</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-purple-600">
+                    {statistics.totalRN}
+                  </div>
+                  <div className="text-xs text-gray-500">RE Nocturnas</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-lg font-bold text-red-600">
+                    {statistics.totalRD}
+                  </div>
+                  <div className="text-xs text-gray-500">RE Dominical</div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {statistics.totalHEN}
+            </div>
+
+            {/* Vista desktop - Grid completo */}
+            <div className="hidden md:block">
+              {/* Laptop/Desktop pequeño */}
+              <div className="hidden md:block lg:hidden">
+                <div className="grid grid-cols-6 gap-4">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-gray-600">
+                      {statistics.totalRegistros}
+                    </div>
+                    <div className="text-xs text-gray-500">Registros</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-gray-600">
+                      {statistics.totalHoras}
+                    </div>
+                    <div className="text-xs text-gray-500">Horas Totales</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-green-600">
+                      {statistics.totalHED}
+                    </div>
+                    <div className="text-xs text-gray-500">HE Diurnas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-blue-600">
+                      {statistics.totalHEN}
+                    </div>
+                    <div className="text-xs text-gray-500">HE Nocturnas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-amber-600">
+                      {statistics.empresasActivas}
+                    </div>
+                    <div className="text-xs text-gray-500">Empresas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-green-600">
+                      {formatearCOP(statistics.totalValor)}
+                    </div>
+                    <div className="text-xs text-gray-500">Valor Total</div>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">HE Nocturnas</div>
+
+                {/* Segunda fila para laptop */}
+                <div className="grid grid-cols-5 gap-4 mt-4 pt-4 border-t border-gray-100">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-orange-600">
+                      {statistics.totalHEFD}
+                    </div>
+                    <div className="text-xs text-gray-500">HEF Diurna</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-indigo-600">
+                      {statistics.totalHEFN}
+                    </div>
+                    <div className="text-xs text-gray-500">HEF Nocturna</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-purple-600">
+                      {statistics.totalRN}
+                    </div>
+                    <div className="text-xs text-gray-500">RE Nocturnas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-red-600">
+                      {statistics.totalRD}
+                    </div>
+                    <div className="text-xs text-gray-500">RE Dominical</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-gray-600">
+                      {statistics.totalDias}
+                    </div>
+                    <div className="text-xs text-gray-500">Días Totales</div>
+                  </div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">
-                  {statistics.totalHEFD}
+
+              {/* Desktop grande - Vista completa original */}
+              <div className="hidden lg:block">
+                <div className="grid grid-cols-11 gap-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-600">
+                      {statistics.totalRegistros}
+                    </div>
+                    <div className="text-xs text-gray-500">Registros</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-600">
+                      {statistics.totalDias}
+                    </div>
+                    <div className="text-xs text-gray-500">Días Totales</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-600">
+                      {statistics.totalHoras}
+                    </div>
+                    <div className="text-xs text-gray-500">Horas Totales</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {statistics.totalHED}
+                    </div>
+                    <div className="text-xs text-gray-500">HE Diurnas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {statistics.totalHEN}
+                    </div>
+                    <div className="text-xs text-gray-500">HE Nocturnas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">
+                      {statistics.totalHEFD}
+                    </div>
+                    <div className="text-xs text-gray-500">HEF Diurna</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-indigo-600">
+                      {statistics.totalHEFN}
+                    </div>
+                    <div className="text-xs text-gray-500">HEF Nocturna</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {statistics.totalRN}
+                    </div>
+                    <div className="text-xs text-gray-500">RE Nocturnas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {statistics.totalRD}
+                    </div>
+                    <div className="text-xs text-gray-500">RE Dominical</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-600">
+                      {statistics.empresasActivas}
+                    </div>
+                    <div className="text-xs text-gray-500">Empresas</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">
+                      {formatearCOP(statistics.totalValor)}
+                    </div>
+                    <div className="text-xs text-gray-500">Valor Total</div>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500">HEF Diurna</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-indigo-600">
-                  {statistics.totalHEFN}
-                </div>
-                <div className="text-xs text-gray-500">HEF Nocturna</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {statistics.totalRN}
-                </div>
-                <div className="text-xs text-gray-500">RE Nocturnas</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {statistics.totalRD}
-                </div>
-                <div className="text-xs text-gray-500">RE Dominical</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-amber-600">
-                  {statistics.empresasActivas}
-                </div>
-                <div className="text-xs text-gray-500">Empresas</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  ${(statistics.totalValor / 1000000).toFixed(1)}M
-                </div>
-                <div className="text-xs text-gray-500">Valor Total</div>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Barra de herramientas */}
+        {/* Barra de herramientas responsive */}
         <div className="bg-white border-b border-gray-200">
-          <div className="px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {/* Búsqueda global */}
-                <div className="relative">
-                  <Search
-                    size={16}
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Buscar en todos los campos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9 pr-4 py-2 w-80 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
-                  />
-                </div>
-
-                {/* Indicadores de filtros activos */}
-                {activeFiltersCount > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">
-                      Filtros activos:
-                    </span>
-                    <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
-                      {activeFiltersCount}
-                    </span>
-                    <Button
-                      onPress={clearAllFilters}
-                      variant="light"
-                      color="danger"
-                      radius="none"
-                      className="text-sm text-red-600 hover:text-red-800 border-b-1"
-                    >
-                      Limpiar todos los filtros
-                    </Button>
-                  </div>
-                )}
+          <div className="px-4 sm:px-6 py-3">
+            {/* Vista móvil */}
+            <div className="block md:hidden space-y-3">
+              {/* Búsqueda móvil - ancho completo */}
+              <div className="relative">
+                <Search
+                  size={16}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="text"
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                />
               </div>
 
-              <div className="flex items-center space-x-4">
-                {/* Selección múltiple */}
-                {selectedRows.size > 0 && (
-                  <span className="text-sm text-gray-600">
-                    {selectedRows.size} seleccionados
-                  </span>
-                )}
+              {/* Fila inferior móvil */}
+              <div className="flex items-center justify-between">
+                {/* Filtros activos móvil */}
+                <div className="flex items-center space-x-2">
+                  {activeFiltersCount > 0 && (
+                    <>
+                      <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
+                        {activeFiltersCount} filtros
+                      </span>
+                      <Button
+                        onPress={clearAllFilters}
+                        variant="light"
+                        size="sm"
+                        className="text-xs text-red-600 px-2 py-1"
+                      >
+                        Limpiar
+                      </Button>
+                    </>
+                  )}
+                </div>
 
-                {/* Paginación compacta */}
+                {/* Paginación compacta móvil */}
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="text-gray-600">
+                  <span className="text-gray-600 text-xs">
                     {(currentPage - 1) * itemsPerPage + 1}-
-                    {Math.min(currentPage * itemsPerPage, processedData.length)}{" "}
-                    de {processedData.length}
+                    {Math.min(currentPage * itemsPerPage, processedData.length)}
                   </span>
                   <select
                     value={itemsPerPage}
@@ -1442,13 +1622,102 @@ const CanvasRecargosDashboard = () => {
                       setItemsPerPage(parseInt(e.target.value));
                       setCurrentPage(1);
                     }}
-                    className="border border-gray-300 rounded px-2 py-1 text-xs"
+                    className="border border-gray-300 rounded px-1 py-1 text-xs bg-white"
                   >
                     <option value={10}>10</option>
                     <option value={20}>20</option>
                     <option value={50}>50</option>
-                    <option value={100}>100</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Vista tablet y desktop */}
+            <div className="hidden md:block">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between space-y-3 lg:space-y-0">
+                {/* Sección izquierda */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full lg:w-auto">
+                  {/* Búsqueda global */}
+                  <div className="relative w-full sm:w-auto">
+                    <Search
+                      size={16}
+                      className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Buscar en todos los campos..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 pr-4 py-2 w-full sm:w-80 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+
+                  {/* Indicadores de filtros activos */}
+                  {activeFiltersCount > 0 && (
+                    <div className="flex items-center space-x-2 flex-wrap">
+                      <span className="text-sm text-gray-600 whitespace-nowrap">
+                        Filtros activos:
+                      </span>
+                      <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
+                        {activeFiltersCount}
+                      </span>
+                      <Button
+                        onPress={clearAllFilters}
+                        variant="light"
+                        color="danger"
+                        size="sm"
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        Limpiar filtros
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sección derecha */}
+                <div className="flex items-center justify-between sm:justify-end space-x-4 w-full lg:w-auto">
+                  {/* Información de registros */}
+                  <div className="flex items-center space-x-3 text-sm">
+                    {selectedRows.size > 0 && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-emerald-600 font-medium">
+                          {selectedRows.size} elementos seleccionados
+                        </span>
+                        <button
+                          onClick={() => setSelectedRows(new Set())}
+                          className="text-xs text-gray-600 hover:text-gray-800 underline"
+                        >
+                          Deseleccionar todo
+                        </button>
+                      </div>
+                    )}
+
+                    <span className="text-gray-600 whitespace-nowrap">
+                      {(currentPage - 1) * itemsPerPage + 1}-
+                      {Math.min(
+                        currentPage * itemsPerPage,
+                        processedData.length,
+                      )}{" "}
+                      de {processedData.length.toLocaleString()}
+                    </span>
+
+                    <div className="flex items-center space-x-1">
+                      <span className="text-gray-500 text-xs">Ver:</span>
+                      <select
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                          setItemsPerPage(parseInt(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1561,7 +1830,7 @@ const CanvasRecargosDashboard = () => {
                                     ? "conductores"
                                     : column.key === "empresa"
                                       ? "empresas"
-                                      : column.key === "numero_planilla"
+                                      : column.key === "planilla"
                                         ? "planillas"
                                         : column.key === "vehiculo"
                                           ? "placas"
@@ -1574,7 +1843,7 @@ const CanvasRecargosDashboard = () => {
                                     ? "conductores"
                                     : column.key === "empresa"
                                       ? "empresas"
-                                      : column.key === "numero_planilla"
+                                      : column.key === "planilla"
                                         ? "planillas"
                                         : column.key === "vehiculo"
                                           ? "placas"
@@ -1610,19 +1879,6 @@ const CanvasRecargosDashboard = () => {
                 />
               </div>
             </div>
-
-            {/* Header de selección múltiple */}
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-              <input
-                type="checkbox"
-                checked={
-                  selectedRows.size === paginatedData.length &&
-                  paginatedData.length > 0
-                }
-                onChange={handleSelectAll}
-                className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-              />
-            </div>
           </div>
 
           {/* Filas de datos con columnas de días */}
@@ -1631,7 +1887,7 @@ const CanvasRecargosDashboard = () => {
               <div
                 key={item.id}
                 className={`flex hover:bg-emerald-50 transition-colors ${
-                  selectedRows.has(item.id) ? "bg-emerald-50" : ""
+                  selectedRows.has(item.id) ? "bg-emerald-500" : ""
                 } ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
               >
                 {columns.map((column: Column) => {
@@ -1709,19 +1965,54 @@ const CanvasRecargosDashboard = () => {
           )}
         </div>
 
-        {/* Footer con paginación y información adicional */}
+        {/* Footer con paginación y información adicional - Responsive */}
         <div className="bg-white border-t border-gray-200">
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+          <div className="px-4 sm:px-6 py-3 sm:py-4">
+            {/* Vista móvil */}
+            <div className="block sm:hidden">
+              {/* Información de registros centrada */}
+              <div className="text-center mb-3">
                 <span className="text-sm text-gray-600">
-                  Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
+                  {(currentPage - 1) * itemsPerPage + 1}-
                   {Math.min(currentPage * itemsPerPage, processedData.length)}{" "}
-                  de {processedData.length} registros
+                  de {processedData.length}
                 </span>
+              </div>
 
-                <div className="text-sm text-gray-500">
-                  Mes:{" "}
+              {/* Controles de paginación móvil */}
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="flex items-center space-x-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                  <span>Anterior</span>
+                </button>
+
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm text-gray-500">Página</span>
+                  <span className="px-2 py-1 text-sm font-medium bg-emerald-100 text-emerald-800 rounded">
+                    {currentPage}
+                  </span>
+                  <span className="text-sm text-gray-500">de {totalPages}</span>
+                </div>
+
+                <button
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="flex items-center space-x-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span>Siguiente</span>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              {/* Información del período en móvil */}
+              <div className="text-center mt-3 pt-3 border-t border-gray-100">
+                <span className="text-xs text-gray-500">
                   {
                     [
                       "Enero",
@@ -1738,85 +2029,107 @@ const CanvasRecargosDashboard = () => {
                       "Diciembre",
                     ][selectedMonth - 1]
                   }{" "}
-                  {selectedYear} ({getDaysInMonth(selectedMonth, selectedYear)}{" "}
-                  días)
-                </div>
-
-                {selectedRows.size > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-emerald-600 font-medium">
-                      {selectedRows.size} elementos seleccionados
-                    </span>
-                    <button
-                      onClick={() => setSelectedRows(new Set())}
-                      className="text-xs text-gray-600 hover:text-gray-800 underline"
-                    >
-                      Deseleccionar todo
-                    </button>
-                  </div>
-                )}
+                  {selectedYear} • {getDaysInMonth(selectedMonth, selectedYear)}{" "}
+                  días
+                </span>
               </div>
+            </div>
 
-              {/* Controles de paginación */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-
-                <div className="flex items-center space-x-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                          currentPage === pageNum
-                            ? "bg-emerald-600 text-white"
-                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-
-                  {totalPages > 5 && currentPage < totalPages - 2 && (
-                    <>
-                      <span className="px-2 text-gray-500">...</span>
-                      <button
-                        onClick={() => setCurrentPage(totalPages)}
-                        className="px-3 py-1 text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        {totalPages}
-                      </button>
-                    </>
-                  )}
+            {/* Vista tablet y desktop */}
+            <div className="hidden sm:block">
+              <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+                {/* Información izquierda */}
+                <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6">
+                  <span className="text-sm text-gray-600">
+                    Mostrando {(currentPage - 1) * itemsPerPage + 1} a{" "}
+                    {Math.min(currentPage * itemsPerPage, processedData.length)}{" "}
+                    de {processedData.length} registros
+                  </span>
                 </div>
 
-                <button
-                  onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronRight size={16} />
-                </button>
+                {/* Controles de paginación desktop */}
+                <div className="flex items-center space-x-2">
+                  {/* Navegación rápida */}
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Primera página"
+                  >
+                    Primera
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Página anterior"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+
+                  {/* Números de página */}
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors ${
+                            currentPage === pageNum
+                              ? "bg-emerald-600 text-white font-medium"
+                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+
+                    {totalPages > 5 && currentPage < totalPages - 2 && (
+                      <>
+                        <span className="px-2 text-gray-500">...</span>
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          className="min-w-[2.5rem] px-3 py-2 text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setCurrentPage(Math.min(totalPages, currentPage + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Página siguiente"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Última página"
+                  >
+                    Última
+                  </button>
+                </div>
               </div>
             </div>
           </div>
