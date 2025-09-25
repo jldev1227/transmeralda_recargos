@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Modal,
   ModalContent,
@@ -29,6 +29,7 @@ import {
   Download,
   RefreshCw,
   CheckCircle,
+  Eye,
 } from "lucide-react";
 import ReactSelect, {
   CSSObjectWithLabel,
@@ -49,6 +50,7 @@ import { addToast } from "@heroui/toast";
 import TablaConRecargos from "./tableRecargos";
 import UploadPlanilla from "../uploadPlanilla";
 import { esDomingo } from "@/helpers";
+import { apiClient } from "@/config/apiClient";
 
 interface Option {
   value: string;
@@ -336,11 +338,7 @@ export default function ModalFormRecargo({
   });
 
   const [archivoAdjunto, setArchivoAdjunto] = useState<File | null>(null);
-  const [archivoExistente, setArchivoExistente] = useState<{
-    nombre: string;
-    url: string;
-    tamaño?: number;
-  } | null>(null);
+  const [archivoExistente, setArchivoExistente] = useState<string | null>(null);
 
   const [diasLaborales, setDiasLaborales] = useState<DiaLaboral[]>([
     {
@@ -355,12 +353,33 @@ export default function ModalFormRecargo({
     },
   ]);
 
+  const getPresignedUrl = useCallback(async (s3Key: string) => {
+    try {
+      const response = await apiClient.get(`/api/documentos/url-firma`, {
+        params: { key: s3Key },
+      });
+
+      return response.data.url;
+    } catch (error) {
+      console.error("Error al obtener URL firmada:", error);
+
+      return null;
+    }
+  }, []);
+
   // Función para cargar datos del recargo a editar
   const cargarDatosRecargo = async (id: string) => {
     try {
       setIsLoadingData(true);
       const response = await obtenerRecargoPorId(id);
       const recargo = response?.data.recargo;
+
+      if (recargo?.planilla_s3key) {
+        const url = await getPresignedUrl(recargo.planilla_s3key);
+        setArchivoExistente(url);
+      } else {
+        setArchivoExistente(null);
+      }
 
       if (recargo) {
         setFormData({
@@ -524,8 +543,8 @@ export default function ModalFormRecargo({
   };
 
   const descargarArchivoExistente = () => {
-    if (archivoExistente?.url) {
-      window.open(archivoExistente.url, "_blank");
+    if (archivoExistente) {
+      window.open(archivoExistente, "_blank");
     }
   };
 
@@ -593,13 +612,11 @@ export default function ModalFormRecargo({
           esDomingo: esDomingo(dia.dia, currentMonth, currentYear), // ✅ CAMPO AGREGADO COMO BOOLEAN
           esFestivo: verificarEsFestivo(parseInt(dia.dia)), // ✅ CAMPO AGREGADO COMO BOOLEAN
         })),
-        ...(editMode && {
-          mantener_archivo_existente: archivoExistente !== null,
-        }),
       };
 
       formDataToSend.append("recargo_data", JSON.stringify(recargoData));
 
+      console.log(archivoAdjunto);
       if (archivoAdjunto) {
         formDataToSend.append("planilla", archivoAdjunto);
       }
@@ -914,43 +931,31 @@ export default function ModalFormRecargo({
                           Planilla de Trabajo
                         </FieldLabel>
                         <div className="space-y-3">
-                          {/* Archivo existente */}
                           {editMode && archivoExistente && (
-                            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                              <FileText
-                                size={20}
-                                className="text-blue-600 flex-shrink-0"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-blue-800 truncate">
-                                  {archivoExistente.nombre}
-                                </p>
-                                {archivoExistente.tamaño && (
-                                  <p className="text-xs text-blue-600">
-                                    {(
-                                      archivoExistente.tamaño /
-                                      1024 /
-                                      1024
-                                    ).toFixed(2)}{" "}
-                                    MB
-                                  </p>
-                                )}
+                            <div className="flex items-center gap-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                              <div className="flex items-center gap-2 flex-1">
+                                <FileText
+                                  size={16}
+                                  className="text-emerald-600"
+                                />
+                                <span className="text-sm text-emerald-800 font-medium">
+                                  Planilla adjunta
+                                </span>
                               </div>
                               <div className="flex gap-1">
                                 <Button
                                   isIconOnly
                                   size="sm"
                                   variant="light"
-                                  className="text-blue-600 hover:text-blue-800"
                                   onPress={descargarArchivoExistente}
                                 >
-                                  <Download size={14} />
+                                  <Eye size={14} className="text-emerald-600" />
                                 </Button>
                                 <Button
                                   isIconOnly
                                   size="sm"
                                   variant="light"
-                                  className="text-red-600 hover:text-red-800"
+                                  className="text-red-500"
                                   onPress={eliminarArchivoExistente}
                                 >
                                   <X size={14} />
@@ -964,36 +969,6 @@ export default function ModalFormRecargo({
                             onFileChange={handleFileChange}
                             maxSizeMB={15}
                           />
-
-                          {/* Archivo nuevo seleccionado */}
-                          {archivoAdjunto && (
-                            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-                              <FileText
-                                size={20}
-                                className="text-green-600 flex-shrink-0"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-green-800 truncate">
-                                  {archivoAdjunto.name}
-                                </p>
-                                <p className="text-xs text-green-600">
-                                  {(archivoAdjunto.size / 1024 / 1024).toFixed(
-                                    2,
-                                  )}{" "}
-                                  MB
-                                </p>
-                              </div>
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                className="text-green-600 hover:text-green-800"
-                                onPress={() => setArchivoAdjunto(null)}
-                              >
-                                <X size={14} />
-                              </Button>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>

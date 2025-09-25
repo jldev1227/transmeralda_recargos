@@ -139,6 +139,7 @@ export interface RecargoDetallado {
   total_rn: number;
   total_rd: number;
   dias_laborales: DiaLaboral[];
+  planilla_s3key: string | null;
 }
 
 export interface RecargoResponse {
@@ -1058,8 +1059,12 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           response = await apiClient.put<ApiResponse<any>>(
             `/api/recargos/${id}`,
             recargoData,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+            },
           );
         } else {
+          console.log("sin archivos");
           // ✅ Si es JSON
           response = await apiClient.put<ApiResponse<any>>(
             `/api/recargos/${id}`,
