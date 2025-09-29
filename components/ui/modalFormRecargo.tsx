@@ -386,7 +386,7 @@ export default function ModalFormRecargo({
           conductorId: recargo.conductor.id,
           vehiculoId: recargo.vehiculo.id,
           empresaId: recargo.empresa.id,
-          tmNumber: recargo.planilla || "",
+          tmNumber: recargo.numero_planilla || "",
         });
 
         if (recargo.dias_laborales && recargo.dias_laborales.length > 0) {
@@ -453,6 +453,7 @@ export default function ModalFormRecargo({
     } else if (isOpen && !recargoId) {
       resetearFormulario();
     }
+    setArchivoAdjunto(null);
   }, [isOpen, recargoId]);
 
   // Cálculo del progreso del formulario
@@ -616,7 +617,8 @@ export default function ModalFormRecargo({
 
       formDataToSend.append("recargo_data", JSON.stringify(recargoData));
 
-      console.log(archivoAdjunto);
+      console.log(archivoAdjunto, archivoExistente);
+
       if (archivoAdjunto) {
         formDataToSend.append("planilla", archivoAdjunto);
       }
@@ -663,12 +665,14 @@ export default function ModalFormRecargo({
       isOpen={isOpen}
       size="5xl"
       scrollBehavior="inside"
-      onOpenChange={onClose}
+      onOpenChange={() => {
+        setArchivoAdjunto(null);
+        onClose();
+      }}
       hideCloseButton
       classNames={{
         base: "max-h-[95vh] max-w-6xl",
         body: "py-6",
-        backdrop: "bg-black/60 backdrop-blur-sm",
       }}
     >
       <ModalContent>

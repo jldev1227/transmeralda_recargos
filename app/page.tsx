@@ -12,19 +12,29 @@ import {
   ChevronRight,
   Edit3,
   PlusIcon,
+  Clock,
+  FileText,
+  FileX,
+  Trash2,
+  Minus,
 } from "lucide-react";
 import ModalFormRecargo from "@/components/ui/modalFormRecargo";
 import {
   CanvasRecargo,
   DiaLaboralPlanilla,
   useRecargo,
-  useRecargosCanvas,
 } from "@/context/RecargoPlanillaContext";
 import ModalConfiguracion from "@/components/ui/modalConfiguracion";
 import { Button } from "@heroui/button";
 import ModalVisualizarRecargo from "@/components/ui/modalVisualizarRecargo";
 import { formatearCOP } from "@/helpers";
 import { ConfiguracionSalario } from "@/types";
+import { Select, SelectItem } from "@heroui/select";
+import { Input } from "@heroui/input";
+import { Tooltip } from "@heroui/tooltip";
+import { useEliminarRecargoConfirm } from "@/components/ui/eliminarRecargoConfirm";
+import { apiClient } from "@/config/apiClient";
+import { AxiosRequestConfig } from "axios";
 
 interface ShowFilters {
   conductores: boolean;
@@ -106,6 +116,22 @@ interface Column {
   meta?: Record<string, any>;
 }
 
+// Datos de meses
+const months = [
+  { key: 1, label: "Enero", short: "Ene" },
+  { key: 2, label: "Febrero", short: "Feb" },
+  { key: 3, label: "Marzo", short: "Mar" },
+  { key: 4, label: "Abril", short: "Abr" },
+  { key: 5, label: "Mayo", short: "May" },
+  { key: 6, label: "Junio", short: "Jun" },
+  { key: 7, label: "Julio", short: "Jul" },
+  { key: 8, label: "Agosto", short: "Ago" },
+  { key: 9, label: "Septiembre", short: "Sep" },
+  { key: 10, label: "Octubre", short: "Oct" },
+  { key: 11, label: "Noviembre", short: "Nov" },
+  { key: 12, label: "Diciembre", short: "Dic" },
+];
+
 const CanvasRecargosDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("conductor");
@@ -129,6 +155,7 @@ const CanvasRecargosDashboard = () => {
   };
 
   const {
+    socketConnected,
     diasFestivos,
     configuracionesSalario,
     tiposRecargo,
@@ -136,13 +163,10 @@ const CanvasRecargosDashboard = () => {
     selectedYear,
     setSelectedMonth,
     setSelectedYear,
-  } = useRecargo();
-  const {
     canvasData,
-    loading: canvasLoading,
-    error: canvasError,
-    refrescar,
-  } = useRecargosCanvas(selectedMonth, selectedYear);
+  } = useRecargo();
+
+  const { confirm, setLoading, DialogComponent } = useEliminarRecargoConfirm();
 
   const [modalFormIsOpen, setModalFormIsOpen] = useState(false);
   const [recargoId, setRecargoId] = useState("");
@@ -173,6 +197,32 @@ const CanvasRecargosDashboard = () => {
   const handleOpenFormModal = () => {
     setRecargoId("");
     setModalFormIsOpen(!modalFormIsOpen);
+  };
+
+  const handleEliminar = async () => {
+    const result = await confirm({
+      title: "Eliminar recargos",
+      message: "¿Deseas eliminar los recargos seleccionados?",
+      selectedCount: selectedRows.size,
+      confirmText: "Sí, eliminar",
+    });
+
+    if (result.confirmed) {
+      try {
+        setLoading(true);
+        await apiClient.delete("/api/recargos/eliminar", {
+          data: {
+            selectedIds: Array.from(selectedRows), // Convierte Set a Array
+          },
+        });
+
+        setSelectedRows(new Set());
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // Función para obtener días del mes seleccionado
@@ -240,7 +290,7 @@ const CanvasRecargosDashboard = () => {
         fixed: true,
       },
       {
-        key: "planilla",
+        key: "numero_planilla",
         label: "PLANILLA",
         width: "120px",
         sortable: true,
@@ -251,7 +301,7 @@ const CanvasRecargosDashboard = () => {
       {
         key: "vehiculo",
         label: "PLACA",
-        width: "100px",
+        width: "120px",
         sortable: true,
         filterable: true,
         align: "center",
@@ -433,8 +483,8 @@ const CanvasRecargosDashboard = () => {
         return item.empresa?.nombre;
       case "vehiculo":
         return item.vehiculo?.placa;
-      case "planilla":
-        return item.planilla;
+      case "numero_planilla":
+        return item.numero_planilla;
       case "total_horas":
         return item.total_horas;
       case "total_hed":
@@ -471,7 +521,7 @@ const CanvasRecargosDashboard = () => {
             value = "activo"; // Por ahora todos son activos
             break;
           case "planillas":
-            value = item.planilla || "";
+            value = item.numero_planilla || "";
             break;
           case "placas":
             value = item.vehiculo?.placa || "";
@@ -510,7 +560,9 @@ const CanvasRecargosDashboard = () => {
             .replace(/\./g, "")
             ?.toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          item.planilla?.toLowerCase().includes(searchTerm.toLowerCase()),
+          item.numero_planilla
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -531,7 +583,7 @@ const CanvasRecargosDashboard = () => {
     }
     if (filters.planillas.length > 0) {
       result = result.filter((item) =>
-        filters.planillas.includes(item.planilla),
+        filters.planillas.includes(item.numero_planilla),
       );
     }
     if (filters.placas.length > 0) {
@@ -869,7 +921,7 @@ const CanvasRecargosDashboard = () => {
     // Mapeo de propiedades conocidas
     const knownProperties: Record<string, keyof CanvasRecargo> = {
       id: "id",
-      planilla: "planilla",
+      numero_planilla: "numero_planilla",
       conductor: "conductor",
       vehiculo: "vehiculo",
       total_horas: "total_horas",
@@ -984,11 +1036,61 @@ const CanvasRecargosDashboard = () => {
           </span>
         );
 
-      case "planilla":
+      case "numero_planilla":
+        const tienePlanilla = item.planilla_s3key;
+        const tieneNumero = item.numero_planilla;
+
+        // Determinar el estado y colores
+        let estado, bgColor, textColor, iconColor;
+
+        if (tienePlanilla && tieneNumero) {
+          // Estado completo - success
+          estado = "completo";
+          bgColor = "bg-green-100";
+          textColor = "text-green-600";
+          iconColor = "text-green-500";
+        } else if (tienePlanilla && !tieneNumero) {
+          // Tiene archivo pero falta número - primary
+          estado = "falta-numero";
+          bgColor = "bg-blue-100";
+          textColor = "text-blue-600";
+          iconColor = "text-blue-500";
+        } else {
+          // Sin numero_planilla - danger
+          estado = "sin-numero_planilla";
+          bgColor = "bg-red-100";
+          textColor = "text-red-600";
+          iconColor = "text-red-500";
+        }
+
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-            {item.planilla}
-          </span>
+          <div
+            className={`flex items-center gap-2 py-2 px-5 rounded-full ${bgColor}`}
+          >
+            {tienePlanilla ? (
+              <Tooltip content="Con numero_planilla">
+                <FileText size={16} className={iconColor} />
+              </Tooltip>
+            ) : (
+              <Tooltip content="Sin numero_planilla">
+                <FileX size={16} className={iconColor} />
+              </Tooltip>
+            )}
+
+            {/* Indicador de estado incompleto */}
+            {estado === "falta-numero" && (
+              <Tooltip content="Falta número de numero_planilla">
+                <Minus size={12} className="text-blue-400" />
+              </Tooltip>
+            )}
+
+            {/* Número de numero_planilla si existe */}
+            {tieneNumero && (
+              <span className={`text-xs ${textColor}`}>
+                {item.numero_planilla}
+              </span>
+            )}
+          </div>
         );
 
       case "valor_total":
@@ -1140,7 +1242,7 @@ const CanvasRecargosDashboard = () => {
     const COLUMN_TO_FILTER_MAPPING: Record<string, FilterKey> = {
       conductor: "conductores",
       empresa: "empresas",
-      planilla: "planillas",
+      numero_planilla: "planillas",
       vehiculo: "placas",
       estado: "estados",
     };
@@ -1195,105 +1297,149 @@ const CanvasRecargosDashboard = () => {
             <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
               {/* Left section - Logo and title */}
               <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-emerald-600 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <BarChart3 size={20} className="text-white sm:w-6 sm:h-6" />
+                {/* Icono mejorado */}
+                <div className="relative w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <BarChart3 size={24} className="text-white sm:w-7 sm:h-7" />
+                  {/* Brillo sutil */}
+                  <div className="absolute inset-0 bg-white/10 rounded-xl" />
                 </div>
+
+                {/* Contenido principal */}
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
-                    Planilla de Recargos
-                  </h1>
-                  <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">
-                    Vista de tabla avanzada con filtros inteligentes
-                  </p>
-                  <p className="text-xs text-gray-500 sm:hidden">Canvas View</p>
+                  {/* Título y descripción */}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                        Planilla de Recargos
+                      </h1>
+                      <p className="text-sm text-gray-600 hidden sm:block mt-1">
+                        Vista de tabla avanzada con filtros inteligentes
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Estado de conexión mejorado */}
+                  <div className="flex items-center gap-3 mt-3">
+                    {/* Indicador visual */}
+                    <div className="relative flex items-center">
+                      {socketConnected ? (
+                        <>
+                          <div className="w-3 h-3 bg-emerald-500 rounded-full" />
+                          <div className="absolute inset-0 w-3 h-3 bg-emerald-500 rounded-full animate-ping opacity-75" />
+                        </>
+                      ) : (
+                        <div className="w-3 h-3 bg-red-500 rounded-full relative">
+                          <div className="absolute inset-0.5 w-2 h-2 bg-white rounded-full" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Texto de estado */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                      {socketConnected ? (
+                        <>
+                          <span className="text-sm font-medium text-emerald-700">
+                            Conectado en tiempo real
+                          </span>
+                          <span className="hidden sm:block w-1 h-1 bg-gray-400 rounded-full" />
+                          <span className="text-sm text-gray-600">
+                            {new Date().toLocaleDateString("es-ES", {
+                              weekday: "long",
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm font-medium text-red-600">
+                            Desconectado
+                          </span>
+                          <span className="hidden sm:block w-1 h-1 bg-gray-400 rounded-full" />
+                          <span className="text-sm text-gray-500">
+                            Reintentando conexión...
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Right section - Controls */}
               <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
                 {/* Date selector - responsive */}
-                <div className="flex items-center space-x-2 bg-gray-50 rounded-lg px-3 py-2 border w-full sm:w-auto">
-                  <Calendar size={16} className="text-gray-500 flex-shrink-0" />
-                  <div className="flex items-center space-x-1 sm:space-x-2 flex-1 sm:flex-initial">
-                    <select
-                      value={selectedMonth}
-                      onChange={(e) =>
-                        setSelectedMonth(parseInt(e.target.value))
+                <div className="flex items-center space-x-2 bg-gray-50 rounded-lg px-3 py-2 border border-primary-100 w-full sm:w-auto">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {/* Selector de Mes */}
+                    <Select
+                      aria-label="Seleccionar mes"
+                      placeholder="Mes"
+                      selectedKeys={[selectedMonth.toString()]}
+                      onSelectionChange={(keys) => {
+                        const selectedKey = Array.from(keys)[0] as string;
+                        setSelectedMonth(parseInt(selectedKey));
+                      }}
+                      size="sm"
+                      variant="flat"
+                      className="min-w-[100px] sm:min-w-[130px]"
+                      classNames={{
+                        trigger:
+                          "border-none bg-transparent shadow-none h-8 min-h-8",
+                        value: "text-xs sm:text-sm font-medium text-gray-700",
+                        selectorIcon: "text-gray-400",
+                      }}
+                      startContent={
+                        <Calendar size={14} className="text-gray-400" />
                       }
-                      className="border-none bg-transparent text-xs sm:text-sm font-medium focus:outline-none flex-1 sm:flex-initial min-w-0"
+                      renderValue={(items: any) => {
+                        const item = items[0];
+                        if (item) {
+                          const month = months.find(
+                            (m) => m.key.toString() === item.key,
+                          );
+                          return (
+                            <span className="text-xs sm:text-sm font-medium">
+                              <span className="sm:hidden">{month?.short}</span>
+                              <span className="hidden sm:inline">
+                                {month?.label}
+                              </span>
+                            </span>
+                          );
+                        }
+                        return null;
+                      }}
                     >
-                      {[
-                        "Ene",
-                        "Feb",
-                        "Mar",
-                        "Abr",
-                        "May",
-                        "Jun",
-                        "Jul",
-                        "Ago",
-                        "Sep",
-                        "Oct",
-                        "Nov",
-                        "Dic",
-                      ].map((month, index) => (
-                        <option
-                          key={index}
-                          value={index + 1}
-                          className="hidden sm:block"
-                        >
-                          {
-                            [
-                              "Enero",
-                              "Febrero",
-                              "Marzo",
-                              "Abril",
-                              "Mayo",
-                              "Junio",
-                              "Julio",
-                              "Agosto",
-                              "Septiembre",
-                              "Octubre",
-                              "Noviembre",
-                              "Diciembre",
-                            ][index]
-                          }
-                        </option>
+                      {months.map((month) => (
+                        <SelectItem key={month.key}>
+                          <span className="sm:hidden">{month.short}</span>
+                          <span className="hidden sm:inline">
+                            {month.label}
+                          </span>
+                        </SelectItem>
                       ))}
-                      {/* Mobile short names */}
-                      {[
-                        "Ene",
-                        "Feb",
-                        "Mar",
-                        "Abr",
-                        "May",
-                        "Jun",
-                        "Jul",
-                        "Ago",
-                        "Sep",
-                        "Oct",
-                        "Nov",
-                        "Dic",
-                      ].map((month, index) => (
-                        <option
-                          key={`mobile-${index}`}
-                          value={index + 1}
-                          className="sm:hidden"
-                        >
-                          {month}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-gray-400 hidden sm:inline">|</span>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) =>
-                        setSelectedYear(parseInt(e.target.value))
-                      }
-                      className="border-none bg-transparent text-xs sm:text-sm font-medium focus:outline-none"
-                    >
-                      <option value={2024}>2024</option>
-                      <option value={2025}>2025</option>
-                    </select>
+                    </Select>
+
+                    {/* Separador */}
+                    <span className="text-gray-300 hidden sm:inline">|</span>
+
+                    {/* Selector de Año - Input personalizado */}
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        value={selectedYear.toString()}
+                        onChange={(e) =>
+                          setSelectedYear(Number(e.target.value))
+                        }
+                        size="sm"
+                        variant="flat"
+                        startContent={
+                          <Clock size={14} className="text-gray-400" />
+                        }
+                        aria-label="Año"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1569,6 +1715,7 @@ const CanvasRecargosDashboard = () => {
             </div>
           </div>
         </div>
+
         {/* Barra de herramientas responsive */}
         <div className="bg-white border-b border-gray-200">
           <div className="px-4 sm:px-6 py-3">
@@ -1588,6 +1735,34 @@ const CanvasRecargosDashboard = () => {
                   className="pl-9 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                 />
               </div>
+
+              {/* Elementos seleccionados móvil */}
+              {selectedRows.size > 0 && (
+                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                  <span className="text-sm text-emerald-700 font-medium">
+                    {selectedRows.size} seleccionado
+                    {selectedRows.size > 1 ? "s" : ""}
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onPress={handleEliminar}
+                      color="danger"
+                      variant="flat"
+                      size="sm"
+                      startContent={<Trash2 size={12} />}
+                      className="text-xs px-2 py-1"
+                    >
+                      Eliminar
+                    </Button>
+                    <button
+                      onClick={() => setSelectedRows(new Set())}
+                      className="text-xs text-gray-600 hover:text-gray-800 underline"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Fila inferior móvil */}
               <div className="flex items-center justify-between">
@@ -1683,6 +1858,19 @@ const CanvasRecargosDashboard = () => {
                         <span className="text-sm text-emerald-600 font-medium">
                           {selectedRows.size} elementos seleccionados
                         </span>
+
+                        {/* Botón de eliminación masiva */}
+                        <Button
+                          onPress={handleEliminar}
+                          color="danger"
+                          variant="flat"
+                          size="sm"
+                          startContent={<Trash2 size={14} />}
+                          className="text-xs"
+                        >
+                          Eliminar seleccionados
+                        </Button>
+
                         <button
                           onClick={() => setSelectedRows(new Set())}
                           className="text-xs text-gray-600 hover:text-gray-800 underline"
@@ -1725,10 +1913,10 @@ const CanvasRecargosDashboard = () => {
         </div>
 
         {/* Tabla Canvas */}
-        <div className="flex-1 overflow-auto bg-white">
+        <div className="flex-1 overflow-auto bg-white min-h-96">
           <div className="relative">
             {/* Headers */}
-            <div className="sticky top-0 z-10 bg-gray-50 border-b-2 border-gray-300">
+            <div className="sticky top-0 z-10 bg-gray-50">
               <div className="flex">
                 {columns.map((column: Column) => {
                   // Determinar el estilo del header según el tipo de columna
@@ -1737,7 +1925,7 @@ const CanvasRecargosDashboard = () => {
 
                   if (column.fixed) {
                     headerClass =
-                      "relative border-r border-gray-300 bg-slate-100";
+                      "relative border-r border-gray-300 bg-gray-100 border-b-2 border-gray-300";
                   } else if (column.isDayColumn) {
                     if (column.isSunday && column.isHoliday) {
                       headerClass =
@@ -1750,11 +1938,11 @@ const CanvasRecargosDashboard = () => {
                         "relative border-r border-gray-300 bg-red-500 text-white";
                     } else {
                       headerClass =
-                        "relative border-r border-gray-300 bg-emerald-50";
+                        "relative border-r border-gray-300 bg-emerald-50 border-b-2 border-gray-300";
                     }
                   } else if (column.isSummary) {
                     headerClass =
-                      "relative border-r border-gray-300 bg-green-50";
+                      "relative border-r border-gray-300 bg-green-50 border-b-2 border-gray-300";
                   }
 
                   return (
@@ -1830,7 +2018,7 @@ const CanvasRecargosDashboard = () => {
                                     ? "conductores"
                                     : column.key === "empresa"
                                       ? "empresas"
-                                      : column.key === "planilla"
+                                      : column.key === "numero_planilla"
                                         ? "planillas"
                                         : column.key === "vehiculo"
                                           ? "placas"
@@ -1843,7 +2031,7 @@ const CanvasRecargosDashboard = () => {
                                     ? "conductores"
                                     : column.key === "empresa"
                                       ? "empresas"
-                                      : column.key === "planilla"
+                                      : column.key === "numero_planilla"
                                         ? "planillas"
                                         : column.key === "vehiculo"
                                           ? "placas"
@@ -1882,59 +2070,82 @@ const CanvasRecargosDashboard = () => {
           </div>
 
           {/* Filas de datos con columnas de días */}
-          <div className="divide-y divide-gray-200">
-            {paginatedData.map((item, rowIndex) => (
-              <div
-                key={item.id}
-                className={`flex hover:bg-emerald-50 transition-colors ${
-                  selectedRows.has(item.id) ? "bg-emerald-500" : ""
-                } ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-              >
-                {columns.map((column: Column) => {
-                  // Determinar el estilo de la celda según el tipo de columna
-                  let cellClass =
-                    "border-r border-gray-200 p-2 flex items-center";
+          <div>
+            {paginatedData.map((item) => {
+              // Calcular el ancho total de todas las columnas
+              const totalWidth = columns.reduce((sum, col) => {
+                const width = parseInt(col.width.replace("px", ""));
+                return sum + width;
+              }, 0);
 
-                  if (column.fixed) {
-                    cellClass += " bg-slate-50";
-                  } else if (column.isDayColumn) {
-                    const hasHours = getItemValue(item, column.key) > 0;
-                    if (column.isSunday && column.isHoliday) {
-                      cellClass += hasHours ? " bg-amber-100" : " bg-amber-50";
-                    } else if (column.isSunday) {
-                      cellClass += hasHours
-                        ? " bg-emerald-100"
-                        : " bg-emerald-50";
-                    } else if (column.isHoliday) {
-                      cellClass += hasHours ? " bg-red-100" : " bg-red-50";
-                    } else {
-                      cellClass += hasHours ? " bg-green-50" : " bg-gray-50";
-                    }
-                  } else if (column.isSummary) {
-                    cellClass += " bg-green-25";
-                  }
-
-                  return (
+              return (
+                <div
+                  key={item.id}
+                  className={`flex relative divide-y divide-gray-300 ${
+                    selectedRows.has(item.id) ? "opacity-70" : ""
+                  }`}
+                >
+                  {/* Mask overlay que cubre toda la fila */}
+                  {selectedRows.has(item.id) && (
                     <div
-                      key={`${item.id}-${column.key}`}
-                      className={cellClass}
+                      className="absolute top-0 left-0 h-full bg-red-500/10 z-50 pointer-events-none"
                       style={{
-                        width: column.width,
-                        minWidth: column.width,
-                        justifyContent:
-                          column.align === "center"
-                            ? "center"
-                            : column.align === "right"
-                              ? "flex-end"
-                              : "flex-start",
+                        width: `${totalWidth}px`,
+                        backgroundImage:
+                          "linear-gradient(135deg, transparent, rgba(239, 68, 68, 0.1), transparent)",
+                        backgroundSize: "20px 20px",
                       }}
-                    >
-                      {renderCell(item, column as Column)}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                    />
+                  )}
+
+                  {columns.map((column: Column) => {
+                    // Tu código existente para las celdas...
+                    let cellClass =
+                      "border-r border-gray-200 p-2 flex items-center";
+
+                    if (column.fixed) {
+                      cellClass += " bg-slate-50";
+                    } else if (column.isDayColumn) {
+                      const hasHours = getItemValue(item, column.key) > 0;
+                      if (column.isSunday && column.isHoliday) {
+                        cellClass += hasHours
+                          ? " bg-amber-100"
+                          : " bg-amber-50";
+                      } else if (column.isSunday) {
+                        cellClass += hasHours
+                          ? " bg-emerald-100"
+                          : " bg-emerald-50";
+                      } else if (column.isHoliday) {
+                        cellClass += hasHours ? " bg-red-100" : " bg-red-50";
+                      } else {
+                        cellClass += hasHours ? " bg-green-50" : " bg-gray-50";
+                      }
+                    } else if (column.isSummary) {
+                      cellClass += " bg-green-25";
+                    }
+
+                    return (
+                      <div
+                        key={`${item.id}-${column.key}`}
+                        className={cellClass}
+                        style={{
+                          width: column.width,
+                          minWidth: column.width,
+                          justifyContent:
+                            column.align === "center"
+                              ? "center"
+                              : column.align === "right"
+                                ? "flex-end"
+                                : "flex-start",
+                        }}
+                      >
+                        {renderCell(item, column as Column)}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
 
           {/* Estado vacío mejorado */}
@@ -2147,6 +2358,7 @@ const CanvasRecargosDashboard = () => {
         isOpen={viewModalState.isOpen}
         onClose={() => setViewModalState({ isOpen: false, recargoId: null })}
       />
+      {DialogComponent}
     </>
   );
 };

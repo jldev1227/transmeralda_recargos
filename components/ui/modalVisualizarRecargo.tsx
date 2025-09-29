@@ -172,7 +172,7 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
         vehiculo: recargo.vehiculo,
         empresa: recargo.empresa,
         planilla:
-          recargo.planilla ||
+          recargo.numero_planilla ||
           `Planilla ${obtenerNombreMes(mesAño.mes)} ${mesAño.año}`,
         totalDias: recargo.total_dias,
         mesAño: `${obtenerNombreMes(mesAño.mes)} ${mesAño.año}`,
@@ -312,7 +312,6 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
         scrollBehavior="inside"
         classNames={{
           base: "max-h-[95vh]",
-          backdrop: "bg-black/20 backdrop-blur-sm",
         }}
       >
         <ModalContent className="bg-white">
@@ -383,8 +382,8 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
                 {recargo && infoRecargo && !isLoadingData && (
                   <div className="space-y-6">
                     {/* Información Principal - Layout más limpio */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-1">
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                      <div className="col-span-2 space-y-1">
                         <div className="text-xs text-gray-400 uppercase tracking-wide">
                           Conductor
                         </div>
@@ -396,7 +395,7 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
                         </div>
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="col-span-1 space-y-1">
                         <div className="text-xs text-gray-400 uppercase tracking-wide">
                           Vehículo
                         </div>
@@ -405,7 +404,16 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
                         </div>
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="col-span-1 space-y-1">
+                        <div className="text-xs text-gray-400 uppercase tracking-wide">
+                          Número de planilla
+                        </div>
+                        <div className="font-medium text-gray-900 text-lg">
+                          {infoRecargo.planilla}
+                        </div>
+                      </div>
+
+                      <div className="col-span-2 space-y-1">
                         <div className="text-xs text-gray-400 uppercase tracking-wide">
                           Empresa
                         </div>

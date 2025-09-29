@@ -32,6 +32,7 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { useRecargo } from "@/context/RecargoPlanillaContext";
+import { formatearCOP } from "@/helpers";
 
 interface TipoRecargoFormData {
   nombre: string;
@@ -88,14 +89,14 @@ const CustomTab: React.FC<TabProps> = ({
         transition-all duration-200 border-b-2 hover:bg-gray-50 flex-1
         ${
           isActive
-            ? "text-blue-600 border-blue-500 bg-blue-50/50"
+            ? "text-primary-600 border-primary-500 bg-primary-50/50"
             : "text-gray-600 border-transparent hover:text-gray-800"
         } cursor-pointer
       `}
     >
       <span
         className={`
-        ${isActive ? "text-blue-600" : "text-gray-500"}
+        ${isActive ? "text-primary-600" : "text-gray-500"}
       `}
       >
         {icon}
@@ -106,7 +107,9 @@ const CustomTab: React.FC<TabProps> = ({
           className={`
           inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-full
           ${
-            isActive ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-600"
+            isActive
+              ? "bg-primary-100 text-primary-800"
+              : "bg-gray-100 text-gray-600"
           }
         `}
         >
@@ -168,10 +171,10 @@ const Chip: React.FC<ChipProps> = ({
     const colorMap = {
       primary:
         variant === "flat"
-          ? "bg-blue-100 text-blue-800 border-blue-200"
+          ? "bg-primary-100 text-primary-800 border-primary-200"
           : variant === "bordered"
-            ? "border-blue-500 text-blue-600 bg-transparent"
-            : "bg-blue-600 text-white",
+            ? "border-primary-500 text-primary-600 bg-transparent"
+            : "bg-primary-600 text-white",
       success:
         variant === "flat"
           ? "bg-green-100 text-green-800 border-green-200"
@@ -278,6 +281,8 @@ export default function ModalConfiguracion() {
     error,
     refrescarTiposRecargo,
     refrescarConfiguracionesSalario,
+    crearTipoRecargo,
+    actualizarTipoRecargo,
   } = useRecargo();
 
   // Cargar datos al abrir el modal
@@ -316,9 +321,9 @@ export default function ModalConfiguracion() {
   const handleSaveTipoRecargo = async () => {
     try {
       if (editingTipoRecargo) {
-        // await actualizarTipoRecargo(editingTipoRecargo, tipoRecargoForm);
+        await actualizarTipoRecargo(editingTipoRecargo, tipoRecargoForm);
       } else {
-        // await crearTipoRecargo(tipoRecargoForm);
+        await crearTipoRecargo(tipoRecargoForm);
       }
       setEditingTipoRecargo(null);
       setShowNewTipoRecargo(false);
@@ -395,10 +400,10 @@ export default function ModalConfiguracion() {
 
   // Formulario de edición para tipo de recargo
   const renderTipoRecargoForm = () => (
-    <Card className="border-2 border-blue-500 bg-blue-50/20">
+    <Card className="border-2 border-primary-500 bg-primary-50/20">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <Edit3 className="w-5 h-5 text-blue-600" />
+          <Edit3 className="w-5 h-5 text-primary-600" />
           <span className="text-medium font-semibold">
             {editingTipoRecargo
               ? "Editar Tipo de Recargo"
@@ -604,7 +609,7 @@ export default function ModalConfiguracion() {
             Cancelar
           </Button>
           <Button
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            color="primary"
             variant="flat"
             onPress={handleSaveTipoRecargo}
             startContent={<Save className="w-4 h-4" />}
@@ -745,8 +750,8 @@ export default function ModalConfiguracion() {
 
   return (
     <>
-      <Button onPress={onOpen} isIconOnly variant="flat" color="default">
-        <Bolt className="text-gray-600 w-4 h-4" />
+      <Button onPress={onOpen} isIconOnly variant="flat" color="primary">
+        <Bolt className="text-primary-600 w-4 h-4" />
       </Button>
 
       <Modal
@@ -761,7 +766,7 @@ export default function ModalConfiguracion() {
             <>
               <ModalHeader className="flex items-center justify-between gap-2 px-6 py-4 border-b border-b-gray-300">
                 <div className="flex items-center gap-2">
-                  <Settings className="w-5 h-5 text-blue-600" />
+                  <Settings className="w-5 h-5 text-primary-600" />
                   <span className="text-lg font-semibold">
                     Configuración del Sistema
                   </span>
@@ -809,7 +814,7 @@ export default function ModalConfiguracion() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
-                            className="bg-blue-600 text-white hover:bg-blue-700"
+                            color="primary"
                             variant="flat"
                             startContent={<Plus className="w-4 h-4" />}
                             onPress={() => setShowNewTipoRecargo(true)}
@@ -844,7 +849,7 @@ export default function ModalConfiguracion() {
                               key={tipo.id}
                               className={`w-full ${
                                 tipo.activo
-                                  ? "border-l-4 border-l-blue-500"
+                                  ? "border-l-4 border-l-primary-500"
                                   : "border-l-4 border-l-gray-300"
                               } ${editingTipoRecargo?.toString() === tipo.id ? "opacity-50" : ""}`}
                             >
@@ -884,7 +889,7 @@ export default function ModalConfiguracion() {
                                           isIconOnly
                                           size="sm"
                                           variant="flat"
-                                          className="bg-blue-100 text-blue-600 hover:bg-blue-200"
+                                          className="bg-primary-100 text-primary-600 hover:bg-primary-200"
                                           onPress={() =>
                                             handleEditTipoRecargo(tipo)
                                           }
@@ -913,7 +918,7 @@ export default function ModalConfiguracion() {
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                       <div className="text-center">
                                         <div className="flex items-center justify-center gap-1 mb-1">
-                                          <Percent className="w-4 h-4 text-blue-600" />
+                                          <Percent className="w-4 h-4 text-primary-600" />
                                           <span className="text-tiny font-medium">
                                             Porcentaje
                                           </span>
@@ -932,7 +937,7 @@ export default function ModalConfiguracion() {
                                         </div>
                                         <p className="text-medium font-bold">
                                           {tipo.es_valor_fijo && tipo.valor_fijo
-                                            ? `${tipo.valor_fijo.toLocaleString()}`
+                                            ? `${formatearCOP(tipo.valor_fijo)}`
                                             : "N/A"}
                                         </p>
                                       </div>
@@ -951,7 +956,7 @@ export default function ModalConfiguracion() {
 
                                       <div className="text-center">
                                         <div className="flex items-center justify-center gap-1 mb-1">
-                                          <Calendar className="w-4 h-4 text-blue-600" />
+                                          <Calendar className="w-4 h-4 text-primary-600" />
                                           <span className="text-tiny font-medium">
                                             Vigencia
                                           </span>
@@ -1084,8 +1089,9 @@ export default function ModalConfiguracion() {
                                   </span>
                                 </div>
                                 <p className="text-large font-bold text-green-900 font-mono">
-                                  $
-                                  {configuracionSalarioVigente.salario_basico.toLocaleString()}
+                                  {formatearCOP(
+                                    configuracionSalarioVigente.salario_basico,
+                                  )}
                                 </p>
                               </div>
 
@@ -1097,8 +1103,9 @@ export default function ModalConfiguracion() {
                                   </span>
                                 </div>
                                 <p className="text-large font-bold text-green-900 font-mono">
-                                  $
-                                  {configuracionSalarioVigente.valor_hora_trabajador.toLocaleString()}
+                                  {formatearCOP(
+                                    configuracionSalarioVigente.valor_hora_trabajador,
+                                  )}
                                 </p>
                               </div>
 
@@ -1211,8 +1218,7 @@ export default function ModalConfiguracion() {
                                           Salario Básico
                                         </span>
                                         <p className="font-mono text-medium font-semibold text-gray-900">
-                                          $
-                                          {config.salario_basico.toLocaleString()}
+                                          {formatearCOP(config.salario_basico)}
                                         </p>
                                       </div>
                                       <div>
@@ -1220,8 +1226,9 @@ export default function ModalConfiguracion() {
                                           Valor Hora
                                         </span>
                                         <p className="font-mono text-medium font-semibold text-gray-900">
-                                          $
-                                          {config.valor_hora_trabajador.toLocaleString()}
+                                          {formatearCOP(
+                                            config.valor_hora_trabajador,
+                                          )}
                                         </p>
                                       </div>
                                       <div>

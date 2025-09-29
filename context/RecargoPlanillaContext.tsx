@@ -11,6 +11,9 @@ import { AxiosError, isAxiosError } from "axios";
 import { Conductor, Empresa, Vehiculo } from "@/types";
 import { apiClient } from "@/config/apiClient";
 import { obtenerFestivosCompletos } from "@/helpers";
+import { useAuth } from "./AuthContext";
+import { addToast } from "@heroui/toast";
+import socketService from "@/services/socketService";
 
 interface DiaLaboral {
   id: string;
@@ -126,7 +129,7 @@ interface FiltrosConfigSalario {
 
 export interface RecargoDetallado {
   id: string;
-  planilla: string | null;
+  numero_planilla: string | null;
   conductor: Conductor;
   vehiculo: Vehiculo;
   empresa: Empresa;
@@ -218,11 +221,10 @@ export interface DiaLaboralPlanilla {
 // Datos optimizados para canvas
 export interface CanvasRecargo {
   id: string;
-  planilla: string;
+  numero_planilla: string;
   conductor: Conductor;
   vehiculo: Vehiculo;
   empresa: Empresa;
-  numero_planilla: string;
   total_horas: number;
   total_dias: number;
   dias: {
@@ -241,6 +243,7 @@ export interface CanvasRecargo {
   total_rd: number;
   dias_laborales: DiaLaboralPlanilla[];
   estado: "activo" | "inactivo" | "pendiente" | "aprobado" | "rechazado";
+  planilla_s3key: string;
 }
 
 interface CanvasData {
@@ -291,8 +294,24 @@ interface Festivos {
   fechaCompleta: string;
 }
 
+interface RecargoErrorEvent {
+  error: string;
+  id: string;
+}
+
+export interface SocketEventLog {
+  eventName: string;
+  data: any;
+  timestamp: Date;
+}
+
 // ✅ INTERFAZ DEL CONTEXTO MEJORADA CON NUEVAS FUNCIONALIDADES
 interface RecargoContextType {
+  canvasData: CanvasData | null;
+  canvasLoading: boolean;
+  canvasError: any;
+  refrescarCanvas: () => void;
+
   // Estado de festivos
   diasFestivos: Festivos[];
   // Estados de datos existentes
@@ -400,6 +419,13 @@ interface RecargoContextType {
   refrescarEmpresas: () => Promise<void>;
   refrescarTiposRecargo: () => Promise<void>;
   refrescarConfiguracionesSalario: () => Promise<void>;
+
+  // Propiedades para Socket.IO
+  socketConnected: boolean;
+  socketEventLogs: SocketEventLog[];
+  clearSocketEventLogs: () => void;
+  connectSocket?: (userId: string) => void;
+  disconnectSocket?: () => void;
 }
 
 // ✅ CONTEXTO CREADO
@@ -409,6 +435,36 @@ const RecargoContext = createContext<RecargoContextType | undefined>(undefined);
 export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const today = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // getMonth() devuelve 0-11
+  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+
+  // ✅ Lógica del canvas integrada directamente
+  const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
+  const [canvasLoading, setCanvasLoading] = useState(false);
+  const [canvasError, setCanvasError] = useState<string | null>(null);
+
+  const cargarDatosCanvas = useCallback(async () => {
+    try {
+      setCanvasLoading(true);
+      setCanvasError(null);
+      // Tu lógica para obtener datos del canvas
+      const datos = await obtenerRecargosParaCanvas(
+        selectedMonth,
+        selectedYear,
+      );
+      setCanvasData(datos);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setCanvasLoading(false);
+    }
+  }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    cargarDatosCanvas();
+  }, [cargarDatosCanvas]);
+
   // Estados principales existentes
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -420,13 +476,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const [conductores, setConductores] = useState<Conductor[]>([]);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-
-  // ===== ESTADO PARA DÍAS FESTIVOS =====
-  // Estados principales
-  const today = new Date();
-
-  const [selectedMonth, setSelectedMonth] = useState(today.getMonth() + 1); // getMonth() devuelve 0-11
-  const [selectedYear, setSelectedYear] = useState(today.getFullYear());
+  const [socketConnected, setSocketConnected] = useState<boolean>(false);
+  const [socketEventLogs, setSocketEventLogs] = useState<SocketEventLog[]>([]);
+  const { user } = useAuth();
 
   const [diasFestivos, setDiasFestivos] = useState<Festivos[]>([]);
 
@@ -922,6 +974,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           response = await apiClient.post<ApiResponse<any>>(
             "/api/recargos",
             recargoData,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+            },
           );
         } else {
           response = await apiClient.post<ApiResponse<any>>(
@@ -1064,7 +1119,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
             },
           );
         } else {
-          console.log("sin archivos");
           // ✅ Si es JSON
           response = await apiClient.put<ApiResponse<any>>(
             `/api/recargos/${id}`,
@@ -1296,6 +1350,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
       tipoData: Partial<TipoRecargo>,
     ): Promise<{ success: boolean; data?: TipoRecargo }> => {
       try {
+        console.log(tipoData);
         setLoadingTiposRecargo(true);
         clearError();
 
@@ -1505,7 +1560,289 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     inicializar();
   }, []);
 
+  // Inicializar Socket.IO cuando el usuario esté autenticado
+  useEffect(() => {
+    if (user?.id) {
+      // Conectar socket
+      socketService.connect(user.id);
+
+      // Verificar conexión inicial y configurar manejo de eventos de conexión
+      const checkConnection = () => {
+        const isConnected = socketService.isConnected();
+
+        setSocketConnected(isConnected);
+      };
+
+      // Verificar estado inicial
+      checkConnection();
+
+      // Manejar eventos de conexión
+      const handleConnect = () => {
+        setSocketConnected(true);
+      };
+
+      const handleDisconnect = () => {
+        setSocketConnected(false);
+        addToast({
+          title: "Error",
+          description: "Desconectado de actualizaciones en tiempo real",
+          color: "danger",
+        });
+      };
+
+      // Función para agrupar días consecutivos
+      const agruparDiasConsecutivos = (dias: number[]): string => {
+        if (dias.length === 0) return "";
+
+        // Ordenar días
+        const diasOrdenados = [...dias].sort((a, b) => a - b);
+
+        const grupos: string[] = [];
+        let inicio = diasOrdenados[0];
+        let fin = diasOrdenados[0];
+
+        for (let i = 1; i < diasOrdenados.length; i++) {
+          if (diasOrdenados[i] === fin + 1) {
+            // Día consecutivo
+            fin = diasOrdenados[i];
+          } else {
+            // No es consecutivo, cerrar grupo actual
+            if (inicio === fin) {
+              grupos.push(inicio.toString());
+            } else {
+              grupos.push(`${inicio}~${fin}`);
+            }
+            inicio = diasOrdenados[i];
+            fin = diasOrdenados[i];
+          }
+        }
+
+        // Agregar el último grupo
+        if (inicio === fin) {
+          grupos.push(inicio.toString());
+        } else {
+          grupos.push(`${inicio}~${fin}`);
+        }
+
+        return grupos.join(", ");
+      };
+
+      // Manejadores para eventos de recargos
+      const handleRecargoCreado = (data: any) => {
+        setSocketEventLogs((prev) => [
+          ...prev,
+          {
+            eventName: "recargo-planilla:creado",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+
+        // Extraer información del recargo
+        const recargo = data.data;
+
+        // Obtener los días laborales del recargo creado
+        const diasRegistrados =
+          recargo.dias_laborales?.map((dia: any) => dia.dia) || [];
+        const diasTexto =
+          diasRegistrados.length > 0
+            ? `Días: ${agruparDiasConsecutivos(diasRegistrados)}`
+            : "";
+
+        // Construir descripción informativa
+        const descripcion = [
+          `${recargo.total_dias_laborados} día${recargo.total_dias_laborados !== 1 ? "s" : ""} laborado${recargo.total_dias_laborados !== 1 ? "s" : ""}`,
+          diasTexto,
+          `Conductor: ${recargo.conductor.nombre} ${recargo.conductor.apellido}`,
+          `Vehículo: ${recargo.vehiculo.placa} (${recargo.vehiculo.marca})`,
+          recargo.numero_planilla
+            ? `Planilla: ${recargo.numero_planilla}`
+            : null,
+          `Empresa: ${recargo.empresa.nombre}`,
+        ]
+          .filter(Boolean)
+          .join(" • ");
+
+        addToast({
+          title: "Nuevo recargo registrado",
+          description: descripcion,
+          color: "success",
+        });
+      };
+
+      const handleRecargoActualizado = (data: any) => {
+        setSocketEventLogs((prev) => [
+          ...prev,
+          {
+            eventName: "recargo-planilla:actualizado",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+
+        console.log(data);
+
+        // Extraer información del recargo
+        const recargo = data.data;
+
+        // Obtener los días específicos que se actualizaron
+        const diasRegistrados =
+          recargo.dias_laborales?.map((dia: any) => dia.dia) || [];
+        const diasTexto =
+          diasRegistrados.length > 0
+            ? `Días: ${agruparDiasConsecutivos(diasRegistrados)}`
+            : "";
+
+        // Construir descripción informativa
+        const descripcion = [
+          `${recargo.total_dias_laborados} día${recargo.total_dias_laborados !== 1 ? "s" : ""} laborado${recargo.total_dias_laborados !== 1 ? "s" : ""}`,
+          diasTexto,
+          `Conductor: ${recargo.conductor.nombre} ${recargo.conductor.apellido}`,
+          `Vehículo: ${recargo.vehiculo.placa} (${recargo.vehiculo.marca})`,
+          recargo.numero_planilla
+            ? `Planilla: ${recargo.numero_planilla}`
+            : null,
+          `Empresa: ${recargo.empresa.nombre}`,
+        ]
+          .filter(Boolean)
+          .join(" • ");
+
+        addToast({
+          title: "Recargo actualizado",
+          description: descripcion,
+          color: "primary",
+        });
+
+        // ✅ Actualizar canvasData reemplazando el recargo actualizado
+        setCanvasData((prevCanvasData) => {
+          if (!prevCanvasData || !recargo?.id) {
+            return prevCanvasData;
+          }
+
+          // Buscar el índice del recargo a actualizar
+          const recargoIndex = prevCanvasData.recargos.findIndex(
+            (r) => r.id === recargo.id,
+          );
+
+          if (recargoIndex === -1) {
+            // Si el recargo no existe, agregarlo al final
+            return {
+              ...prevCanvasData,
+              recargos: [...prevCanvasData.recargos, recargo],
+            };
+          }
+
+          // Reemplazar el recargo existente con los datos actualizados
+          const recargosActualizados = [...prevCanvasData.recargos];
+          recargosActualizados[recargoIndex] = recargo;
+
+          return {
+            ...prevCanvasData,
+            recargos: recargosActualizados,
+          };
+        });
+      };
+
+      const handleRecargoEliminado = (data: any) => {
+        setSocketEventLogs((prev) => [
+          ...prev,
+          {
+            eventName: "recargo-planilla:eliminado",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+
+        const cantidadEliminados = data.selectedIds?.length || 1;
+        const usuario = data.usuarioNombre || "Usuario";
+        const esEliminador = data.usuarioId === user.id;
+
+        if (esEliminador) {
+          // Toast para el usuario que eliminó
+          addToast({
+            title: "Eliminación exitosa",
+            description: `${cantidadEliminados} recargo${cantidadEliminados > 1 ? "s" : ""} eliminado${cantidadEliminados > 1 ? "s" : ""} exitosamente`,
+            color: "danger",
+          });
+        } else {
+          // Toast para otros usuarios
+          addToast({
+            title: "Recargos eliminados",
+            description: `${usuario} eliminó ${cantidadEliminados} recargo${cantidadEliminados > 1 ? "s" : ""}`,
+            color: "danger",
+          });
+        }
+
+        // ✅ Actualizar canvasData excluyendo los recargos eliminados
+        setCanvasData((prevCanvasData) => {
+          if (!prevCanvasData || !data.selectedIds) {
+            return prevCanvasData;
+          }
+
+          // Filtrar los recargos que NO están en la lista de eliminados
+          const recargosActualizados = prevCanvasData.recargos.filter(
+            (recargo) => !data.selectedIds.includes(recargo.id),
+          );
+
+          // Retornar el nuevo estado con los recargos filtrados
+          return {
+            ...prevCanvasData,
+            recargos: recargosActualizados,
+          };
+        });
+      };
+
+      const handleRecargoError = (data: RecargoErrorEvent) => {
+        // Verificar si el error corresponde a la liquidación actual
+        if (data.id) {
+          addToast({
+            title: "Error en el recargo",
+            description: data.error,
+            color: "danger",
+          });
+        }
+      };
+
+      // Registrar manejadores de eventos de conexión
+      socketService.on("connect", handleConnect);
+      socketService.on("disconnect", handleDisconnect);
+
+      // Registrar manejadores de eventos de recargos planillas
+      socketService.on("recargo-planilla:creado", handleRecargoCreado);
+      socketService.on(
+        "recargo-planilla:actualizado",
+        handleRecargoActualizado,
+      );
+      socketService.on("recargo-planilla:eliminado", handleRecargoEliminado);
+      socketService.on("recargo-planilla:error", handleRecargoError);
+
+      return () => {
+        // Limpiar al desmontar
+        socketService.off("connect");
+        socketService.off("disconnect");
+
+        // Limpiar manejadores de eventos de recargos
+
+        socketService.off("recargo-planilla:creado");
+        socketService.off("recargo-planilla:actualizado");
+        socketService.off("recargo-planilla:eliminado");
+        socketService.off("recargo-planilla:error");
+      };
+    }
+  }, [user?.id]);
+
+  // Función para limpiar el registro de eventos de socket
+  const clearSocketEventLogs = useCallback(() => {
+    setSocketEventLogs([]);
+  }, []);
+
   const recargoContext: RecargoContextType = {
+    // Canvas
+    canvasData,
+    canvasLoading,
+    canvasError,
+    refrescarCanvas: cargarDatosCanvas,
+
     // Dias festivos
     diasFestivos,
 
@@ -1565,6 +1902,11 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     refrescarEmpresas,
     refrescarTiposRecargo,
     refrescarConfiguracionesSalario,
+
+    // socket
+    socketConnected,
+    socketEventLogs,
+    clearSocketEventLogs,
   };
 
   return (
@@ -1593,31 +1935,21 @@ export const useRecargo = (): RecargoContextType => {
 // ===============================================
 
 // Hook existente para canvas (sin cambios)
-export const useRecargosCanvas = (
-  mes: number,
-  año: number,
-  empresa_id?: string,
-) => {
-  const { obtenerRecargosParaCanvas, loading, error } = useRecargo();
-  const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
-
-  const cargarDatos = useCallback(async () => {
-    const datos = await obtenerRecargosParaCanvas(mes, año, empresa_id);
-    setCanvasData(datos);
-  }, [mes, año, empresa_id, obtenerRecargosParaCanvas]);
-
-  useEffect(() => {
-    cargarDatos();
-  }, [cargarDatos]);
-
+// ✅ Hook simplificado que ya no necesita useRecargo
+export const useRecargosCanvas = () => {
+  const context = useContext(RecargoContext);
+  if (!context) {
+    throw new Error(
+      "useRecargosCanvas debe ser usado dentro de un RecargoProvider",
+    );
+  }
   return {
-    canvasData,
-    loading,
-    error,
-    refrescar: cargarDatos,
+    canvasData: context.canvasData,
+    loading: context.canvasLoading,
+    error: context.canvasError,
+    refrescar: context.refrescarCanvas,
   };
 };
-
 // ✅ NUEVO HOOK PARA TIPOS DE RECARGO
 export const useTiposRecargo = (categoria?: string) => {
   const {

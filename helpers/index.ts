@@ -599,6 +599,24 @@ export const obtenerFestivosCompletos = (año: number) => {
     }));
 };
 
+export const getMonthName = (month: number): string => {
+  const months = [
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
+  ];
+  return months[month - 1];
+};
+
 // ===== EXPORT DEFAULT =====
 
 const horasRecargosHelpers = {
