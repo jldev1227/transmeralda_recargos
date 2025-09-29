@@ -31,27 +31,11 @@ import {
   Plus,
   RefreshCcw,
 } from "lucide-react";
-import { useRecargo } from "@/context/RecargoPlanillaContext";
+import {
+  TipoRecargoFormData,
+  useRecargo,
+} from "@/context/RecargoPlanillaContext";
 import { formatearCOP } from "@/helpers";
-
-interface TipoRecargoFormData {
-  nombre: string;
-  descripcion: string;
-  codigo: string;
-  porcentaje: number;
-  valor_fijo: string;
-  es_valor_fijo: boolean;
-  orden_calculo: number;
-  categoria: string;
-  es_hora_extra: boolean;
-  aplica_festivos: boolean;
-  aplica_domingos: boolean;
-  aplica_nocturno: boolean;
-  aplica_diurno: boolean;
-  vigencia_desde: string;
-  vigencia_hasta: string;
-  activo: boolean;
-}
 
 interface ConfiguracionSalarioFormData {
   salario_basico: string;
@@ -232,7 +216,7 @@ export default function ModalConfiguracion() {
   const [selectedTab, setSelectedTab] = useState<string>("tipos-recargo");
 
   // Estados para edición
-  const [editingTipoRecargo, setEditingTipoRecargo] = useState<number | null>(
+  const [editingTipoRecargo, setEditingTipoRecargo] = useState<string | null>(
     null,
   );
   const [editingConfigSalario, setEditingConfigSalario] = useState<

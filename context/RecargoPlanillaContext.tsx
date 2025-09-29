@@ -59,6 +59,25 @@ interface TipoRecargo {
   updatedAt: string;
 }
 
+export interface TipoRecargoFormData {
+  nombre: string;
+  descripcion: string;
+  codigo: string;
+  porcentaje: number;
+  valor_fijo: string;
+  es_valor_fijo: boolean;
+  orden_calculo: number;
+  categoria: string;
+  es_hora_extra: boolean;
+  aplica_festivos: boolean;
+  aplica_domingos: boolean;
+  aplica_nocturno: boolean;
+  aplica_diurno: boolean;
+  vigencia_desde: string;
+  vigencia_hasta: string;
+  activo: boolean;
+}
+
 interface TiposRecargoData {
   data: TipoRecargo[];
   pagination: {
@@ -377,11 +396,11 @@ interface RecargoContextType {
     { codigo: string; nombre: string }[]
   >;
   crearTipoRecargo: (
-    tipoData: Partial<TipoRecargo>,
+    tipoData: Partial<TipoRecargoFormData>,
   ) => Promise<{ success: boolean; data?: TipoRecargo }>;
   actualizarTipoRecargo: (
     id: string,
-    tipoData: Partial<TipoRecargo>,
+    tipoData: Partial<TipoRecargoFormData>,
   ) => Promise<{ success: boolean; data?: TipoRecargo }>;
   eliminarTipoRecargo: (id: string) => Promise<{ success: boolean }>;
   activarTipoRecargo: (
@@ -1305,7 +1324,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   // CREAR TIPO DE RECARGO
   const crearTipoRecargo = useCallback(
     async (
-      tipoData: Partial<TipoRecargo>,
+      tipoData: Partial<TipoRecargoFormData>,
     ): Promise<{ success: boolean; data?: TipoRecargo }> => {
       try {
         setLoadingTiposRecargo(true);
@@ -1347,7 +1366,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const actualizarTipoRecargo = useCallback(
     async (
       id: string,
-      tipoData: Partial<TipoRecargo>,
+      tipoData: Partial<TipoRecargoFormData>,
     ): Promise<{ success: boolean; data?: TipoRecargo }> => {
       try {
         console.log(tipoData);
