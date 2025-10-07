@@ -146,6 +146,36 @@ interface FiltrosConfigSalario {
   limit?: number;
 }
 
+interface AuditoriaInfo {
+  creado_por: {
+    id: string;
+    nombre: string;
+    correo: string;
+  } | null;
+  fecha_creacion: string;
+  actualizado_por: {
+    id: string;
+    nombre: string;
+    correo: string;
+  } | null;
+  fecha_actualizacion: string;
+}
+
+interface HistorialItem {
+  id: string;
+  accion: string;
+  version_anterior: number | null;
+  version_nueva: number;
+  campos_modificados: string[] | null;
+  motivo: string | null;
+  fecha: string;
+  usuario: {
+    id: string;
+    nombre: string;
+    correo: string;
+  } | null;
+}
+
 export interface RecargoDetallado {
   id: string;
   numero_planilla: string | null;
@@ -162,6 +192,11 @@ export interface RecargoDetallado {
   total_rd: number;
   dias_laborales: DiaLaboral[];
   planilla_s3key: string | null;
+  version: number;
+  estado: string;
+  observaciones: string | null;
+  auditoria: AuditoriaInfo;
+  historial: HistorialItem[];
 }
 
 export interface RecargoResponse {
@@ -1369,7 +1404,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
       tipoData: Partial<TipoRecargoFormData>,
     ): Promise<{ success: boolean; data?: TipoRecargo }> => {
       try {
-        console.log(tipoData);
         setLoadingTiposRecargo(true);
         clearError();
 
@@ -1698,8 +1732,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
             timestamp: new Date(),
           },
         ]);
-
-        console.log(data);
 
         // Extraer información del recargo
         const recargo = data.data;

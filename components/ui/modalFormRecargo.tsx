@@ -26,7 +26,6 @@ import {
   Info,
   Circle,
   Edit3,
-  Download,
   RefreshCw,
   CheckCircle,
   Eye,
@@ -616,8 +615,6 @@ export default function ModalFormRecargo({
       };
 
       formDataToSend.append("recargo_data", JSON.stringify(recargoData));
-
-      console.log(archivoAdjunto, archivoExistente);
 
       if (archivoAdjunto) {
         formDataToSend.append("planilla", archivoAdjunto);

@@ -17,6 +17,7 @@ import {
   FileX,
   Trash2,
   Minus,
+  Copy,
 } from "lucide-react";
 import ModalFormRecargo from "@/components/ui/modalFormRecargo";
 import {
@@ -34,7 +35,6 @@ import { Input } from "@heroui/input";
 import { Tooltip } from "@heroui/tooltip";
 import { useEliminarRecargoConfirm } from "@/components/ui/eliminarRecargoConfirm";
 import { apiClient } from "@/config/apiClient";
-import { AxiosRequestConfig } from "axios";
 
 interface ShowFilters {
   conductores: boolean;
@@ -146,12 +146,155 @@ const CanvasRecargosDashboard = () => {
     isOpen: false,
     recargoId: null,
   });
+  const [copiedRowId, setCopiedRowId] = useState<string | null>(null);
 
   const handleViewRecargo = (recargoId: string) => {
     setViewModalState({
       isOpen: true,
       recargoId: recargoId,
     });
+  };
+
+  const getCellCopyValue = (item: CanvasRecargo, column: Column): string => {
+    switch (column.key) {
+      case "select":
+      case "acciones":
+        return "";
+
+      case "empresa":
+        const empresaNombre = item.empresa?.nombre || "";
+        return empresaNombre; // ✅ Todo en una celda
+
+      case "numero_planilla":
+        return item.numero_planilla || "";
+
+      case "vehiculo":
+        return item.vehiculo?.placa || "";
+
+      case "conductor":
+        const nombreCompleto =
+          `${item.conductor?.nombre || ""} ${item.conductor?.apellido || ""}`.trim();
+        return nombreCompleto;
+
+      case "valor_total":
+        return obtenerTotalRecargos(item).toString();
+
+      case "estado":
+        return item.estado || "";
+
+      case "total_horas":
+        return (item.total_horas || 0).toString();
+
+      case "promedio_diario":
+        return (item.total_horas / item.total_dias || 0).toFixed(2);
+
+      case "dias_laborales":
+        return (item.dias_laborales?.length || 0).toString();
+
+      case "total_hed":
+        return toNumber(item.total_hed).toFixed(1);
+      case "total_hen":
+        return toNumber(item.total_hen).toFixed(1);
+      case "total_hefd":
+        return toNumber(item.total_hefd).toFixed(1);
+      case "total_hefn":
+        return toNumber(item.total_hefn).toFixed(1);
+      case "total_rn":
+        return toNumber(item.total_rn).toFixed(1);
+      case "total_rd":
+        return toNumber(item.total_rd).toFixed(1);
+
+      default:
+        if (column.isDayColumn) {
+          const dayData = item.dias_laborales?.find(
+            (d) => d.dia === column.day,
+          );
+          return dayData ? toNumber(dayData.total_horas).toFixed(1) : "-";
+        }
+        return getItemValue(item, column.key)?.toString() || "0";
+    }
+  };
+
+  // Función mejorada para copiar múltiples filas seleccionadas
+  const handleCopySelectedRows = async () => {
+    try {
+      // Definir el orden EXACTO para copiar
+      const orderedKeys = [
+        "empresa",
+        "numero_planilla",
+        "vehiculo",
+        "conductor",
+        ...Array.from(
+          { length: getDaysInMonth(selectedMonth, selectedYear) },
+          (_, i) => `day_${i + 1}`,
+        ),
+        "total_horas",
+        "promedio_diario",
+        "total_hed",
+        "total_hen",
+        "total_hefd",
+        "total_hefn",
+        "total_rn",
+        "total_rd",
+      ];
+
+      // Filtrar los rows seleccionados
+      const selectedRowsData = processedDataWithTotals.filter((row) =>
+        selectedRows.has(row.id),
+      );
+
+      // Crear array de filas copiadas
+      const rowsToCopy = selectedRowsData.map((item) =>
+        orderedKeys
+          .map((key) => {
+            const column = columns.find((col) => col.key === key);
+            return column ? getCellCopyValue(item, column) : "";
+          })
+          .join("\t"),
+      );
+
+      // Unir todas las filas con salto de línea
+      const textToCopy = rowsToCopy.join("\n");
+
+      // Intentar con Clipboard API moderna
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(textToCopy);
+      } else {
+        copyToClipboardFallback(textToCopy);
+      }
+
+      // Feedback visual
+      const firstId = Array.from(selectedRows)[0];
+      setCopiedRowId(typeof firstId === "string" ? firstId : null);
+      setTimeout(() => setCopiedRowId(null), 2000);
+    } catch (error) {
+      console.error("❌ Error al copiar:", error);
+      alert(
+        "No se pudo copiar. Por favor, intenta seleccionar y copiar manualmente.",
+      );
+    }
+  };
+
+  // Función fallback para copiar (método antiguo pero compatible)
+  const copyToClipboardFallback = (text: string) => {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "-9999px";
+    document.body.appendChild(textarea);
+
+    textarea.focus();
+    textarea.select();
+
+    try {
+      const successful = document.execCommand("copy");
+      if (!successful) {
+        throw new Error("execCommand failed");
+      }
+    } finally {
+      document.body.removeChild(textarea);
+    }
   };
 
   const {
@@ -974,6 +1117,7 @@ const CanvasRecargosDashboard = () => {
         return (
           <div className="flex items-center justify-center space-x-1">
             <Button
+              title="Ver"
               isIconOnly
               variant="light"
               size="sm"
@@ -983,6 +1127,7 @@ const CanvasRecargosDashboard = () => {
               <Eye size={14} />
             </Button>
             <Button
+              title="Editar"
               isIconOnly
               variant="light"
               size="sm"
@@ -1237,6 +1382,7 @@ const CanvasRecargosDashboard = () => {
   };
 
   const renderFilterDropdown = (column: Column) => {
+    // ✅ Primero todas las validaciones SIN usar Hooks
     if (!column.filterable) return null;
 
     const COLUMN_TO_FILTER_MAPPING: Record<string, FilterKey> = {
@@ -1253,11 +1399,59 @@ const CanvasRecargosDashboard = () => {
     const values = getUniqueValues(filterKey);
     const activeFilters = filters[filterKey] || [];
 
+    // ✅ Ahora renderiza un componente que SÍ puede usar Hooks
     return (
-      <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-48 overflow-y-auto">
+      <FilterDropdownContent
+        column={column}
+        filterKey={filterKey}
+        values={values as string[]}
+        activeFilters={activeFilters}
+        updateFilter={updateFilter}
+      />
+    );
+  };
+
+  // ✅ Componente separado fuera de CanvasRecargosDashboard
+  const FilterDropdownContent = ({
+    column,
+    filterKey,
+    values,
+    activeFilters,
+    updateFilter,
+  }: {
+    column: Column;
+    filterKey: FilterKey;
+    values: string[];
+    activeFilters: string[];
+    updateFilter: (key: FilterKey, value: string) => void;
+  }) => {
+    // ✅ Ahora SÍ puedes usar Hooks aquí sin problemas
+    const [dropdownSearch, setDropdownSearch] = useState("");
+
+    const filteredValues = useMemo(
+      () =>
+        dropdownSearch
+          ? values.filter((v) =>
+              v.toLowerCase().includes(dropdownSearch.toLowerCase()),
+            )
+          : values,
+      [values, dropdownSearch],
+    );
+
+    return (
+      <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-64 overflow-y-auto">
+        <div className="mb-2">
+          <input
+            type="text"
+            value={dropdownSearch}
+            onChange={(e) => setDropdownSearch(e.target.value)}
+            placeholder={`Buscar ${column.label.toLowerCase()}...`}
+            className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-emerald-500"
+          />
+        </div>
         <div className="space-y-2">
-          {values.length > 0 ? (
-            values.map((value: any) => (
+          {filteredValues.length > 0 ? (
+            filteredValues.map((value: any) => (
               <label
                 key={value}
                 className="flex items-center space-x-2 text-xs cursor-pointer"
@@ -1754,6 +1948,16 @@ const CanvasRecargosDashboard = () => {
                     >
                       Eliminar
                     </Button>
+                    <Button
+                      onPress={handleCopySelectedRows}
+                      color="primary"
+                      variant="flat"
+                      size="sm"
+                      startContent={<Copy size={12} />}
+                      className={`text-xs px-2 py-1 ${copiedRowId ? "bg-emerald-100 text-emerald-700" : ""}`}
+                    >
+                      {copiedRowId ? "Copiado!" : "Copiar"}
+                    </Button>
                     <button
                       onClick={() => setSelectedRows(new Set())}
                       className="text-xs text-gray-600 hover:text-gray-800 underline"
@@ -1859,6 +2063,17 @@ const CanvasRecargosDashboard = () => {
                           {selectedRows.size} elementos seleccionados
                         </span>
 
+                        <Button
+                          onPress={handleCopySelectedRows}
+                          color="primary"
+                          variant="flat"
+                          size="sm"
+                          startContent={<Copy size={12} />}
+                          className={`text-xs px-2 py-1 ${copiedRowId ? "bg-emerald-100 text-emerald-700" : ""}`}
+                        >
+                          {copiedRowId ? "Copiado!" : "Copiar"}
+                        </Button>
+
                         {/* Botón de eliminación masiva */}
                         <Button
                           onPress={handleEliminar}
@@ -1871,12 +2086,13 @@ const CanvasRecargosDashboard = () => {
                           Eliminar seleccionados
                         </Button>
 
-                        <button
-                          onClick={() => setSelectedRows(new Set())}
+                        <Button
+                          variant="light"
+                          onPress={() => setSelectedRows(new Set())}
                           className="text-xs text-gray-600 hover:text-gray-800 underline"
                         >
                           Deseleccionar todo
-                        </button>
+                        </Button>
                       </div>
                     )}
 
@@ -2088,11 +2304,11 @@ const CanvasRecargosDashboard = () => {
                   {/* Mask overlay que cubre toda la fila */}
                   {selectedRows.has(item.id) && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-red-500/10 z-50 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-primary-500/10 z-50 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
                         backgroundImage:
-                          "linear-gradient(135deg, transparent, rgba(239, 68, 68, 0.1), transparent)",
+                          "linear-gradient(135deg, transparent, rgba(102, 178, 250, 0.1), transparent)",
                         backgroundSize: "20px 20px",
                       }}
                     />
@@ -2195,7 +2411,7 @@ const CanvasRecargosDashboard = () => {
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className="flex items-center space-x-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center space-x-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   <ChevronLeft size={16} />
                   <span>Anterior</span>
@@ -2214,7 +2430,7 @@ const CanvasRecargosDashboard = () => {
                     setCurrentPage(Math.min(totalPages, currentPage + 1))
                   }
                   disabled={currentPage === totalPages}
-                  className="flex items-center space-x-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center space-x-1 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   <span>Siguiente</span>
                   <ChevronRight size={16} />
@@ -2264,7 +2480,7 @@ const CanvasRecargosDashboard = () => {
                   <button
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage === 1}
-                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     title="Primera página"
                   >
                     Primera
@@ -2273,7 +2489,7 @@ const CanvasRecargosDashboard = () => {
                   <button
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     title="Página anterior"
                   >
                     <ChevronLeft size={16} />
@@ -2297,7 +2513,7 @@ const CanvasRecargosDashboard = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors ${
+                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${
                             currentPage === pageNum
                               ? "bg-emerald-600 text-white font-medium"
                               : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -2326,7 +2542,7 @@ const CanvasRecargosDashboard = () => {
                       setCurrentPage(Math.min(totalPages, currentPage + 1))
                     }
                     disabled={currentPage === totalPages}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
                     title="Página siguiente"
                   >
                     <ChevronRight size={16} />
@@ -2335,7 +2551,7 @@ const CanvasRecargosDashboard = () => {
                   <button
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
-                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-2 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     title="Última página"
                   >
                     Última
