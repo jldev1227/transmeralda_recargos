@@ -372,10 +372,20 @@ const CanvasRecargosDashboard = () => {
   };
 
   const handleLiquidar = async () => {
+    // Si no hay recargos para liquidar, mostrar mensaje
+    if (recargosParaLiquidar.length === 0) {
+      // TODO: Mostrar notificación de que no hay recargos para liquidar
+      return;
+    }
+
     const result = await liquidarRecargoConfirm({
       title: "Liquidar recargos",
-      message: "¿Deseas liquidar los recargos seleccionados?",
-      planillasLength: selectedRows.size,
+      message: `¿Deseas liquidar ${recargosParaLiquidar.length} recargo(s) seleccionado(s)?${
+        recargosYaLiquidados.length > 0
+          ? ` (Se omitirán ${recargosYaLiquidados.length} recargo(s) ya liquidado(s))`
+          : ""
+      }`,
+      planillasLength: recargosParaLiquidar.length,
       confirmText: "Sí, liquidar",
     });
 
@@ -384,7 +394,7 @@ const CanvasRecargosDashboard = () => {
         setLiquidarLoading(true);
         await apiClient.patch("/api/recargos/liquidar", {
           data: {
-            selectedIds: Array.from(selectedRows), // Convierte Set a Array
+            selectedIds: recargosParaLiquidar.map((item) => item.id), // Solo enviar IDs de recargos no liquidados
           },
         });
 
@@ -1627,6 +1637,19 @@ const renderFilterDropdown = (column: Column) => {
   const totalPages = Math.ceil(processedData.length / itemsPerPage);
   const activeFiltersCount = Object.values(filters).flat().length;
 
+  // ✅ Calcular recargos seleccionados que se pueden liquidar
+  const selectedRecargos = useMemo(() => {
+    return processedDataWithTotals.filter((item) => selectedRows.has(item.id));
+  }, [processedDataWithTotals, selectedRows]);
+
+  const recargosParaLiquidar = useMemo(() => {
+    return selectedRecargos.filter((item) => item.estado !== "liquidada");
+  }, [selectedRecargos]);
+
+  const recargosYaLiquidados = useMemo(() => {
+    return selectedRecargos.filter((item) => item.estado === "liquidada");
+  }, [selectedRecargos]);
+
   // ✅ Funciones para manejar el modal de edición
   const handleEditRecargo = (recargoId: string) => {
     setModalFormIsOpen(true);
@@ -2089,10 +2112,17 @@ const renderFilterDropdown = (column: Column) => {
               {/* Elementos seleccionados móvil */}
               {selectedRows.size > 0 && (
                 <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                  <span className="text-sm text-emerald-700 font-medium">
-                    {selectedRows.size} seleccionado
-                    {selectedRows.size > 1 ? "s" : ""}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-emerald-700 font-medium">
+                      {selectedRows.size} seleccionado
+                      {selectedRows.size > 1 ? "s" : ""}
+                    </span>
+                    {recargosYaLiquidados.length > 0 && (
+                      <span className="text-xs text-amber-600">
+                        {recargosYaLiquidados.length} ya liquidado{recargosYaLiquidados.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-2">
                     <Button
                       onPress={handleEliminar}
@@ -2109,9 +2139,10 @@ const renderFilterDropdown = (column: Column) => {
                       color="warning"
                       variant="flat"
                       size="sm"
+                      isDisabled={recargosParaLiquidar.length === 0}
                       startContent={<Copy size={12} />}
                     >
-                      Liquidado
+                      Liquidar {recargosParaLiquidar.length > 0 ? `(${recargosParaLiquidar.length})` : ""}
                     </Button>
                     <Button
                       onPress={handleCopySelectedRows}
@@ -2236,18 +2267,26 @@ const renderFilterDropdown = (column: Column) => {
                   <div className="flex items-center space-x-3 text-sm">
                     {selectedRows.size > 0 && (
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm text-emerald-600 font-medium">
-                          {selectedRows.size} elementos seleccionados
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-emerald-600 font-medium">
+                            {selectedRows.size} elementos seleccionados
+                          </span>
+                          {recargosYaLiquidados.length > 0 && (
+                            <span className="text-xs text-amber-600">
+                              {recargosYaLiquidados.length} ya liquidado{recargosYaLiquidados.length > 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
 
                         <Button
                           onPress={handleLiquidar}
                           color="warning"
                           variant="flat"
                           size="sm"
+                          isDisabled={recargosParaLiquidar.length === 0}
                           startContent={<Copy size={12} />}
                         >
-                          Liquidado
+                          Liquidar {recargosParaLiquidar.length > 0 ? `(${recargosParaLiquidar.length})` : ""}
                         </Button>
 
                         <Button
