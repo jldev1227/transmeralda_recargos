@@ -104,8 +104,7 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
           params: { key: s3Key },
         });
         return response.data.url;
-      } catch (error) {
-        console.error("Error al obtener URL firmada:", error);
+      } catch {
         return null;
       }
     }, []);
@@ -135,8 +134,7 @@ const ModalVisualizarRecargo = React.memo<ModalVisualizarRecargoProps>(
           } else {
             throw new Error("No se encontró información del recargo");
           }
-        } catch (error) {
-          console.error("Error cargando datos del recargo:", error);
+        } catch {
           setError("No se pudo cargar la información del recargo");
           addToast({
             title: "Error",

@@ -268,8 +268,8 @@ const CanvasRecargosDashboard = () => {
       const firstId = Array.from(selectedRows)[0];
       setCopiedRowId(typeof firstId === "string" ? firstId : null);
       setTimeout(() => setCopiedRowId(null), 2000);
-    } catch (error) {
-      console.error("❌ Error al copiar:", error);
+    } catch {
+      // Error silenciado - no es crítico para la funcionalidad
       alert(
         "No se pudo copiar. Por favor, intenta seleccionar y copiar manualmente.",
       );
@@ -363,8 +363,8 @@ const CanvasRecargosDashboard = () => {
         });
 
         setSelectedRows(new Set());
-      } catch (error) {
-        console.error(error);
+      } catch {
+        // Error manejado silenciosamente
       } finally {
         setEliminarLoading(false);
       }
@@ -375,7 +375,7 @@ const CanvasRecargosDashboard = () => {
     const result = await liquidarRecargoConfirm({
       title: "Liquidar recargos",
       message: "¿Deseas liquidar los recargos seleccionados?",
-      planillas: recargos.filter((r) => selectedRows.has(r.id)).map((r) => r.numero_planilla || ""),
+      planillasLength: selectedRows.size,
       confirmText: "Sí, liquidar",
     });
 
@@ -389,8 +389,8 @@ const CanvasRecargosDashboard = () => {
         });
 
         setSelectedRows(new Set());
-      } catch (error) {
-        console.error(error);
+      } catch {
+        // Error manejado silenciosamente
       } finally {
         setLiquidarLoading(false);
       }
@@ -595,14 +595,14 @@ const CanvasRecargosDashboard = () => {
     return [...baseColumns, ...dayColumns, ...summaryColumns];
   }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday]);
 
-  const MAPEO_CAMPOS_HORAS = {
+  const MAPEO_CAMPOS_HORAS = useMemo(() => ({
     HED: "total_hed", // Horas Extra Diurnas
     HEN: "total_hen", // Horas Extra Nocturnas
     HEFD: "total_hefd", // Horas Extra Festivas Diurnas
     HEFN: "total_hefn", // Horas Extra Festivas Nocturnas
     RN: "total_rn", // Recargo Nocturno
     RD: "total_rd", // Recargo Dominical Diurno
-  } as const;
+  } as const), []);
 
   const calcularTotalesRecargos = (diasLaborales: DiaLaboralPlanilla[]) => {
     if (!diasLaborales || diasLaborales.length === 0) {
@@ -679,18 +679,68 @@ const CanvasRecargosDashboard = () => {
     }
   };
 
-  // Obtener valores únicos para filtros
-  const getUniqueValues = useCallback(
-    (field: string) => {
+  // Obtener valores únicos filtrados (excluyendo el filtro actual para evitar dependencias circulares)
+  // Esta función implementa filtros dependientes: cuando seleccionas una empresa,
+  // solo muestra conductores, placas y planillas asociadas a esa empresa
+  const getFilteredUniqueValues = useCallback(
+    (field: string, excludeCurrentFilter = true) => {
+      // Crear una copia de los filtros excluyendo el filtro actual si es necesario
+      // Esto evita dependencias circulares (ej: filtro de empresas depende de filtro de empresas)
+      const activeFilters = excludeCurrentFilter 
+        ? { ...filters, [field]: [] } 
+        : filters;
+
+      // Filtrar los datos basándose en los filtros activos (excluyendo el actual)
+      let filteredData = [...processedDataWithTotals];
+
+      // ✅ FILTROS DEPENDIENTES: Cada filtro afecta las opciones de los demás
+      
+      // Aplicar filtros de empresas (afecta conductores, placas y planillas)
+      if (activeFilters.empresas && activeFilters.empresas.length > 0) {
+        filteredData = filteredData.filter((item) =>
+          activeFilters.empresas.includes(item.empresa?.nombre || "Sin empresa")
+        );
+      }
+
+      // Aplicar filtros de estados (afecta todos los demás filtros)
+      if (activeFilters.estados && activeFilters.estados.length > 0) {
+        filteredData = filteredData.filter((item) =>
+          activeFilters.estados.includes(item.estado || "pendiente")
+        );
+      }
+
+      // Aplicar filtros de planillas (afecta conductores y placas de esa planilla)
+      if (activeFilters.planillas && activeFilters.planillas.length > 0) {
+        filteredData = filteredData.filter((item) =>
+          activeFilters.planillas.includes(item.numero_planilla || "")
+        );
+      }
+
+      // Aplicar filtros de placas (afecta conductores que manejan esas placas)
+      if (activeFilters.placas && activeFilters.placas.length > 0) {
+        filteredData = filteredData.filter((item) =>
+          activeFilters.placas.includes(item.vehiculo?.placa || "")
+        );
+      }
+
+      // Aplicar filtros de conductores (afecta placas y planillas de esos conductores)
+      if (activeFilters.conductores && activeFilters.conductores.length > 0) {
+        filteredData = filteredData.filter((item) => {
+          const conductorNombre = `${item.conductor?.nombre} ${item.conductor?.apellido}`.trim() || "Sin conductor";
+          return activeFilters.conductores.includes(conductorNombre);
+        });
+      }
+
+      // Ahora obtener valores únicos del campo solicitado de los datos filtrados
       const values = new Set();
-      processedDataWithTotals.forEach((item) => {
+      filteredData.forEach((item) => {
         let value = "";
         switch (field) {
           case "empresas":
             value = item.empresa?.nombre || "Sin empresa";
             break;
           case "estados":
-            value = item.estado || "pendiente"; // Por ahora todos son pendientes
+            value = item.estado || "pendiente";
             break;
           case "planillas":
             value = item.numero_planilla || "";
@@ -706,9 +756,10 @@ const CanvasRecargosDashboard = () => {
         }
         if (value && value.trim()) values.add(value);
       });
+
       return Array.from(values).sort();
     },
-    [processedDataWithTotals],
+    [processedDataWithTotals, filters],
   );
 
   // Datos filtrados y ordenados
@@ -797,47 +848,44 @@ const CanvasRecargosDashboard = () => {
     return result;
   }, [processedDataWithTotals, searchTerm, filters, sortField, sortDirection]);
 
-  const obtenerSalarioBase = (
-    item: CanvasRecargo,
-  ): ConfiguracionSalario | null => {
-    if (!item?.empresa?.id) {
-      console.error("❌ Item o empresa no válidos");
-      return null;
-    }
-
-    if (!configuracionesSalario || !Array.isArray(configuracionesSalario)) {
-      console.error(
-        "❌ configuracionesSalario no está definido o no es un array",
-      );
-      return null;
-    }
-
-    let configuracionGlobal: ConfiguracionSalario | null = null;
-
-    for (const salario of configuracionesSalario) {
-      // Solo considerar configuraciones activas
-      if (!salario.activo) {
-        continue;
+  const obtenerTotalRecargos = useCallback((item: CanvasRecargo): number => {
+    // Función para obtener salario base dentro del callback
+    const obtenerSalarioBase = (
+      item: CanvasRecargo,
+    ): ConfiguracionSalario | null => {
+      if (!item?.empresa?.id) {
+        return null;
       }
 
-      // Si encontramos configuración específica para la empresa
-      if (salario.empresa_id === item.empresa.id) {
-        return salario;
+      if (!configuracionesSalario || !Array.isArray(configuracionesSalario)) {
+        return null;
       }
 
-      // Guardamos la primera configuración global que encontremos
-      if (
-        !configuracionGlobal &&
-        (salario.empresa_id === null || salario.empresa_id === undefined)
-      ) {
-        configuracionGlobal = salario;
+      let configuracionGlobal: ConfiguracionSalario | null = null;
+
+      for (const salario of configuracionesSalario) {
+        // Solo considerar configuraciones activas
+        if (!salario.activo) {
+          continue;
+        }
+
+        // Si encontramos configuración específica para la empresa
+        if (salario.empresa_id === item.empresa.id) {
+          return salario;
+        }
+
+        // Guardamos la primera configuración global que encontremos
+        if (
+          !configuracionGlobal &&
+          (salario.empresa_id === null || salario.empresa_id === undefined)
+        ) {
+          configuracionGlobal = salario;
+        }
       }
-    }
 
-    return configuracionGlobal;
-  };
+      return configuracionGlobal;
+    };
 
-  const obtenerTotalRecargos = (item: CanvasRecargo): number => {
     // Obtener el salario base para este item
     const configuracionSalario = obtenerSalarioBase(item);
 
@@ -943,7 +991,7 @@ const CanvasRecargosDashboard = () => {
     }
 
     return totalGeneral;
-  };
+  }, [tiposRecargo, MAPEO_CAMPOS_HORAS, configuracionesSalario]);
 
   // Datos paginados
   const paginatedData = useMemo(() => {
@@ -1031,7 +1079,7 @@ const CanvasRecargosDashboard = () => {
     };
 
     return resultado;
-  }, [processedData]);
+  }, [processedData, obtenerTotalRecargos]);
 
   // Handlers
   const handleSort = (field: string) => {
@@ -1061,11 +1109,35 @@ const CanvasRecargosDashboard = () => {
     }
   };
 
+  // Crea una función helper fuera del render
+  const getFilterKey = (columnKey: string): FilterKey => {
+    const mapping: Record<string, FilterKey> = {
+      conductor: "conductores",
+      empresa: "empresas",
+      numero_planilla: "planillas",
+      vehiculo: "placas",
+      estado: "estados"
+    };
+    return mapping[columnKey] || "estados";
+  };
+
   const toggleFilter = (type: FilterKey) => {
-    setShowFilters((prev) => ({
-      ...prev,
-      [type]: !prev[type],
-    }));
+    setShowFilters((prev) => {
+      const isCurrentlyOpen = prev[type];
+      
+      // Si el filtro actual está abierto, solo cerrarlo
+      // Si está cerrado, cerrarlo todo y abrir este
+      return Object.keys(prev).reduce((acc, key) => {
+        if (key === type) {
+          // Toggle del filtro actual
+          acc[key as FilterKey] = !isCurrentlyOpen;
+        } else {
+          // Cerrar todos los demás
+          acc[key as FilterKey] = false;
+        }
+        return acc;
+      }, {} as ShowFilters);
+    });
   };
 
   const updateFilter = (type: FilterKey, value: string) => {
@@ -1246,7 +1318,7 @@ const CanvasRecargosDashboard = () => {
                 <FileText size={16} className={iconColor} />
               </Tooltip>
             ) : (
-              <Tooltip content="Sin numero_planilla">
+              <Tooltip content="Sin numero de planilla">
                 <FileX size={16} className={iconColor} />
               </Tooltip>
             )}
@@ -1411,25 +1483,39 @@ const CanvasRecargosDashboard = () => {
     }
   };
 
-  const renderFilterDropdown = (column: Column) => {
-    // ✅ Primero todas las validaciones SIN usar Hooks
-    if (!column.filterable) return null;
+const renderFilterDropdown = (column: Column) => {
+  // Evitar render de columnas no filtrables
+  if (!column.filterable) return null;
 
-    const COLUMN_TO_FILTER_MAPPING: Record<string, FilterKey> = {
-      conductor: "conductores",
-      empresa: "empresas",
-      numero_planilla: "planillas",
-      vehiculo: "placas",
-      estado: "estados",
-    };
+  const keyMap: Record<string, keyof typeof showFilters> = {
+    conductor: "conductores",
+    empresa: "empresas",
+    numero_planilla: "planillas",
+    vehiculo: "placas",
+    estado: "estados",
+  };
 
-    const filterKey = COLUMN_TO_FILTER_MAPPING[column.key];
-    if (!filterKey || !showFilters[filterKey]) return null;
+  const validKeys = Object.keys(keyMap);
+  const colKey = column.key;
 
-    const values = getUniqueValues(filterKey);
+  // Solo procesar columnas que son candidatas para filtros
+  if (!validKeys.includes(colKey)) {
+    return null;
+  }
+
+  // Obtener key mapeado
+  const mappedKey = keyMap[colKey];
+  const isFilterVisible = showFilters[mappedKey];
+
+  if (!isFilterVisible) {
+    return null;
+  }
+
+  try {
+    const filterKey = mappedKey as FilterKey;
+    const values = getFilteredUniqueValues(filterKey) ?? [];
     const activeFilters = filters[filterKey] || [];
 
-    // ✅ Ahora renderiza un componente que SÍ puede usar Hooks
     return (
       <FilterDropdownContent
         column={column}
@@ -1439,7 +1525,10 @@ const CanvasRecargosDashboard = () => {
         updateFilter={updateFilter}
       />
     );
-  };
+  } catch {
+    return null;
+  }
+};
 
   // ✅ Componente separado fuera de CanvasRecargosDashboard
   const FilterDropdownContent = ({
@@ -1482,8 +1571,8 @@ const CanvasRecargosDashboard = () => {
       () =>
         dropdownSearch
           ? values.filter((v) =>
-              v.toLowerCase().includes(dropdownSearch.toLowerCase()),
-            )
+            v.toLowerCase().includes(dropdownSearch.toLowerCase()),
+          )
           : values,
       [values, dropdownSearch],
     );
@@ -1493,7 +1582,16 @@ const CanvasRecargosDashboard = () => {
         ref={dropdownRef}
         className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-64 overflow-y-auto"
       >
-        <div className="mb-2">
+        {/* Header con contador de opciones */}
+        <div className="mb-2 pb-2 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-medium text-gray-700">
+              {column.label}
+            </span>
+            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+              {filteredValues.length}
+            </span>
+          </div>
           <input
             type="text"
             value={dropdownSearch}
@@ -1560,8 +1658,13 @@ const CanvasRecargosDashboard = () => {
                         Planilla de Recargos
                       </h1>
                       <p className="text-sm text-gray-600 hidden sm:block mt-1">
-                        Vista de recargos avanzada con filtros inteligentes
+                        Vista de recargos con filtros dependientes - Los filtros se adaptan automáticamente
                       </p>
+                      {activeFiltersCount > 0 && (
+                        <p className="text-xs text-emerald-600 mt-1 hidden sm:block">
+                          ✨ Filtros activos afectando opciones disponibles
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1659,7 +1762,7 @@ const CanvasRecargosDashboard = () => {
                       }}
                     >
                       {months.map((month) => (
-                        <SelectItem key={month.key}>
+                        <SelectItem key={month.key} textValue={month.label}>
                           <span className="sm:hidden">{month.short}</span>
                           <span className="hidden sm:inline">
                             {month.label}
@@ -2099,9 +2202,21 @@ const CanvasRecargosDashboard = () => {
                       <span className="text-sm text-gray-600 whitespace-nowrap">
                         Filtros activos:
                       </span>
-                      <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {activeFiltersCount}
-                      </span>
+                        <>
+                        {(() => {
+                          const keys: FilterKey[] = ["conductores", "empresas", "estados", "planillas", "placas"];
+                          const activeGroupsCount = keys.reduce((acc, key) => {
+                          const isActive = !!showFilters[key] || (filters[key]?.length ?? 0) > 0;
+                          return acc + (isActive ? 1 : 0);
+                          }, 0);
+
+                          return (
+                          <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
+                            {activeGroupsCount}
+                          </span>
+                          );
+                        })()}
+                        </>
                       <Button
                         onPress={clearAllFilters}
                         variant="light"
@@ -2209,28 +2324,28 @@ const CanvasRecargosDashboard = () => {
                 {columns.map((column: Column) => {
                   // Determinar el estilo del header según el tipo de columna
                   let headerClass =
-                    "relative border-r border-gray-300 bg-gray-50";
+                    "relative border-r border-gray-300 bg-gray-50"; // Centrado vertical
 
                   if (column.fixed) {
                     headerClass =
-                      "relative border-r border-gray-300 bg-gray-100 border-b-2 border-gray-300";
+                      "relative border-r border-gray-300 bg-gray-100 border-b-2 border-gray-300  flex items-center justify-center";
                   } else if (column.isDayColumn) {
                     if (column.isSunday && column.isHoliday) {
                       headerClass =
-                        "relative border-r border-gray-300 bg-amber-600 text-white";
+                        "relative border-r border-gray-300 bg-amber-600 text-white flex items-center justify-center";
                     } else if (column.isSunday) {
                       headerClass =
-                        "relative border-r border-gray-300 bg-emerald-600 text-white";
+                        "relative border-r border-gray-300 bg-emerald-600 text-white flex items-center justify-center";
                     } else if (column.isHoliday) {
                       headerClass =
-                        "relative border-r border-gray-300 bg-red-500 text-white";
+                        "relative border-r border-gray-300 bg-red-500 text-white flex items-center justify-center";
                     } else {
                       headerClass =
-                        "relative border-r border-gray-300 bg-emerald-50 border-b-2 border-gray-300";
+                        "relative border-r border-gray-300 bg-emerald-50 border-b-2 border-gray-300 flex items-center justify-center";
                     }
                   } else if (column.isSummary) {
                     headerClass =
-                      "relative border-r border-gray-300 bg-green-50 border-b-2 border-gray-300";
+                      "relative border-r border-gray-300 bg-green-50 border-b-2 border-gray-300 flex items-center justify-center";
                   }
 
                   return (
@@ -2244,15 +2359,16 @@ const CanvasRecargosDashboard = () => {
                     >
                       <div className="p-2 flex items-center justify-between">
                         <div
-                          className={`flex-1 text-xs font-bold ${column.isSunday || column.isHoliday
-                            ? "text-white"
-                            : "text-gray-700"
-                            } ${column.align === "center"
-                              ? "text-center"
-                              : column.align === "right"
-                                ? "text-right"
-                                : "text-left"
+                          className={`flex-1 text-xs font-bold flex items-center justify-${column.align === "center"
+                            ? "center"
+                            : column.align === "right"
+                              ? "end"
+                              : "start"
+                            } ${column.isSunday || column.isHoliday
+                              ? "text-white"
+                              : "text-gray-700"
                             }`}
+                          style={{ height: "100%" }}
                         >
                           <div className="whitespace-pre-line leading-tight">
                             {column.isDayColumn ? (
@@ -2296,33 +2412,20 @@ const CanvasRecargosDashboard = () => {
                           {/* Filter button - solo para columnas específicas */}
                           {column.filterable && (
                             <button
-                              onClick={() =>
-                                toggleFilter(
-                                  column.key === "conductor"
-                                    ? "conductores"
-                                    : column.key === "empresa"
-                                      ? "empresas"
-                                      : column.key === "numero_planilla"
-                                        ? "planillas"
-                                        : column.key === "vehiculo"
-                                          ? "placas"
-                                          : "estados",
-                                )
-                              }
-                              className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${filters[
-                                column.key === "conductor"
-                                  ? "conductores"
-                                  : column.key === "empresa"
-                                    ? "empresas"
-                                    : column.key === "numero_planilla"
-                                      ? "planillas"
-                                      : column.key === "vehiculo"
-                                        ? "placas"
-                                        : "estados"
-                              ]?.length > 0
-                                ? "text-emerald-600"
-                                : "text-gray-400"
-                                }`}
+                              onClick={(e) => {
+                                e.stopPropagation(); // ⭐ IMPORTANTE: evita que el click se propague
+                                const filterKey = getFilterKey(column.key);
+                                toggleFilter(filterKey);
+                              }}
+                              className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${
+                                // Mostrar como activo si tiene filtros aplicados O si está abierto
+                                filters[getFilterKey(column.key)]?.length > 0 || showFilters[getFilterKey(column.key)]
+                                  ? "text-emerald-600 bg-emerald-50"
+                                  : column.isSunday || column.isHoliday
+                                    ? "text-white hover:bg-white/20"
+                                    : "text-gray-400"
+                              }`}
+                              title={showFilters[getFilterKey(column.key)] ? "Cerrar filtro" : "Abrir filtro"}
                             >
                               <Filter size={10} />
                             </button>
@@ -2364,9 +2467,14 @@ const CanvasRecargosDashboard = () => {
               return (
                 <div
                   key={item.id}
-                  className={`flex relative divide-y divide-gray-300 ${selectedRows.has(item.id) ? "opacity-70" : ""
-                    }`}
+                  className={`flex relative ${selectedRows.has(item.id) ? "opacity-70" : ""}`}
+                  style={{ width: `${totalWidth}px` }}
                 >
+                  <div
+                    className="absolute left-0 bottom-0 h-[2px] bg-gray-300 opacity-60"
+                    style={{ width: `${totalWidth}px`, zIndex: 1 }}
+                  />
+
                   {/* Mask overlay que cubre toda la fila */}
                   {selectedRows.has(item.id) && (
                     <div

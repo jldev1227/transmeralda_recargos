@@ -275,7 +275,7 @@ export default function ModalConfiguracion() {
       refrescarTiposRecargo();
       refrescarConfiguracionesSalario();
     }
-  }, [isOpen]);
+  }, [isOpen, refrescarConfiguracionesSalario, refrescarTiposRecargo]);
 
   // Funciones para manejar edición de tipos de recargo
   const handleEditTipoRecargo = (tipo: any) => {
@@ -312,8 +312,8 @@ export default function ModalConfiguracion() {
       setEditingTipoRecargo(null);
       setShowNewTipoRecargo(false);
       refrescarTiposRecargo();
-    } catch (error) {
-      console.error("Error al guardar tipo de recargo:", error);
+    } catch {
+      // Error manejado silenciosamente
     }
   };
 
@@ -364,8 +364,8 @@ export default function ModalConfiguracion() {
       setEditingConfigSalario(null);
       setShowNewConfigSalario(false);
       refrescarConfiguracionesSalario();
-    } catch (error) {
-      console.error("Error al guardar configuración de salario:", error);
+    } catch {
+      // Error manejado silenciosamente
     }
   };
 

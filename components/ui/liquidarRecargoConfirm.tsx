@@ -8,7 +8,7 @@ import {
 } from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { useDisclosure } from "@heroui/use-disclosure";
-import { AlertTriangle, FileText } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 interface LiquidarRecargoConfirmProps {
   title?: string;
@@ -20,7 +20,7 @@ interface LiquidarRecargoConfirmProps {
   isOpen: boolean;
   onClose: () => void;
   isLoading?: boolean;
-  planillas: string[];
+  planillasLength: number;
 }
 
 /**
@@ -36,7 +36,7 @@ const LiquidarRecargoConfirm: React.FC<LiquidarRecargoConfirmProps> = ({
   isOpen,
   onClose,
   isLoading = false,
-  planillas,
+  planillasLength,
 }) => {
   const handleConfirm = () => {
     onConfirm();
@@ -76,7 +76,7 @@ const LiquidarRecargoConfirm: React.FC<LiquidarRecargoConfirmProps> = ({
                     {title}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {planillas.length} planilla{planillas.length > 1 ? "s" : ""} seleccionada{planillas.length > 1 ? "s" : ""}
+                    {planillasLength} planilla{planillasLength > 1 ? "s" : ""} seleccionada{planillasLength > 1 ? "s" : ""}
                   </p>
                 </div>
               </div>
@@ -109,14 +109,6 @@ const LiquidarRecargoConfirm: React.FC<LiquidarRecargoConfirmProps> = ({
                       </p>
                     </div>
                   </div>
-                  <ul className="mt-3 space-y-1">
-                    {planillas.map((num) => (
-                      <li key={num} className="flex items-center gap-2 text-gray-700">
-                        <FileText size={14} className="text-yellow-600" />
-                        <span className="font-mono">{num}</span>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
               </div>
             </ModalBody>
@@ -164,7 +156,7 @@ export const useLiquidarRecargoConfirm = () => {
     message: "¿Estás seguro de que quieres liquidar los recargos seleccionados?",
     confirmText: "Liquidar",
     cancelText: "Cancelar",
-    planillas: [],
+    planillasLength: 0,
     onConfirm: () => {},
     isLoading: false,
   });

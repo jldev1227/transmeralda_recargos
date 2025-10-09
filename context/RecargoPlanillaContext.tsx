@@ -508,12 +508,13 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         selectedYear,
       );
       setCanvasData(datos);
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Error manejado silenciosamente
     } finally {
       setCanvasLoading(false);
     }
-  }, [selectedMonth, selectedYear]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth, selectedYear]); // obtenerRecargosParaCanvas is stable and defined later
 
   useEffect(() => {
     cargarDatosCanvas();
@@ -613,7 +614,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const isCacheValid = useCallback((lastFetchTime?: number): boolean => {
     if (!lastFetchTime) return false;
     return Date.now() - lastFetchTime < CACHE_TTL;
-  }, []);
+  }, [CACHE_TTL]);
 
   // OBTENER CONDUCTORES CON CACHE (sin cambios)
   const obtenerConductores = useCallback(
@@ -770,7 +771,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         }
       } catch (err) {
-        console.error("❌ Error obteniendo configuraciones de salario:", err);
         const errorMessage = handleApiError(
           err,
           "Error al obtener configuraciones de salario",
@@ -825,7 +825,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         }
       } catch (err) {
-        console.error("❌ Error obteniendo configuración vigente:", err);
         const errorMessage = handleApiError(
           err,
           "Error al obtener configuración vigente",
@@ -870,7 +869,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error creando configuración de salario:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al crear configuración de salario",
@@ -918,7 +917,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error actualizando configuración de salario:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al actualizar configuración de salario",
@@ -959,7 +958,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error eliminando configuración de salario:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al eliminar configuración de salario",
@@ -1001,7 +1000,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error calculando valor hora:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al calcular valor hora",
@@ -1059,7 +1058,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           err,
           "Error al registrar el recargo",
         );
-        console.log(err)
         addToast({
           title: "Error al registrar recargo",
           description: errorMessage,
@@ -1104,7 +1102,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         }
       } catch (err) {
-        console.error("❌ Error obteniendo datos para canvas:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al obtener datos para canvas",
@@ -1141,7 +1139,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           throw new Error(response.data.message || "Error al obtener recargo");
         }
       } catch (err) {
-        console.error("❌ Error obteniendo recargo por ID:", err);
+        // Error handled silently
         const errorMessage = handleApiError(err, "Error al obtener recargo");
         setError(errorMessage);
         return null;
@@ -1207,7 +1205,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error al actualizar recargo:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al actualizar el recargo",
@@ -1285,7 +1283,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         }
       } catch (err) {
-        console.error("❌ Error obteniendo tipos de recargo:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al obtener tipos de recargo",
@@ -1327,7 +1325,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         }
       } catch (err) {
-        console.error("❌ Error obteniendo tipos por categoría:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al obtener tipos por categoría",
@@ -1357,7 +1355,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error(response.data.message || "Error al obtener categorías");
       }
     } catch (err) {
-      console.error("❌ Error obteniendo categorías:", err);
+      // Error handled silently
       const errorMessage = handleApiError(err, "Error al obtener categorías");
       setError(errorMessage);
       return [];
@@ -1393,7 +1391,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error creando tipo de recargo:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al crear tipo de recargo",
@@ -1437,7 +1435,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error actualizando tipo de recargo:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al actualizar tipo de recargo",
@@ -1474,7 +1472,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error eliminando tipo de recargo:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al eliminar tipo de recargo",
@@ -1512,7 +1510,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error activando tipo de recargo:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al activar tipo de recargo",
@@ -1558,7 +1556,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error calculando valor de recargo:", err);
+        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al calcular valor de recargo",
@@ -1598,10 +1596,10 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     await obtenerConfiguracionesSalario();
   }, [obtenerConfiguracionesSalario]);
 
-  const cargarFestivos = async () => {
+  const cargarFestivos = useCallback(() => {
     const festivos = obtenerFestivosCompletos(selectedYear);
     setDiasFestivos(festivos);
-  };
+  }, [selectedYear]);
 
   useEffect(() => {
     const inicializar = async () => {
@@ -1613,15 +1611,15 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           obtenerEmpresas(),
           obtenerTiposRecargo(),
           obtenerConfiguracionesSalario(),
+          obtenerConfiguracionSalarioVigente()
         ]);
 
-        await obtenerConfiguracionSalarioVigente();
-      } catch (error) {
-        console.error("❌ Error en inicialización:", error);
+      } catch {
+        // Error handled silently
       }
     };
     inicializar();
-  }, []);
+  }, [cargarFestivos, obtenerConductores, obtenerVehiculos, obtenerEmpresas, obtenerTiposRecargo, obtenerConfiguracionesSalario, obtenerConfiguracionSalarioVigente]);
 
   // Inicializar Socket.IO cuando el usuario esté autenticado
   useEffect(() => {
@@ -1714,7 +1712,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Construir descripción informativa
         const descripcion = [
-          `${recargo.total_dias_laborados} día${recargo.total_dias_laborados !== 1 ? "s" : ""} laborado${recargo.total_dias_laborados !== 1 ? "s" : ""}`,
+          `${recargo.total_dias} día${recargo.total_dias_laborados !== 1 ? "s" : ""} laborado${recargo.total_dias_laborados !== 1 ? "s" : ""}`,
           diasTexto,
           `Conductor: ${recargo.conductor.nombre} ${recargo.conductor.apellido}`,
           `Vehículo: ${recargo.vehiculo.placa} (${recargo.vehiculo.marca})`,

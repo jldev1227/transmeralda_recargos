@@ -141,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }, 5000); // 5 segundos máximo de espera
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [initializing]);
 
   // Determinar si el usuario está autenticado
   const isAuthenticated = !!user;

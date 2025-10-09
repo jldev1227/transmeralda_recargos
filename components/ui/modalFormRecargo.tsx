@@ -359,15 +359,14 @@ export default function ModalFormRecargo({
       });
 
       return response.data.url;
-    } catch (error) {
-      console.error("Error al obtener URL firmada:", error);
-
+    } catch {
+      // Error manejado silenciosamente
       return null;
     }
   }, []);
 
   // Función para cargar datos del recargo a editar
-  const cargarDatosRecargo = async (id: string) => {
+  const cargarDatosRecargo = useCallback(async (id: string) => {
     try {
       setIsLoadingData(true);
       const response = await obtenerRecargoPorId(id);
@@ -407,8 +406,7 @@ export default function ModalFormRecargo({
 
         setEditMode(true);
       }
-    } catch (error) {
-      console.error("Error cargando datos del recargo:", error);
+    } catch {
       addToast({
         title: "Error",
         description: "No se pudo cargar la información del recargo",
@@ -417,7 +415,7 @@ export default function ModalFormRecargo({
     } finally {
       setIsLoadingData(false);
     }
-  };
+  }, [currentMonth, currentYear, obtenerRecargoPorId, getPresignedUrl]);
 
   // Función para resetear el formulario
   const resetearFormulario = () => {
@@ -453,7 +451,7 @@ export default function ModalFormRecargo({
       resetearFormulario();
     }
     setArchivoAdjunto(null);
-  }, [isOpen, recargoId]);
+  }, [isOpen, recargoId, cargarDatosRecargo]);
 
   // Cálculo del progreso del formulario
   const calculateProgress = () => {
@@ -631,8 +629,7 @@ export default function ModalFormRecargo({
           onClose();
         }
       }
-    } catch (error) {
-      console.log(error)
+    } catch {
       addToast({
         title: editMode ? "Error al actualizar" : "Error al registrar",
         description: editMode
@@ -640,7 +637,6 @@ export default function ModalFormRecargo({
           : "Ocurrió un error al registrar el recargo. Intente nuevamente.",
         color: "danger",
       });
-      console.error("Error al procesar recargo:", error);
     } finally {
       setIsLoading(false);
     }
@@ -1011,17 +1007,67 @@ export default function ModalFormRecargo({
                           >
                             {diasLaborales.length}/15 días
                           </Chip>
-                          <Button
-                            size="sm"
-                            color="success"
-                            variant="flat"
-                            startContent={<Plus size={16} />}
-                            onPress={agregarDiaLaboral}
-                            isDisabled={diasLaborales.length >= 15}
-                            className="text-sm"
-                          >
-                            Agregar Día
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              color="primary"
+                              variant="flat"
+                              startContent={<RefreshCw size={16} />}
+                              onPress={() => {
+                                const diasFaltantes = 15 - diasLaborales.length;
+                                if (diasFaltantes > 0) {
+                                  const nuevosDias = Array.from({ length: diasFaltantes }, (_, index) => ({
+                                    id: (Date.now() + index).toString(),
+                                    dia: "",
+                                    mes: "",
+                                    año: new Date().getFullYear().toString(),
+                                    hora_inicio: "",
+                                    hora_fin: "",
+                                    es_domingo: false,
+                                    es_festivo: false,
+                                  }));
+                                  setDiasLaborales([...diasLaborales, ...nuevosDias]);
+                                }
+                              }}
+                              isDisabled={diasLaborales.length >= 15}
+                              className="text-sm"
+                            >
+                              Completar 15 Días
+                            </Button>
+                            <Button
+                              size="sm"
+                              color="danger"
+                              variant="flat"
+                              startContent={<X size={16} />}
+                              onPress={() => {
+                                setDiasLaborales([{
+                                  id: "1",
+                                  dia: "",
+                                  mes: "",
+                                  año: new Date().getFullYear().toString(),
+                                  hora_inicio: "",
+                                  hora_fin: "",
+                                  es_domingo: false,
+                                  es_festivo: false,
+                                }]);
+                              }}
+                              isDisabled={diasLaborales.length <= 1}
+                              className="text-sm"
+                            >
+                              Eliminar Todos
+                            </Button>
+                            <Button
+                              size="sm"
+                              color="success"
+                              variant="flat"
+                              startContent={<Plus size={16} />}
+                              onPress={agregarDiaLaboral}
+                              isDisabled={diasLaborales.length >= 15}
+                              className="text-sm"
+                            >
+                              Agregar Día
+                            </Button>
+                          </div>
                         </div>
                       </div>
 
@@ -1031,6 +1077,7 @@ export default function ModalFormRecargo({
                           <TablaConRecargos
                             diasLaborales={diasLaborales}
                             actualizarDiaLaboral={actualizarDiaLaboral}
+                            setDiasLaborales={setDiasLaborales}
                             eliminarDiaLaboral={eliminarDiaLaboral}
                             mes={currentMonth}
                             año={currentYear}

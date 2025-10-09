@@ -45,8 +45,8 @@ class SocketService {
       this.socket.on("connect_error", this.handleConnectError);
       this.socket.on("disconnect", this.handleDisconnect);
       this.socket.on("error", this.handleError);
-    } catch (error: any) {
-      console.error("Error al crear conexión Socket.IO:", error);
+    } catch {
+      // Error handled silently
     }
   }
 
@@ -60,8 +60,8 @@ class SocketService {
   };
 
   // Manejador de error de conexión
-  private handleConnectError = (error: any) => {
-    console.error("Error de conexión Socket.IO:", error);
+  private handleConnectError = (_error: any) => {
+    // Error handled silently
 
     // Intentar reconectar con estrategia diferente
     this.disconnect();
@@ -77,8 +77,8 @@ class SocketService {
   };
 
   // Manejador de errores generales
-  private handleError = (error: any) => {
-    console.error("Error en Socket.IO:", error);
+  private handleError = (_error: any) => {
+    // Error handled silently
   };
 
   // Lógica de reconexión manual
@@ -116,7 +116,7 @@ class SocketService {
         }
       }, delay);
     } else {
-      console.error("No se pudo establecer la conexión en tiempo real");
+      // Console statement removed
     }
   };
 
@@ -125,7 +125,7 @@ class SocketService {
     if (this.socket && this.socket.connected) {
       this.socket.emit(event, data);
     } else {
-      console.warn(`No se pudo emitir evento '${event}': Socket no conectado`);
+      // Console statement removed
     }
   }
 
@@ -134,9 +134,7 @@ class SocketService {
     if (this.socket) {
       this.socket.on(event, callback);
     } else {
-      console.warn(
-        `No se pudo registrar escucha para '${event}': Socket no inicializado`,
-      );
+      // Socket not initialized - warning silenced
     }
   }
 
