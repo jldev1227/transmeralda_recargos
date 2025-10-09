@@ -621,13 +621,18 @@ export default function ModalFormRecargo({
       }
 
       if (editMode && recargoId) {
-        await actualizarRecargo(recargoId, formDataToSend);
-        onClose();
+        const result = await actualizarRecargo(recargoId, formDataToSend);
+        if (result?.success) {
+          onClose();
+        }
       } else {
-        await registrarRecargo(formDataToSend);
-        onClose();
+        const result = await registrarRecargo(formDataToSend);
+        if (result?.success) {
+          onClose();
+        }
       }
     } catch (error) {
+      console.log(error)
       addToast({
         title: editMode ? "Error al actualizar" : "Error al registrar",
         description: editMode

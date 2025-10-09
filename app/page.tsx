@@ -35,6 +35,7 @@ import { Input } from "@heroui/input";
 import { Tooltip } from "@heroui/tooltip";
 import { useEliminarRecargoConfirm } from "@/components/ui/eliminarRecargoConfirm";
 import { apiClient } from "@/config/apiClient";
+import { useLiquidarRecargoConfirm } from "@/components/ui/liquidarRecargoConfirm";
 
 interface ShowFilters {
   conductores: boolean;
@@ -309,7 +310,9 @@ const CanvasRecargosDashboard = () => {
     canvasData,
   } = useRecargo();
 
-  const { confirm, setLoading, DialogComponent } = useEliminarRecargoConfirm();
+  const { confirm: eliminarRecargoConfirm, setLoading: setEliminarLoading, DialogComponent: EliminarDialog } = useEliminarRecargoConfirm();
+  const { confirm: liquidarRecargoConfirm, setLoading: setLiquidarLoading, DialogComponent: LiquidarDialog } = useLiquidarRecargoConfirm
+    ();
 
   const [modalFormIsOpen, setModalFormIsOpen] = useState(false);
   const [recargoId, setRecargoId] = useState("");
@@ -343,7 +346,7 @@ const CanvasRecargosDashboard = () => {
   };
 
   const handleEliminar = async () => {
-    const result = await confirm({
+    const result = await eliminarRecargoConfirm({
       title: "Eliminar recargos",
       message: "¿Deseas eliminar los recargos seleccionados?",
       selectedCount: selectedRows.size,
@@ -352,7 +355,7 @@ const CanvasRecargosDashboard = () => {
 
     if (result.confirmed) {
       try {
-        setLoading(true);
+        setEliminarLoading(true);
         await apiClient.delete("/api/recargos/eliminar", {
           data: {
             selectedIds: Array.from(selectedRows), // Convierte Set a Array
@@ -363,7 +366,33 @@ const CanvasRecargosDashboard = () => {
       } catch (error) {
         console.error(error);
       } finally {
-        setLoading(false);
+        setEliminarLoading(false);
+      }
+    }
+  };
+
+  const handleLiquidar = async () => {
+    const result = await liquidarRecargoConfirm({
+      title: "Liquidar recargos",
+      message: "¿Deseas liquidar los recargos seleccionados?",
+      planillas: recargos.filter((r) => selectedRows.has(r.id)).map((r) => r.numero_planilla || ""),
+      confirmText: "Sí, liquidar",
+    });
+
+    if (result.confirmed) {
+      try {
+        setLiquidarLoading(true);
+        await apiClient.patch("/api/recargos/liquidar", {
+          data: {
+            selectedIds: Array.from(selectedRows), // Convierte Set a Array
+          },
+        });
+
+        setSelectedRows(new Set());
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLiquidarLoading(false);
       }
     }
   };
@@ -661,7 +690,7 @@ const CanvasRecargosDashboard = () => {
             value = item.empresa?.nombre || "Sin empresa";
             break;
           case "estados":
-            value = "activo"; // Por ahora todos son activos
+            value = item.estado || "pendiente"; // Por ahora todos son pendientes
             break;
           case "planillas":
             value = item.numero_planilla || "";
@@ -863,7 +892,7 @@ const CanvasRecargosDashboard = () => {
 
       const campoHoras =
         MAPEO_CAMPOS_HORAS[
-          tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
+        tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
         ];
 
       if (!campoHoras) {
@@ -1246,9 +1275,35 @@ const CanvasRecargosDashboard = () => {
         );
 
       case "estado":
+        let estadoBg = "bg-blue-100";
+        let estadoText = "text-blue-800";
+        let estadoLabel = item.estado;
+
+        switch (item.estado?.toLowerCase()) {
+          case "pendiente":
+            estadoBg = "bg-blue-100";
+            estadoText = "text-blue-800";
+            estadoLabel = "pendiente";
+            break;
+          case "liquidada":
+            estadoBg = "bg-yellow-100";
+            estadoText = "text-yellow-800";
+            estadoLabel = "liquidada";
+            break;
+          case "facturada":
+            estadoBg = "bg-green-100";
+            estadoText = "text-green-800";
+            estadoLabel = "facturada";
+            break;
+          default:
+            estadoBg = "bg-gray-100";
+            estadoText = "text-gray-800";
+            estadoLabel = item.estado || "Desconocido";
+        }
+
         return (
-          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 uppercase">
-            {item.estado}
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium uppercase ${estadoBg} ${estadoText}`}>
+            {estadoLabel}
           </span>
         );
 
@@ -1333,42 +1388,17 @@ const CanvasRecargosDashboard = () => {
             );
           }
 
-          // ✅ Extraer recargos del día
-          const recargosDelDia = {
-            hed: toNumber(dayData.hed),
-            hen: toNumber(dayData.hen),
-            hefd: toNumber(dayData.hefd),
-            hefn: toNumber(dayData.hefn),
-            rn: toNumber(dayData.rn),
-            rd: toNumber(dayData.rd),
-          };
-
-          // Verificar si tiene algún recargo
-          const tieneRecargos = Object.values(recargosDelDia).some(
-            (val) => val > 0,
-          );
-
           return (
             <div className="text-xs w-full py-1">
               {/* ✅ Horas trabajadas - Siempre visible */}
               <div
-                className={`font-bold text-center mb-1 px-1 py-1 rounded ${
-                  dayData.es_domingo || dayData.es_festivo
-                    ? "text-red-800 bg-red-100 border border-red-200"
-                    : "text-emerald-800 bg-emerald-100 border border-emerald-200"
-                }`}
+                className={`font-bold text-center mb-1 px-1 py-1 rounded ${dayData.es_domingo || dayData.es_festivo
+                  ? "text-red-800 bg-red-100 border border-red-200"
+                  : "text-emerald-800 bg-emerald-100 border border-emerald-200"
+                  }`}
               >
                 {toNumber(dayData.total_horas).toFixed(1)}h
               </div>
-
-              {/* ✅ Indicador de día especial si no hay recargos pero es domingo/festivo */}
-              {!tieneRecargos && (dayData.es_domingo || dayData.es_festivo) && (
-                <div className="text-center mt-1">
-                  <span className="text-xs bg-gray-100 text-gray-600 px-1 py-0.5 rounded">
-                    {dayData.es_domingo ? "🗓️ DOM" : "🎉 FES"}
-                  </span>
-                </div>
-              )}
             </div>
           );
         }
@@ -1425,8 +1455,28 @@ const CanvasRecargosDashboard = () => {
     activeFilters: string[];
     updateFilter: (key: FilterKey, value: string) => void;
   }) => {
-    // ✅ Ahora SÍ puedes usar Hooks aquí sin problemas
     const [dropdownSearch, setDropdownSearch] = useState("");
+    const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+    // Cierra el dropdown al hacer click fuera
+    React.useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
+        ) {
+          // Cierra el filtro para este tipo
+          setShowFilters((prev) => ({
+            ...prev,
+            [filterKey]: false,
+          }));
+        }
+      };
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [filterKey]);
 
     const filteredValues = useMemo(
       () =>
@@ -1439,7 +1489,10 @@ const CanvasRecargosDashboard = () => {
     );
 
     return (
-      <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-64 overflow-y-auto">
+      <div
+        ref={dropdownRef}
+        className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-50 max-h-64 overflow-y-auto"
+      >
         <div className="mb-2">
           <input
             type="text"
@@ -1507,7 +1560,7 @@ const CanvasRecargosDashboard = () => {
                         Planilla de Recargos
                       </h1>
                       <p className="text-sm text-gray-600 hidden sm:block mt-1">
-                        Vista de tabla avanzada con filtros inteligentes
+                        Vista de recargos avanzada con filtros inteligentes
                       </p>
                     </div>
                   </div>
@@ -1949,6 +2002,15 @@ const CanvasRecargosDashboard = () => {
                       Eliminar
                     </Button>
                     <Button
+                      onPress={handleLiquidar}
+                      color="warning"
+                      variant="flat"
+                      size="sm"
+                      startContent={<Copy size={12} />}
+                    >
+                      Liquidado
+                    </Button>
+                    <Button
                       onPress={handleCopySelectedRows}
                       color="primary"
                       variant="flat"
@@ -2064,6 +2126,16 @@ const CanvasRecargosDashboard = () => {
                         </span>
 
                         <Button
+                          onPress={handleLiquidar}
+                          color="warning"
+                          variant="flat"
+                          size="sm"
+                          startContent={<Copy size={12} />}
+                        >
+                          Liquidado
+                        </Button>
+
+                        <Button
                           onPress={handleCopySelectedRows}
                           color="primary"
                           variant="flat"
@@ -2172,17 +2244,15 @@ const CanvasRecargosDashboard = () => {
                     >
                       <div className="p-2 flex items-center justify-between">
                         <div
-                          className={`flex-1 text-xs font-bold ${
-                            column.isSunday || column.isHoliday
-                              ? "text-white"
-                              : "text-gray-700"
-                          } ${
-                            column.align === "center"
+                          className={`flex-1 text-xs font-bold ${column.isSunday || column.isHoliday
+                            ? "text-white"
+                            : "text-gray-700"
+                            } ${column.align === "center"
                               ? "text-center"
                               : column.align === "right"
                                 ? "text-right"
                                 : "text-left"
-                          }`}
+                            }`}
                         >
                           <div className="whitespace-pre-line leading-tight">
                             {column.isDayColumn ? (
@@ -2206,21 +2276,19 @@ const CanvasRecargosDashboard = () => {
                           {column.sortable && (
                             <button
                               onClick={() => handleSort(column.key)}
-                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${
-                                column.isSunday || column.isHoliday
-                                  ? "hover:bg-white/20"
-                                  : ""
-                              }`}
+                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${column.isSunday || column.isHoliday
+                                ? "hover:bg-white/20"
+                                : ""
+                                }`}
                             >
                               <ArrowUpDown
                                 size={10}
-                                className={`cursor-pointer ${
-                                  sortField === column.key
-                                    ? "text-emerald-600"
-                                    : column.isSunday || column.isHoliday
-                                      ? "text-white"
-                                      : "text-gray-400"
-                                }`}
+                                className={`cursor-pointer ${sortField === column.key
+                                  ? "text-emerald-600"
+                                  : column.isSunday || column.isHoliday
+                                    ? "text-white"
+                                    : "text-gray-400"
+                                  }`}
                               />
                             </button>
                           )}
@@ -2241,21 +2309,20 @@ const CanvasRecargosDashboard = () => {
                                           : "estados",
                                 )
                               }
-                              className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${
-                                filters[
-                                  column.key === "conductor"
-                                    ? "conductores"
-                                    : column.key === "empresa"
-                                      ? "empresas"
-                                      : column.key === "numero_planilla"
-                                        ? "planillas"
-                                        : column.key === "vehiculo"
-                                          ? "placas"
-                                          : "estados"
-                                ]?.length > 0
-                                  ? "text-emerald-600"
-                                  : "text-gray-400"
-                              }`}
+                              className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${filters[
+                                column.key === "conductor"
+                                  ? "conductores"
+                                  : column.key === "empresa"
+                                    ? "empresas"
+                                    : column.key === "numero_planilla"
+                                      ? "planillas"
+                                      : column.key === "vehiculo"
+                                        ? "placas"
+                                        : "estados"
+                              ]?.length > 0
+                                ? "text-emerald-600"
+                                : "text-gray-400"
+                                }`}
                             >
                               <Filter size={10} />
                             </button>
@@ -2297,9 +2364,8 @@ const CanvasRecargosDashboard = () => {
               return (
                 <div
                   key={item.id}
-                  className={`flex relative divide-y divide-gray-300 ${
-                    selectedRows.has(item.id) ? "opacity-70" : ""
-                  }`}
+                  className={`flex relative divide-y divide-gray-300 ${selectedRows.has(item.id) ? "opacity-70" : ""
+                    }`}
                 >
                   {/* Mask overlay que cubre toda la fila */}
                   {selectedRows.has(item.id) && (
@@ -2513,11 +2579,10 @@ const CanvasRecargosDashboard = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${
-                            currentPage === pageNum
-                              ? "bg-emerald-600 text-white font-medium"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
+                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${currentPage === pageNum
+                            ? "bg-emerald-600 text-white font-medium"
+                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -2574,7 +2639,8 @@ const CanvasRecargosDashboard = () => {
         isOpen={viewModalState.isOpen}
         onClose={() => setViewModalState({ isOpen: false, recargoId: null })}
       />
-      {DialogComponent}
+      {EliminarDialog}
+      {LiquidarDialog}
     </>
   );
 };

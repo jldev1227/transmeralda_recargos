@@ -296,7 +296,7 @@ export interface CanvasRecargo {
   total_rn: number;
   total_rd: number;
   dias_laborales: DiaLaboralPlanilla[];
-  estado: "activo" | "inactivo" | "pendiente" | "aprobado" | "rechazado";
+  estado: 'pendiente' | 'liquidada' | 'facturada';
   planilla_s3key: string;
 }
 
@@ -766,7 +766,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           throw new Error(
             response.data.message ||
-              "Error al obtener configuraciones de salario",
+            "Error al obtener configuraciones de salario",
           );
         }
       } catch (err) {
@@ -913,7 +913,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           setError(
             response.data.message ||
-              "Error al actualizar configuración de salario",
+            "Error al actualizar configuración de salario",
           );
           return { success: false };
         }
@@ -954,7 +954,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           setError(
             response.data.message ||
-              "Error al eliminar configuración de salario",
+            "Error al eliminar configuración de salario",
           );
           return { success: false };
         }
@@ -1055,11 +1055,16 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        console.error("❌ Error al registrar recargo:", err);
         const errorMessage = handleApiError(
           err,
           "Error al registrar el recargo",
         );
+        console.log(err)
+        addToast({
+          title: "Error al registrar recargo",
+          description: errorMessage,
+          color: "danger",
+        });
         setError(errorMessage);
         return { success: false };
       } finally {
@@ -1207,6 +1212,11 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           err,
           "Error al actualizar el recargo",
         );
+        addToast({
+          title: "Error al actualizar recargo",
+          description: errorMessage,
+          color: "danger",
+        });
         setError(errorMessage);
         return { success: false };
       } finally {
@@ -1721,6 +1731,16 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           description: descripcion,
           color: "success",
         });
+
+        // Agregar el recargo al canvasData
+        setCanvasData((prevCanvasData) => {
+          if (!prevCanvasData) return prevCanvasData;
+          return {
+            ...prevCanvasData,
+            recargos: [...prevCanvasData.recargos, recargo],
+            total_recargos: prevCanvasData.total_recargos + 1,
+          };
+        });
       };
 
       const handleRecargoActualizado = (data: any) => {
@@ -1794,6 +1814,56 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       };
 
+      const handleRecargoLiquidado = (data: any) => {
+        setSocketEventLogs((prev) => [
+          ...prev,
+          {
+            eventName: "recargo-planilla:liquidado",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+
+        const idsLiquidados = data.selectedIds || [];
+        const usuario = data.usuarioNombre || "Usuario";
+        const cantidadLiquidados = idsLiquidados.length;
+        const esLiquidador = data.usuarioId === user.id;
+        const planillasLiquidadas = data.numerosPlanilla || []; // Viene del backend
+
+        // Actualizar el canvas si existe
+        setCanvasData((prevCanvasData) => {
+          if (!prevCanvasData || !idsLiquidados.length) {
+            return prevCanvasData;
+          }
+
+          const recargosActualizados = prevCanvasData.recargos.map((recargo) =>
+            idsLiquidados.includes(recargo.id)
+              ? { ...recargo, estado: "liquidada" as "liquidada" }
+              : recargo
+          );
+
+          return {
+            ...prevCanvasData,
+            recargos: recargosActualizados,
+          };
+        });
+
+        // Mostrar notificación con planillas
+        if (esLiquidador) {
+          addToast({
+            title: "Liquidación exitosa",
+            description: `Has liquidado ${cantidadLiquidados} recargo${cantidadLiquidados > 1 ? "s" : ""}${planillasLiquidadas.length ? ` • Planillas: ${planillasLiquidadas.join(", ")}` : ""}`,
+            color: "success",
+          });
+        } else {
+          addToast({
+            title: "Recargos liquidados",
+            description: `${usuario} liquidó ${cantidadLiquidados} recargo${cantidadLiquidados > 1 ? "s" : ""}${planillasLiquidadas.length ? ` • Planillas: ${planillasLiquidadas.join(", ")}` : ""}`,
+            color: "success",
+          });
+        }
+      };
+
       const handleRecargoEliminado = (data: any) => {
         setSocketEventLogs((prev) => [
           ...prev,
@@ -1865,6 +1935,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         handleRecargoActualizado,
       );
       socketService.on("recargo-planilla:eliminado", handleRecargoEliminado);
+      socketService.on("recargo-planilla:liquidado", handleRecargoLiquidado);
       socketService.on("recargo-planilla:error", handleRecargoError);
 
       return () => {
@@ -1877,6 +1948,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         socketService.off("recargo-planilla:creado");
         socketService.off("recargo-planilla:actualizado");
         socketService.off("recargo-planilla:eliminado");
+        socketService.off("recargo-planilla:liquidado");
         socketService.off("recargo-planilla:error");
       };
     }
