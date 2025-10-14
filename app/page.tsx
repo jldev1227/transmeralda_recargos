@@ -135,8 +135,8 @@ const months = [
 
 const CanvasRecargosDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState("conductor");
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [sortField, setSortField] = useState("");
+  const [sortDirection, setSortDirection] = useState("");
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
@@ -1100,6 +1100,11 @@ const CanvasRecargosDashboard = () => {
       setSortDirection("asc");
     }
   };
+
+  const handleResetSort = () => {
+    setSortField("");
+    setSortDirection("");
+  }
 
   const handleSelectRow = (id: string) => {
     const newSelected = new Set(selectedRows);
@@ -2226,6 +2231,25 @@ const renderFilterDropdown = (column: Column) => {
                       className="pl-9 pr-4 py-2 w-full sm:w-80 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                     />
                   </div>
+
+                  {sortField && sortDirection && (
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-gray-600 whitespace-nowrap">
+                        Ordenado por:
+                      </span>
+                      <span className="text-sm text-gray-600 font-medium">
+                        {sortField} {sortDirection === "asc" ? "↑" : "↓"}
+                      </span>
+                      <Button
+                        onPress={handleResetSort}
+                        variant="flat"
+                        size="sm"
+                        color="danger"
+                      >
+                        Reiniciar orden
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Indicadores de filtros activos */}
                   {activeFiltersCount > 0 && (
