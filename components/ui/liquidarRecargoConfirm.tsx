@@ -76,7 +76,8 @@ const LiquidarRecargoConfirm: React.FC<LiquidarRecargoConfirmProps> = ({
                     {title}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    {planillasLength} planilla{planillasLength > 1 ? "s" : ""} seleccionada{planillasLength > 1 ? "s" : ""}
+                    {planillasLength} planilla{planillasLength > 1 ? "s" : ""}{" "}
+                    seleccionada{planillasLength > 1 ? "s" : ""}
                   </p>
                 </div>
               </div>
@@ -105,7 +106,8 @@ const LiquidarRecargoConfirm: React.FC<LiquidarRecargoConfirmProps> = ({
                         Esta acción liquidará los recargos seleccionados
                       </p>
                       <p>
-                        Las siguientes planillas serán liquidadas. Por favor verifica que sean correctas antes de continuar.
+                        Las siguientes planillas serán liquidadas. Por favor
+                        verifica que sean correctas antes de continuar.
                       </p>
                     </div>
                   </div>
@@ -153,7 +155,8 @@ export const useLiquidarRecargoConfirm = () => {
     Omit<LiquidarRecargoConfirmProps, "isOpen" | "onClose">
   >({
     title: "Confirmar liquidación",
-    message: "¿Estás seguro de que quieres liquidar los recargos seleccionados?",
+    message:
+      "¿Estás seguro de que quieres liquidar los recargos seleccionados?",
     confirmText: "Liquidar",
     cancelText: "Cancelar",
     planillasLength: 0,

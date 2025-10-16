@@ -275,7 +275,7 @@ export default function ModalConfiguracion() {
       refrescarTiposRecargo();
       refrescarConfiguracionesSalario();
     }
-  }, [isOpen, refrescarConfiguracionesSalario, refrescarTiposRecargo]);
+  }, [isOpen]);
 
   // Funciones para manejar edición de tipos de recargo
   const handleEditTipoRecargo = (tipo: any) => {

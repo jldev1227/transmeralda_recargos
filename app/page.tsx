@@ -13,11 +13,11 @@ import {
   Edit3,
   PlusIcon,
   Clock,
-  FileText,
-  FileX,
   Trash2,
   Minus,
   Copy,
+  FileText,
+  FileX,
 } from "lucide-react";
 import ModalFormRecargo from "@/components/ui/modalFormRecargo";
 import {
@@ -36,6 +36,15 @@ import { Tooltip } from "@heroui/tooltip";
 import { useEliminarRecargoConfirm } from "@/components/ui/eliminarRecargoConfirm";
 import { apiClient } from "@/config/apiClient";
 import { useLiquidarRecargoConfirm } from "@/components/ui/liquidarRecargoConfirm";
+import {
+  DropdownMenu,
+  DropdownItem,
+  DropdownTrigger,
+  Dropdown,
+} from "@heroui/dropdown";
+import { Avatar } from "@heroui/avatar";
+import { useAuth } from "@/context/AuthContext";
+import useLogout from "@/components/logout";
 
 interface ShowFilters {
   conductores: boolean;
@@ -134,6 +143,8 @@ const months = [
 ];
 
 const CanvasRecargosDashboard = () => {
+  const { user } = useAuth();
+  const { logout } = useLogout();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("");
@@ -310,9 +321,16 @@ const CanvasRecargosDashboard = () => {
     canvasData,
   } = useRecargo();
 
-  const { confirm: eliminarRecargoConfirm, setLoading: setEliminarLoading, DialogComponent: EliminarDialog } = useEliminarRecargoConfirm();
-  const { confirm: liquidarRecargoConfirm, setLoading: setLiquidarLoading, DialogComponent: LiquidarDialog } = useLiquidarRecargoConfirm
-    ();
+  const {
+    confirm: eliminarRecargoConfirm,
+    setLoading: setEliminarLoading,
+    DialogComponent: EliminarDialog,
+  } = useEliminarRecargoConfirm();
+  const {
+    confirm: liquidarRecargoConfirm,
+    setLoading: setLiquidarLoading,
+    DialogComponent: LiquidarDialog,
+  } = useLiquidarRecargoConfirm();
 
   const [modalFormIsOpen, setModalFormIsOpen] = useState(false);
   const [recargoId, setRecargoId] = useState("");
@@ -605,14 +623,18 @@ const CanvasRecargosDashboard = () => {
     return [...baseColumns, ...dayColumns, ...summaryColumns];
   }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday]);
 
-  const MAPEO_CAMPOS_HORAS = useMemo(() => ({
-    HED: "total_hed", // Horas Extra Diurnas
-    HEN: "total_hen", // Horas Extra Nocturnas
-    HEFD: "total_hefd", // Horas Extra Festivas Diurnas
-    HEFN: "total_hefn", // Horas Extra Festivas Nocturnas
-    RN: "total_rn", // Recargo Nocturno
-    RD: "total_rd", // Recargo Dominical Diurno
-  } as const), []);
+  const MAPEO_CAMPOS_HORAS = useMemo(
+    () =>
+      ({
+        HED: "total_hed", // Horas Extra Diurnas
+        HEN: "total_hen", // Horas Extra Nocturnas
+        HEFD: "total_hefd", // Horas Extra Festivas Diurnas
+        HEFN: "total_hefn", // Horas Extra Festivas Nocturnas
+        RN: "total_rn", // Recargo Nocturno
+        RD: "total_rd", // Recargo Dominical Diurno
+      }) as const,
+    [],
+  );
 
   const calcularTotalesRecargos = (diasLaborales: DiaLaboralPlanilla[]) => {
     if (!diasLaborales || diasLaborales.length === 0) {
@@ -696,47 +718,51 @@ const CanvasRecargosDashboard = () => {
     (field: string, excludeCurrentFilter = true) => {
       // Crear una copia de los filtros excluyendo el filtro actual si es necesario
       // Esto evita dependencias circulares (ej: filtro de empresas depende de filtro de empresas)
-      const activeFilters = excludeCurrentFilter 
-        ? { ...filters, [field]: [] } 
+      const activeFilters = excludeCurrentFilter
+        ? { ...filters, [field]: [] }
         : filters;
 
       // Filtrar los datos basándose en los filtros activos (excluyendo el actual)
       let filteredData = [...processedDataWithTotals];
 
       // ✅ FILTROS DEPENDIENTES: Cada filtro afecta las opciones de los demás
-      
+
       // Aplicar filtros de empresas (afecta conductores, placas y planillas)
       if (activeFilters.empresas && activeFilters.empresas.length > 0) {
         filteredData = filteredData.filter((item) =>
-          activeFilters.empresas.includes(item.empresa?.nombre || "Sin empresa")
+          activeFilters.empresas.includes(
+            item.empresa?.nombre || "Sin empresa",
+          ),
         );
       }
 
       // Aplicar filtros de estados (afecta todos los demás filtros)
       if (activeFilters.estados && activeFilters.estados.length > 0) {
         filteredData = filteredData.filter((item) =>
-          activeFilters.estados.includes(item.estado || "pendiente")
+          activeFilters.estados.includes(item.estado || "pendiente"),
         );
       }
 
       // Aplicar filtros de planillas (afecta conductores y placas de esa planilla)
       if (activeFilters.planillas && activeFilters.planillas.length > 0) {
         filteredData = filteredData.filter((item) =>
-          activeFilters.planillas.includes(item.numero_planilla || "")
+          activeFilters.planillas.includes(item.numero_planilla || ""),
         );
       }
 
       // Aplicar filtros de placas (afecta conductores que manejan esas placas)
       if (activeFilters.placas && activeFilters.placas.length > 0) {
         filteredData = filteredData.filter((item) =>
-          activeFilters.placas.includes(item.vehiculo?.placa || "")
+          activeFilters.placas.includes(item.vehiculo?.placa || ""),
         );
       }
 
       // Aplicar filtros de conductores (afecta placas y planillas de esos conductores)
       if (activeFilters.conductores && activeFilters.conductores.length > 0) {
         filteredData = filteredData.filter((item) => {
-          const conductorNombre = `${item.conductor?.nombre} ${item.conductor?.apellido}`.trim() || "Sin conductor";
+          const conductorNombre =
+            `${item.conductor?.nombre} ${item.conductor?.apellido}`.trim() ||
+            "Sin conductor";
           return activeFilters.conductores.includes(conductorNombre);
         });
       }
@@ -858,150 +884,160 @@ const CanvasRecargosDashboard = () => {
     return result;
   }, [processedDataWithTotals, searchTerm, filters, sortField, sortDirection]);
 
-  const obtenerTotalRecargos = useCallback((item: CanvasRecargo): number => {
-    // Función para obtener salario base dentro del callback
-    const obtenerSalarioBase = (
-      item: CanvasRecargo,
-    ): ConfiguracionSalario | null => {
-      if (!item?.empresa?.id) {
-        return null;
+  const obtenerTotalRecargos = useCallback(
+    (item: CanvasRecargo): number => {
+      // Función para obtener salario base dentro del callback
+      const obtenerSalarioBase = (
+        item: CanvasRecargo,
+      ): ConfiguracionSalario | null => {
+        if (!item?.empresa?.id) {
+          return null;
+        }
+
+        if (!configuracionesSalario || !Array.isArray(configuracionesSalario)) {
+          return null;
+        }
+
+        let configuracionGlobal: ConfiguracionSalario | null = null;
+
+        for (const salario of configuracionesSalario) {
+          // Solo considerar configuraciones activas
+          if (!salario.activo) {
+            continue;
+          }
+
+          // Si encontramos configuración específica para la empresa
+          if (salario.empresa_id === item.empresa.id) {
+            return salario;
+          }
+
+          // Guardamos la primera configuración global que encontremos
+          if (
+            !configuracionGlobal &&
+            (salario.empresa_id === null || salario.empresa_id === undefined)
+          ) {
+            configuracionGlobal = salario;
+          }
+        }
+
+        return configuracionGlobal;
+      };
+
+      // Obtener el salario base para este item
+      const configuracionSalario = obtenerSalarioBase(item);
+
+      if (!configuracionSalario) {
+        return 0;
       }
 
-      if (!configuracionesSalario || !Array.isArray(configuracionesSalario)) {
-        return null;
-      }
+      const valorPorHora =
+        configuracionSalario.salario_basico /
+        configuracionSalario.horas_mensuales_base;
 
-      let configuracionGlobal: ConfiguracionSalario | null = null;
+      let totalGeneral = 0;
 
-      for (const salario of configuracionesSalario) {
-        // Solo considerar configuraciones activas
-        if (!salario.activo) {
+      const totalFestivos = item.dias_laborales.filter(
+        (dia) => dia.es_festivo,
+      ).length;
+      const totalDomingos = item.dias_laborales.filter(
+        (dia) => dia.es_domingo,
+      ).length;
+
+      // Filtrar tipos de recargo activos y ordenar por orden de cálculo
+      const tiposActivos = tiposRecargo
+        .filter((tipo) => tipo.activo)
+        .sort((a, b) => a.orden_calculo - b.orden_calculo);
+
+      for (const tipoRecargo of tiposActivos) {
+        const pagaDiasFestivos =
+          configuracionSalario.paga_dias_festivos || false;
+        let valorCalculado = 0; // ✅ Mover la declaración aquí para que esté disponible en todo el scope
+
+        // Si la configuración paga días festivos, calcular recargo especial para RD
+        if (pagaDiasFestivos && tipoRecargo.codigo === "RD") {
+          const valorDiarioBase = configuracionSalario.salario_basico / 30;
+
+          const porcentaje = tipoRecargo.porcentaje;
+
+          // ✅ Validar que el porcentaje sea válido
+          if (isNaN(porcentaje)) {
+            continue;
+          }
+
+          const valorRecargo = valorDiarioBase * (1 + porcentaje / 100);
+
+          // Total de días festivos/domingos (evitar duplicados)
+          const totalDiasEspeciales = totalFestivos + totalDomingos;
+
+          valorCalculado = totalDiasEspeciales * valorRecargo;
+
+          // ✅ Agregar al total y continuar con el siguiente tipo de recargo
+          totalGeneral += valorCalculado;
           continue;
         }
 
-        // Si encontramos configuración específica para la empresa
-        if (salario.empresa_id === item.empresa.id) {
-          return salario;
+        const campoHoras =
+          MAPEO_CAMPOS_HORAS[
+            tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
+          ];
+
+        if (!campoHoras) {
+          continue;
         }
 
-        // Guardamos la primera configuración global que encontremos
+        const horasTrabajadas = item[
+          campoHoras as keyof CanvasRecargo
+        ] as number;
+
+        // ✅ Validar que horasTrabajadas sea un número válido
         if (
-          !configuracionGlobal &&
-          (salario.empresa_id === null || salario.empresa_id === undefined)
+          !horasTrabajadas ||
+          horasTrabajadas <= 0 ||
+          isNaN(horasTrabajadas)
         ) {
-          configuracionGlobal = salario;
-        }
-      }
-
-      return configuracionGlobal;
-    };
-
-    // Obtener el salario base para este item
-    const configuracionSalario = obtenerSalarioBase(item);
-
-    if (!configuracionSalario) {
-      return 0;
-    }
-
-    const valorPorHora =
-      configuracionSalario.salario_basico /
-      configuracionSalario.horas_mensuales_base;
-
-    let totalGeneral = 0;
-
-    const totalFestivos = item.dias_laborales.filter(
-      (dia) => dia.es_festivo,
-    ).length;
-    const totalDomingos = item.dias_laborales.filter(
-      (dia) => dia.es_domingo,
-    ).length;
-
-    // Filtrar tipos de recargo activos y ordenar por orden de cálculo
-    const tiposActivos = tiposRecargo
-      .filter((tipo) => tipo.activo)
-      .sort((a, b) => a.orden_calculo - b.orden_calculo);
-
-    for (const tipoRecargo of tiposActivos) {
-      const pagaDiasFestivos = configuracionSalario.paga_dias_festivos || false;
-      let valorCalculado = 0; // ✅ Mover la declaración aquí para que esté disponible en todo el scope
-
-      // Si la configuración paga días festivos, calcular recargo especial para RD
-      if (pagaDiasFestivos && tipoRecargo.codigo === "RD") {
-        const valorDiarioBase = configuracionSalario.salario_basico / 30;
-
-        const porcentaje = tipoRecargo.porcentaje;
-
-        // ✅ Validar que el porcentaje sea válido
-        if (isNaN(porcentaje)) {
           continue;
         }
 
-        const valorRecargo = valorDiarioBase * (1 + porcentaje / 100);
-
-        // Total de días festivos/domingos (evitar duplicados)
-        const totalDiasEspeciales = totalFestivos + totalDomingos;
-
-        valorCalculado = totalDiasEspeciales * valorRecargo;
-
-        // ✅ Agregar al total y continuar con el siguiente tipo de recargo
-        totalGeneral += valorCalculado;
-        continue;
-      }
-
-      const campoHoras =
-        MAPEO_CAMPOS_HORAS[
-        tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
-        ];
-
-      if (!campoHoras) {
-        continue;
-      }
-
-      const horasTrabajadas = item[campoHoras as keyof CanvasRecargo] as number;
-
-      // ✅ Validar que horasTrabajadas sea un número válido
-      if (!horasTrabajadas || horasTrabajadas <= 0 || isNaN(horasTrabajadas)) {
-        continue;
-      }
-
-      if (tipoRecargo.es_valor_fijo && tipoRecargo.valor_fijo) {
-        // Para valores fijos (como COVID)
-        const valorFijo = tipoRecargo.valor_fijo;
-        if (isNaN(valorFijo)) {
-          continue;
-        }
-        valorCalculado = valorFijo;
-      } else {
-        // Para porcentajes
-        const porcentaje = tipoRecargo.porcentaje;
-
-        if (isNaN(porcentaje)) {
-          continue;
-        }
-
-        if (isNaN(valorPorHora) || valorPorHora <= 0) {
-          continue;
-        }
-
-        if (tipoRecargo.adicional) {
-          const valorHoraConRecargo = valorPorHora * (1 + porcentaje / 100);
-          valorCalculado = valorHoraConRecargo * horasTrabajadas;
+        if (tipoRecargo.es_valor_fijo && tipoRecargo.valor_fijo) {
+          // Para valores fijos (como COVID)
+          const valorFijo = tipoRecargo.valor_fijo;
+          if (isNaN(valorFijo)) {
+            continue;
+          }
+          valorCalculado = valorFijo;
         } else {
-          const valorHoraConRecargo = valorPorHora * (porcentaje / 100);
-          valorCalculado = valorHoraConRecargo * horasTrabajadas;
+          // Para porcentajes
+          const porcentaje = tipoRecargo.porcentaje;
+
+          if (isNaN(porcentaje)) {
+            continue;
+          }
+
+          if (isNaN(valorPorHora) || valorPorHora <= 0) {
+            continue;
+          }
+
+          if (tipoRecargo.adicional) {
+            const valorHoraConRecargo = valorPorHora * (1 + porcentaje / 100);
+            valorCalculado = valorHoraConRecargo * horasTrabajadas;
+          } else {
+            const valorHoraConRecargo = valorPorHora * (porcentaje / 100);
+            valorCalculado = valorHoraConRecargo * horasTrabajadas;
+          }
         }
+
+        // ✅ Validar el resultado antes de sumarlo
+        if (isNaN(valorCalculado)) {
+          continue;
+        }
+
+        totalGeneral += valorCalculado;
       }
 
-      // ✅ Validar el resultado antes de sumarlo
-      if (isNaN(valorCalculado)) {
-        continue;
-      }
-
-      totalGeneral += valorCalculado;
-    }
-
-    return totalGeneral;
-  }, [tiposRecargo, MAPEO_CAMPOS_HORAS, configuracionesSalario]);
+      return totalGeneral;
+    },
+    [tiposRecargo, MAPEO_CAMPOS_HORAS, configuracionesSalario],
+  );
 
   // Datos paginados
   const paginatedData = useMemo(() => {
@@ -1104,7 +1140,7 @@ const CanvasRecargosDashboard = () => {
   const handleResetSort = () => {
     setSortField("");
     setSortDirection("");
-  }
+  };
 
   const handleSelectRow = (id: string) => {
     const newSelected = new Set(selectedRows);
@@ -1131,7 +1167,7 @@ const CanvasRecargosDashboard = () => {
       empresa: "empresas",
       numero_planilla: "planillas",
       vehiculo: "placas",
-      estado: "estados"
+      estado: "estados",
     };
     return mapping[columnKey] || "estados";
   };
@@ -1139,7 +1175,7 @@ const CanvasRecargosDashboard = () => {
   const toggleFilter = (type: FilterKey) => {
     setShowFilters((prev) => {
       const isCurrentlyOpen = prev[type];
-      
+
       // Si el filtro actual está abierto, solo cerrarlo
       // Si está cerrado, cerrarlo todo y abrir este
       return Object.keys(prev).reduce((acc, key) => {
@@ -1329,7 +1365,7 @@ const CanvasRecargosDashboard = () => {
             className={`flex items-center gap-2 py-2 px-5 rounded-full ${bgColor}`}
           >
             {tienePlanilla ? (
-              <Tooltip content="Con numero_planilla">
+              <Tooltip content="Con numero planilla">
                 <FileText size={16} className={iconColor} />
               </Tooltip>
             ) : (
@@ -1389,7 +1425,9 @@ const CanvasRecargosDashboard = () => {
         }
 
         return (
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium uppercase ${estadoBg} ${estadoText}`}>
+          <span
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium uppercase ${estadoBg} ${estadoText}`}
+          >
             {estadoLabel}
           </span>
         );
@@ -1479,10 +1517,11 @@ const CanvasRecargosDashboard = () => {
             <div className="text-xs w-full py-1">
               {/* ✅ Horas trabajadas - Siempre visible */}
               <div
-                className={`font-bold text-center mb-1 px-1 py-1 rounded ${dayData.es_domingo || dayData.es_festivo
-                  ? "text-red-800 bg-red-100 border border-red-200"
-                  : "text-emerald-800 bg-emerald-100 border border-emerald-200"
-                  }`}
+                className={`font-bold text-center mb-1 px-1 py-1 rounded ${
+                  dayData.es_domingo || dayData.es_festivo
+                    ? "text-red-800 bg-red-100 border border-red-200"
+                    : "text-emerald-800 bg-emerald-100 border border-emerald-200"
+                }`}
               >
                 {toNumber(dayData.total_horas).toFixed(1)}h
               </div>
@@ -1498,52 +1537,52 @@ const CanvasRecargosDashboard = () => {
     }
   };
 
-const renderFilterDropdown = (column: Column) => {
-  // Evitar render de columnas no filtrables
-  if (!column.filterable) return null;
+  const renderFilterDropdown = (column: Column) => {
+    // Evitar render de columnas no filtrables
+    if (!column.filterable) return null;
 
-  const keyMap: Record<string, keyof typeof showFilters> = {
-    conductor: "conductores",
-    empresa: "empresas",
-    numero_planilla: "planillas",
-    vehiculo: "placas",
-    estado: "estados",
+    const keyMap: Record<string, keyof typeof showFilters> = {
+      conductor: "conductores",
+      empresa: "empresas",
+      numero_planilla: "planillas",
+      vehiculo: "placas",
+      estado: "estados",
+    };
+
+    const validKeys = Object.keys(keyMap);
+    const colKey = column.key;
+
+    // Solo procesar columnas que son candidatas para filtros
+    if (!validKeys.includes(colKey)) {
+      return null;
+    }
+
+    // Obtener key mapeado
+    const mappedKey = keyMap[colKey];
+    const isFilterVisible = showFilters[mappedKey];
+
+    if (!isFilterVisible) {
+      return null;
+    }
+
+    try {
+      const filterKey = mappedKey as FilterKey;
+      const values = getFilteredUniqueValues(filterKey) ?? [];
+      const activeFilters = filters[filterKey] || [];
+
+      return (
+        <FilterDropdownContent
+          column={column}
+          filterKey={filterKey}
+          values={values as string[]}
+          activeFilters={activeFilters}
+          updateFilter={updateFilter}
+        />
+      );
+    } catch {
+      return null;
+    }
   };
-
-  const validKeys = Object.keys(keyMap);
-  const colKey = column.key;
-
-  // Solo procesar columnas que son candidatas para filtros
-  if (!validKeys.includes(colKey)) {
-    return null;
-  }
-
-  // Obtener key mapeado
-  const mappedKey = keyMap[colKey];
-  const isFilterVisible = showFilters[mappedKey];
-
-  if (!isFilterVisible) {
-    return null;
-  }
-
-  try {
-    const filterKey = mappedKey as FilterKey;
-    const values = getFilteredUniqueValues(filterKey) ?? [];
-    const activeFilters = filters[filterKey] || [];
-
-    return (
-      <FilterDropdownContent
-        column={column}
-        filterKey={filterKey}
-        values={values as string[]}
-        activeFilters={activeFilters}
-        updateFilter={updateFilter}
-      />
-    );
-  } catch {
-    return null;
-  }
-};
 
   // ✅ Componente separado fuera de CanvasRecargosDashboard
   const FilterDropdownContent = ({
@@ -1586,8 +1625,8 @@ const renderFilterDropdown = (column: Column) => {
       () =>
         dropdownSearch
           ? values.filter((v) =>
-            v.toLowerCase().includes(dropdownSearch.toLowerCase()),
-          )
+              v.toLowerCase().includes(dropdownSearch.toLowerCase()),
+            )
           : values,
       [values, dropdownSearch],
     );
@@ -1686,7 +1725,8 @@ const renderFilterDropdown = (column: Column) => {
                         Planilla de Recargos
                       </h1>
                       <p className="text-sm text-gray-600 hidden sm:block mt-1">
-                        Vista de recargos con filtros dependientes - Los filtros se adaptan automáticamente
+                        Vista de recargos con filtros dependientes - Los filtros
+                        se adaptan automáticamente
                       </p>
                       {activeFiltersCount > 0 && (
                         <p className="text-xs text-emerald-600 mt-1 hidden sm:block">
@@ -1833,6 +1873,58 @@ const renderFilterDropdown = (column: Column) => {
                     Nuevo recargo
                   </Button>
                   <ModalConfiguracion />
+                  <div className="flex items-center gap-4">
+                    <Dropdown placement="bottom-end">
+                      <DropdownTrigger>
+                        <Avatar
+                          isBordered
+                          as="button"
+                          className="transition-transform cursor-pointer"
+                          classNames={{
+                            base: "bg-emerald-100 border-emerald-300",
+                            name: "text-emerald-700 font-medium",
+                          }}
+                          name={
+                            user?.nombre
+                              ? user.nombre.charAt(0).toUpperCase()
+                              : "U"
+                          }
+                        />
+                      </DropdownTrigger>
+                      <DropdownMenu aria-label="Profile Actions" variant="flat">
+                        <DropdownItem
+                          key="profile"
+                          className="h-14 gap-2 bg-gradient-to-r from-emerald-50 to-emerald-100 border-l-4 border-emerald-500 hover:opacity-80"
+                          onPress={() =>
+                            window.open(
+                              process.env.NEXT_PUBLIC_AUTH_SYSTEM,
+                              "_blank",
+                            )
+                          }
+                          startContent={
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                          }
+                        >
+                          <div className="flex flex-col">
+                            <p className="text-small font-semibold text-gray-900">
+                              {user?.nombre || "Usuario"}
+                            </p>
+                            <p className="text-tiny text-gray-500 capitalize">
+                              {user?.role || "Usuario"}
+                            </p>
+                          </div>
+                        </DropdownItem>
+                        <DropdownItem
+                          key="logout"
+                          color="danger"
+                          className="text-danger mt-2 p-3"
+                          onPress={logout}
+                        >
+                          Cerrar Sesión
+                        </DropdownItem>
+                      </DropdownMenu>
+                    </Dropdown>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2124,7 +2216,8 @@ const renderFilterDropdown = (column: Column) => {
                     </span>
                     {recargosYaLiquidados.length > 0 && (
                       <span className="text-xs text-amber-600">
-                        {recargosYaLiquidados.length} ya liquidado{recargosYaLiquidados.length > 1 ? "s" : ""}
+                        {recargosYaLiquidados.length} ya liquidado
+                        {recargosYaLiquidados.length > 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
@@ -2147,7 +2240,10 @@ const renderFilterDropdown = (column: Column) => {
                       isDisabled={recargosParaLiquidar.length === 0}
                       startContent={<Copy size={12} />}
                     >
-                      Liquidar {recargosParaLiquidar.length > 0 ? `(${recargosParaLiquidar.length})` : ""}
+                      Liquidar{" "}
+                      {recargosParaLiquidar.length > 0
+                        ? `(${recargosParaLiquidar.length})`
+                        : ""}
                     </Button>
                     <Button
                       onPress={handleCopySelectedRows}
@@ -2257,21 +2353,29 @@ const renderFilterDropdown = (column: Column) => {
                       <span className="text-sm text-gray-600 whitespace-nowrap">
                         Filtros activos:
                       </span>
-                        <>
+                      <>
                         {(() => {
-                          const keys: FilterKey[] = ["conductores", "empresas", "estados", "planillas", "placas"];
+                          const keys: FilterKey[] = [
+                            "conductores",
+                            "empresas",
+                            "estados",
+                            "planillas",
+                            "placas",
+                          ];
                           const activeGroupsCount = keys.reduce((acc, key) => {
-                          const isActive = !!showFilters[key] || (filters[key]?.length ?? 0) > 0;
-                          return acc + (isActive ? 1 : 0);
+                            const isActive =
+                              !!showFilters[key] ||
+                              (filters[key]?.length ?? 0) > 0;
+                            return acc + (isActive ? 1 : 0);
                           }, 0);
 
                           return (
-                          <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
-                            {activeGroupsCount}
-                          </span>
+                            <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
+                              {activeGroupsCount}
+                            </span>
                           );
                         })()}
-                        </>
+                      </>
                       <Button
                         onPress={clearAllFilters}
                         variant="light"
@@ -2297,7 +2401,8 @@ const renderFilterDropdown = (column: Column) => {
                           </span>
                           {recargosYaLiquidados.length > 0 && (
                             <span className="text-xs text-amber-600">
-                              {recargosYaLiquidados.length} ya liquidado{recargosYaLiquidados.length > 1 ? "s" : ""}
+                              {recargosYaLiquidados.length} ya liquidado
+                              {recargosYaLiquidados.length > 1 ? "s" : ""}
                             </span>
                           )}
                         </div>
@@ -2310,7 +2415,10 @@ const renderFilterDropdown = (column: Column) => {
                           isDisabled={recargosParaLiquidar.length === 0}
                           startContent={<Copy size={12} />}
                         >
-                          Liquidar {recargosParaLiquidar.length > 0 ? `(${recargosParaLiquidar.length})` : ""}
+                          Liquidar{" "}
+                          {recargosParaLiquidar.length > 0
+                            ? `(${recargosParaLiquidar.length})`
+                            : ""}
                         </Button>
 
                         <Button
@@ -2422,15 +2530,17 @@ const renderFilterDropdown = (column: Column) => {
                     >
                       <div className="p-2 flex items-center justify-between">
                         <div
-                          className={`flex-1 text-xs font-bold flex items-center justify-${column.align === "center"
-                            ? "center"
-                            : column.align === "right"
-                              ? "end"
-                              : "start"
-                            } ${column.isSunday || column.isHoliday
+                          className={`flex-1 text-xs font-bold flex items-center justify-${
+                            column.align === "center"
+                              ? "center"
+                              : column.align === "right"
+                                ? "end"
+                                : "start"
+                          } ${
+                            column.isSunday || column.isHoliday
                               ? "text-white"
                               : "text-gray-700"
-                            }`}
+                          }`}
                           style={{ height: "100%" }}
                         >
                           <div className="whitespace-pre-line leading-tight">
@@ -2455,19 +2565,21 @@ const renderFilterDropdown = (column: Column) => {
                           {column.sortable && (
                             <button
                               onClick={() => handleSort(column.key)}
-                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${column.isSunday || column.isHoliday
-                                ? "hover:bg-white/20"
-                                : ""
-                                }`}
+                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${
+                                column.isSunday || column.isHoliday
+                                  ? "hover:bg-white/20"
+                                  : ""
+                              }`}
                             >
                               <ArrowUpDown
                                 size={10}
-                                className={`cursor-pointer ${sortField === column.key
-                                  ? "text-emerald-600"
-                                  : column.isSunday || column.isHoliday
-                                    ? "text-white"
-                                    : "text-gray-400"
-                                  }`}
+                                className={`cursor-pointer ${
+                                  sortField === column.key
+                                    ? "text-emerald-600"
+                                    : column.isSunday || column.isHoliday
+                                      ? "text-white"
+                                      : "text-gray-400"
+                                }`}
                               />
                             </button>
                           )}
@@ -2482,13 +2594,18 @@ const renderFilterDropdown = (column: Column) => {
                               }}
                               className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${
                                 // Mostrar como activo si tiene filtros aplicados O si está abierto
-                                filters[getFilterKey(column.key)]?.length > 0 || showFilters[getFilterKey(column.key)]
+                                filters[getFilterKey(column.key)]?.length > 0 ||
+                                showFilters[getFilterKey(column.key)]
                                   ? "text-emerald-600 bg-emerald-50"
                                   : column.isSunday || column.isHoliday
                                     ? "text-white hover:bg-white/20"
                                     : "text-gray-400"
                               }`}
-                              title={showFilters[getFilterKey(column.key)] ? "Cerrar filtro" : "Abrir filtro"}
+                              title={
+                                showFilters[getFilterKey(column.key)]
+                                  ? "Cerrar filtro"
+                                  : "Abrir filtro"
+                              }
                             >
                               <Filter size={10} />
                             </button>
@@ -2527,10 +2644,13 @@ const renderFilterDropdown = (column: Column) => {
                 return sum + width;
               }, 0);
 
+              const isLiquidada = item.estado === "liquidada";
+
               return (
                 <div
                   key={item.id}
-                  className={`flex relative ${selectedRows.has(item.id) ? "opacity-70" : ""}`}
+                  className={`flex relative ${selectedRows.has(item.id) ? "opacity-70" : ""} cursor-pointer`}
+                  onClick={() => handleRowClick(item.id)}
                   style={{ width: `${totalWidth}px` }}
                 >
                   <div
@@ -2546,6 +2666,19 @@ const renderFilterDropdown = (column: Column) => {
                         width: `${totalWidth}px`,
                         backgroundImage:
                           "linear-gradient(135deg, transparent, rgba(102, 178, 250, 0.1), transparent)",
+                        backgroundSize: "20px 20px",
+                      }}
+                    />
+                  )}
+
+                  {/* Mask overlay que cubre toda la fila */}
+                  {isLiquidada && (
+                    <div
+                      className="absolute top-0 left-0 h-full bg-amber-100/10 z-50 pointer-events-none"
+                      style={{
+                        width: `${totalWidth}px`,
+                        backgroundImage:
+                          "linear-gradient(135deg, transparent, rgba(255, 204, 0, 0.1), transparent)",
                         backgroundSize: "20px 20px",
                       }}
                     />
@@ -2750,10 +2883,11 @@ const renderFilterDropdown = (column: Column) => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${currentPage === pageNum
-                            ? "bg-emerald-600 text-white font-medium"
-                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                            }`}
+                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${
+                            currentPage === pageNum
+                              ? "bg-emerald-600 text-white font-medium"
+                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                          }`}
                         >
                           {pageNum}
                         </button>

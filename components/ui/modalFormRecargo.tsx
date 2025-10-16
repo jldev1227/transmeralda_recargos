@@ -366,56 +366,59 @@ export default function ModalFormRecargo({
   }, []);
 
   // Función para cargar datos del recargo a editar
-  const cargarDatosRecargo = useCallback(async (id: string) => {
-    try {
-      setIsLoadingData(true);
-      const response = await obtenerRecargoPorId(id);
-      const recargo = response?.data.recargo;
+  const cargarDatosRecargo = useCallback(
+    async (id: string) => {
+      try {
+        setIsLoadingData(true);
+        const response = await obtenerRecargoPorId(id);
+        const recargo = response?.data.recargo;
 
-      if (recargo?.planilla_s3key) {
-        const url = await getPresignedUrl(recargo.planilla_s3key);
-        setArchivoExistente(url);
-      } else {
-        setArchivoExistente(null);
-      }
-
-      if (recargo) {
-        setFormData({
-          conductorId: recargo.conductor.id,
-          vehiculoId: recargo.vehiculo.id,
-          empresaId: recargo.empresa.id,
-          tmNumber: recargo.numero_planilla || "",
-        });
-
-        if (recargo.dias_laborales && recargo.dias_laborales.length > 0) {
-          const diasCargados = recargo.dias_laborales.map(
-            (detalle: DiaLaboralServidor) => ({
-              id: detalle.id,
-              dia: detalle.dia.toString(), // ✅ Convertir a string
-              mes: currentMonth.toString(), // ✅ Convertir a string
-              año: currentYear.toString(), // ✅ Convertir a string
-              hora_inicio: detalle.hora_inicio,
-              hora_fin: detalle.hora_fin,
-              es_domingo: detalle.es_domingo,
-              es_festivo: detalle.es_festivo,
-            }),
-          );
-
-          setDiasLaborales(diasCargados);
+        if (recargo?.planilla_s3key) {
+          const url = await getPresignedUrl(recargo.planilla_s3key);
+          setArchivoExistente(url);
+        } else {
+          setArchivoExistente(null);
         }
 
-        setEditMode(true);
+        if (recargo) {
+          setFormData({
+            conductorId: recargo.conductor.id,
+            vehiculoId: recargo.vehiculo.id,
+            empresaId: recargo.empresa.id,
+            tmNumber: recargo.numero_planilla || "",
+          });
+
+          if (recargo.dias_laborales && recargo.dias_laborales.length > 0) {
+            const diasCargados = recargo.dias_laborales.map(
+              (detalle: DiaLaboralServidor) => ({
+                id: detalle.id,
+                dia: detalle.dia.toString(), // ✅ Convertir a string
+                mes: currentMonth.toString(), // ✅ Convertir a string
+                año: currentYear.toString(), // ✅ Convertir a string
+                hora_inicio: detalle.hora_inicio,
+                hora_fin: detalle.hora_fin,
+                es_domingo: detalle.es_domingo,
+                es_festivo: detalle.es_festivo,
+              }),
+            );
+
+            setDiasLaborales(diasCargados);
+          }
+
+          setEditMode(true);
+        }
+      } catch {
+        addToast({
+          title: "Error",
+          description: "No se pudo cargar la información del recargo",
+          color: "danger",
+        });
+      } finally {
+        setIsLoadingData(false);
       }
-    } catch {
-      addToast({
-        title: "Error",
-        description: "No se pudo cargar la información del recargo",
-        color: "danger",
-      });
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, [currentMonth, currentYear, obtenerRecargoPorId, getPresignedUrl]);
+    },
+    [currentMonth, currentYear, obtenerRecargoPorId, getPresignedUrl],
+  );
 
   // Función para resetear el formulario
   const resetearFormulario = () => {
@@ -1016,17 +1019,23 @@ export default function ModalFormRecargo({
                               onPress={() => {
                                 const diasFaltantes = 15 - diasLaborales.length;
                                 if (diasFaltantes > 0) {
-                                  const nuevosDias = Array.from({ length: diasFaltantes }, (_, index) => ({
-                                    id: (Date.now() + index).toString(),
-                                    dia: "",
-                                    mes: "",
-                                    año: new Date().getFullYear().toString(),
-                                    hora_inicio: "",
-                                    hora_fin: "",
-                                    es_domingo: false,
-                                    es_festivo: false,
-                                  }));
-                                  setDiasLaborales([...diasLaborales, ...nuevosDias]);
+                                  const nuevosDias = Array.from(
+                                    { length: diasFaltantes },
+                                    (_, index) => ({
+                                      id: (Date.now() + index).toString(),
+                                      dia: "",
+                                      mes: "",
+                                      año: new Date().getFullYear().toString(),
+                                      hora_inicio: "",
+                                      hora_fin: "",
+                                      es_domingo: false,
+                                      es_festivo: false,
+                                    }),
+                                  );
+                                  setDiasLaborales([
+                                    ...diasLaborales,
+                                    ...nuevosDias,
+                                  ]);
                                 }
                               }}
                               isDisabled={diasLaborales.length >= 15}
@@ -1040,16 +1049,18 @@ export default function ModalFormRecargo({
                               variant="flat"
                               startContent={<X size={16} />}
                               onPress={() => {
-                                setDiasLaborales([{
-                                  id: "1",
-                                  dia: "",
-                                  mes: "",
-                                  año: new Date().getFullYear().toString(),
-                                  hora_inicio: "",
-                                  hora_fin: "",
-                                  es_domingo: false,
-                                  es_festivo: false,
-                                }]);
+                                setDiasLaborales([
+                                  {
+                                    id: "1",
+                                    dia: "",
+                                    mes: "",
+                                    año: new Date().getFullYear().toString(),
+                                    hora_inicio: "",
+                                    hora_fin: "",
+                                    es_domingo: false,
+                                    es_festivo: false,
+                                  },
+                                ]);
                               }}
                               isDisabled={diasLaborales.length <= 1}
                               className="text-sm"

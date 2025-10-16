@@ -296,7 +296,7 @@ export interface CanvasRecargo {
   total_rn: number;
   total_rd: number;
   dias_laborales: DiaLaboralPlanilla[];
-  estado: 'pendiente' | 'liquidada' | 'facturada';
+  estado: "pendiente" | "liquidada" | "facturada";
   planilla_s3key: string;
 }
 
@@ -507,6 +507,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         selectedMonth,
         selectedYear,
       );
+
       setCanvasData(datos);
     } catch {
       // Error manejado silenciosamente
@@ -611,10 +612,13 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   // ✅ CACHE TTL (Time To Live) - 5 minutos (sin cambios)
   const CACHE_TTL = 5 * 60 * 1000;
 
-  const isCacheValid = useCallback((lastFetchTime?: number): boolean => {
-    if (!lastFetchTime) return false;
-    return Date.now() - lastFetchTime < CACHE_TTL;
-  }, [CACHE_TTL]);
+  const isCacheValid = useCallback(
+    (lastFetchTime?: number): boolean => {
+      if (!lastFetchTime) return false;
+      return Date.now() - lastFetchTime < CACHE_TTL;
+    },
+    [CACHE_TTL],
+  );
 
   // OBTENER CONDUCTORES CON CACHE (sin cambios)
   const obtenerConductores = useCallback(
@@ -767,7 +771,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           throw new Error(
             response.data.message ||
-            "Error al obtener configuraciones de salario",
+              "Error al obtener configuraciones de salario",
           );
         }
       } catch (err) {
@@ -912,7 +916,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           setError(
             response.data.message ||
-            "Error al actualizar configuración de salario",
+              "Error al actualizar configuración de salario",
           );
           return { success: false };
         }
@@ -953,7 +957,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           setError(
             response.data.message ||
-            "Error al eliminar configuración de salario",
+              "Error al eliminar configuración de salario",
           );
           return { success: false };
         }
@@ -1611,15 +1615,22 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           obtenerEmpresas(),
           obtenerTiposRecargo(),
           obtenerConfiguracionesSalario(),
-          obtenerConfiguracionSalarioVigente()
+          obtenerConfiguracionSalarioVigente(),
         ]);
-
       } catch {
         // Error handled silently
       }
     };
     inicializar();
-  }, [cargarFestivos, obtenerConductores, obtenerVehiculos, obtenerEmpresas, obtenerTiposRecargo, obtenerConfiguracionesSalario, obtenerConfiguracionSalarioVigente]);
+  }, [
+    cargarFestivos,
+    obtenerConductores,
+    obtenerVehiculos,
+    obtenerEmpresas,
+    obtenerTiposRecargo,
+    obtenerConfiguracionesSalario,
+    obtenerConfiguracionSalarioVigente,
+  ]);
 
   // Inicializar Socket.IO cuando el usuario esté autenticado
   useEffect(() => {
@@ -1837,7 +1848,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           const recargosActualizados = prevCanvasData.recargos.map((recargo) =>
             idsLiquidados.includes(recargo.id)
               ? { ...recargo, estado: "liquidada" as "liquidada" }
-              : recargo
+              : recargo,
           );
 
           return {

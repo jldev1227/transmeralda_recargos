@@ -15,11 +15,14 @@ const config = {
       },
       animation: {
         fadeIn: "fadeIn 1s ease-in-out forwards",
-        bounce: "bounce .5s infinite",
+        bounce: "bounce 0.6s infinite",
         pulse: "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         spin: "spin 1s linear infinite",
-        bottomToTop: "bottomToTop .5s ease-in-out forwards",
-        topToBottom: "topToBottom .5s ease-in-out forwards",
+        bottomToTop: "bottomToTop 0.5s ease-in-out forwards",
+        topToBottom: "topToBottom 0.5s ease-in-out forwards",
+        // Añadir variaciones de fadeIn con delays
+        fadeInSlow: "fadeIn 2s ease-in-out forwards",
+        fadeInDelay: "fadeIn 1s ease-in-out 0.5s forwards",
       },
       keyframes: {
         fadeIn: {

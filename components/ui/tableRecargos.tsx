@@ -189,8 +189,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
   const copiarSeleccionASiguientes = () => {
     if (!selectedRow || diasLaborales.length <= 1) return;
 
-    const selectedIndex = diasLaborales.findIndex((dia) => dia.id === selectedRow);
-    if (selectedIndex === -1 || selectedIndex >= diasLaborales.length - 1) return;
+    const selectedIndex = diasLaborales.findIndex(
+      (dia) => dia.id === selectedRow,
+    );
+    if (selectedIndex === -1 || selectedIndex >= diasLaborales.length - 1)
+      return;
 
     const diaOrigen = diasLaborales[selectedIndex];
     const diaInicialNum = parseInt(diaOrigen.dia || "1", 10);
@@ -209,9 +212,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
       const incremento = index - selectedIndex;
       const nuevoDiaNum = diaInicialNum + incremento;
       const diaValido =
-        nuevoDiaNum > diasEnMes
-          ? diasEnMes.toString()
-          : nuevoDiaNum.toString();
+        nuevoDiaNum > diasEnMes ? diasEnMes.toString() : nuevoDiaNum.toString();
 
       return {
         ...dia,
@@ -228,8 +229,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
   const incrementarDiasSiguientes = () => {
     if (!selectedRow || diasLaborales.length <= 1) return;
 
-    const selectedIndex = diasLaborales.findIndex((dia) => dia.id === selectedRow);
-    if (selectedIndex === -1 || selectedIndex >= diasLaborales.length - 1) return;
+    const selectedIndex = diasLaborales.findIndex(
+      (dia) => dia.id === selectedRow,
+    );
+    if (selectedIndex === -1 || selectedIndex >= diasLaborales.length - 1)
+      return;
 
     const diaOrigen = diasLaborales[selectedIndex];
     const diaInicialNum = parseInt(diaOrigen.dia || "1", 10);
@@ -242,9 +246,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
       const nuevoDiaNum = diaInicialNum + incremento;
 
       const diaValido =
-        nuevoDiaNum > diasEnMes
-          ? diasEnMes.toString()
-          : nuevoDiaNum.toString();
+        nuevoDiaNum > diasEnMes ? diasEnMes.toString() : nuevoDiaNum.toString();
 
       return { ...dia, dia: diaValido };
     });
@@ -256,8 +258,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
   // Verificar si hay más de un día para habilitar los botones
   const hayMasDeUnDia = diasLaborales.length > 1;
-  const selectedIndex = selectedRow ? diasLaborales.findIndex(d => d.id === selectedRow) : -1;
-  const hayDiasSiguientes = selectedIndex !== -1 && selectedIndex < diasLaborales.length - 1;
+  const selectedIndex = selectedRow
+    ? diasLaborales.findIndex((d) => d.id === selectedRow)
+    : -1;
+  const hayDiasSiguientes =
+    selectedIndex !== -1 && selectedIndex < diasLaborales.length - 1;
 
   return (
     <div className="w-full space-y-4">
@@ -364,8 +369,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
             return (
               <TableRow
                 key={dia.id}
-                className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'
-                  }`}
+                className={`cursor-pointer transition-colors ${
+                  isSelected
+                    ? "bg-blue-50 hover:bg-blue-100"
+                    : "hover:bg-gray-50"
+                }`}
                 onClick={() => setSelectedRow(dia.id)}
               >
                 {/* DÍA */}
@@ -605,20 +613,23 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {/* HED - Hora Extra Diurna */}
           <div
-            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HED > 0
-              ? "bg-white border-success-200 shadow-sm hover:shadow-md"
-              : "bg-gray-50 border-gray-200"
-              }`}
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${
+              totales.HED > 0
+                ? "bg-white border-success-200 shadow-sm hover:shadow-md"
+                : "bg-gray-50 border-gray-200"
+            }`}
           >
             <div
-              className={`text-xs font-medium mb-1 ${totales.HED > 0 ? "text-success-600" : "text-gray-400"
-                }`}
+              className={`text-xs font-medium mb-1 ${
+                totales.HED > 0 ? "text-success-600" : "text-gray-400"
+              }`}
             >
               HED • 25%
             </div>
             <div
-              className={`text-sm mb-2 ${totales.HED > 0 ? "text-default-500" : "text-gray-400"
-                }`}
+              className={`text-sm mb-2 ${
+                totales.HED > 0 ? "text-default-500" : "text-gray-400"
+              }`}
             >
               Hora Extra Diurna
             </div>
@@ -626,10 +637,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
               size="lg"
               color={totales.HED > 0 ? "success" : "default"}
               variant={totales.HED > 0 ? "flat" : "bordered"}
-              className={`w-full font-bold transition-all duration-200 ${totales.HED > 0
-                ? "text-success-700"
-                : "text-gray-400 border-gray-300"
-                }`}
+              className={`w-full font-bold transition-all duration-200 ${
+                totales.HED > 0
+                  ? "text-success-700"
+                  : "text-gray-400 border-gray-300"
+              }`}
             >
               {totales.HED} hrs
             </Chip>
@@ -637,20 +649,23 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
           {/* HEN - Hora Extra Nocturna */}
           <div
-            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HEN > 0
-              ? "bg-white border-primary-200 shadow-sm hover:shadow-md"
-              : "bg-gray-50 border-gray-200"
-              }`}
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${
+              totales.HEN > 0
+                ? "bg-white border-primary-200 shadow-sm hover:shadow-md"
+                : "bg-gray-50 border-gray-200"
+            }`}
           >
             <div
-              className={`text-xs font-medium mb-1 ${totales.HEN > 0 ? "text-primary-600" : "text-gray-400"
-                }`}
+              className={`text-xs font-medium mb-1 ${
+                totales.HEN > 0 ? "text-primary-600" : "text-gray-400"
+              }`}
             >
               HEN • 75%
             </div>
             <div
-              className={`text-sm mb-2 ${totales.HEN > 0 ? "text-default-500" : "text-gray-400"
-                }`}
+              className={`text-sm mb-2 ${
+                totales.HEN > 0 ? "text-default-500" : "text-gray-400"
+              }`}
             >
               Hora Extra Nocturna
             </div>
@@ -658,10 +673,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
               size="lg"
               color={totales.HEN > 0 ? "primary" : "default"}
               variant={totales.HEN > 0 ? "flat" : "bordered"}
-              className={`w-full font-bold transition-all duration-200 ${totales.HEN > 0
-                ? "text-primary-700"
-                : "text-gray-400 border-gray-300"
-                }`}
+              className={`w-full font-bold transition-all duration-200 ${
+                totales.HEN > 0
+                  ? "text-primary-700"
+                  : "text-gray-400 border-gray-300"
+              }`}
             >
               {totales.HEN} hrs
             </Chip>
@@ -669,20 +685,23 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
           {/* HEFD - Hora Extra Festiva Diurna */}
           <div
-            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HEFD > 0
-              ? "bg-white border-warning-200 shadow-sm hover:shadow-md"
-              : "bg-gray-50 border-gray-200"
-              }`}
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${
+              totales.HEFD > 0
+                ? "bg-white border-warning-200 shadow-sm hover:shadow-md"
+                : "bg-gray-50 border-gray-200"
+            }`}
           >
             <div
-              className={`text-xs font-medium mb-1 ${totales.HEFD > 0 ? "text-warning-600" : "text-gray-400"
-                }`}
+              className={`text-xs font-medium mb-1 ${
+                totales.HEFD > 0 ? "text-warning-600" : "text-gray-400"
+              }`}
             >
               HEFD • 100%
             </div>
             <div
-              className={`text-sm mb-2 ${totales.HEFD > 0 ? "text-default-500" : "text-gray-400"
-                }`}
+              className={`text-sm mb-2 ${
+                totales.HEFD > 0 ? "text-default-500" : "text-gray-400"
+              }`}
             >
               H.E. Festiva Diurna
             </div>
@@ -690,10 +709,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
               size="lg"
               color={totales.HEFD > 0 ? "warning" : "default"}
               variant={totales.HEFD > 0 ? "flat" : "bordered"}
-              className={`w-full font-bold transition-all duration-200 ${totales.HEFD > 0
-                ? "text-warning-700"
-                : "text-gray-400 border-gray-300"
-                }`}
+              className={`w-full font-bold transition-all duration-200 ${
+                totales.HEFD > 0
+                  ? "text-warning-700"
+                  : "text-gray-400 border-gray-300"
+              }`}
             >
               {totales.HEFD} hrs
             </Chip>
@@ -701,20 +721,23 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
           {/* HEFN - Hora Extra Festiva Nocturna */}
           <div
-            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.HEFN > 0
-              ? "bg-white border-secondary-200 shadow-sm hover:shadow-md"
-              : "bg-gray-50 border-gray-200"
-              }`}
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${
+              totales.HEFN > 0
+                ? "bg-white border-secondary-200 shadow-sm hover:shadow-md"
+                : "bg-gray-50 border-gray-200"
+            }`}
           >
             <div
-              className={`text-xs font-medium mb-1 ${totales.HEFN > 0 ? "text-secondary-600" : "text-gray-400"
-                }`}
+              className={`text-xs font-medium mb-1 ${
+                totales.HEFN > 0 ? "text-secondary-600" : "text-gray-400"
+              }`}
             >
               HEFN • 150%
             </div>
             <div
-              className={`text-sm mb-2 ${totales.HEFN > 0 ? "text-default-500" : "text-gray-400"
-                }`}
+              className={`text-sm mb-2 ${
+                totales.HEFN > 0 ? "text-default-500" : "text-gray-400"
+              }`}
             >
               H.E. Festiva Nocturna
             </div>
@@ -722,10 +745,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
               size="lg"
               color={totales.HEFN > 0 ? "secondary" : "default"}
               variant={totales.HEFN > 0 ? "flat" : "bordered"}
-              className={`w-full font-bold transition-all duration-200 ${totales.HEFN > 0
-                ? "text-secondary-700"
-                : "text-gray-400 border-gray-300"
-                }`}
+              className={`w-full font-bold transition-all duration-200 ${
+                totales.HEFN > 0
+                  ? "text-secondary-700"
+                  : "text-gray-400 border-gray-300"
+              }`}
             >
               {totales.HEFN} hrs
             </Chip>
@@ -733,20 +757,23 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
           {/* RN - Recargo Nocturno */}
           <div
-            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.RN > 0
-              ? "bg-white border-primary-200 shadow-sm hover:shadow-md"
-              : "bg-gray-50 border-gray-200"
-              }`}
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${
+              totales.RN > 0
+                ? "bg-white border-primary-200 shadow-sm hover:shadow-md"
+                : "bg-gray-50 border-gray-200"
+            }`}
           >
             <div
-              className={`text-xs font-medium mb-1 ${totales.RN > 0 ? "text-primary-600" : "text-gray-400"
-                }`}
+              className={`text-xs font-medium mb-1 ${
+                totales.RN > 0 ? "text-primary-600" : "text-gray-400"
+              }`}
             >
               RN • 35%
             </div>
             <div
-              className={`text-sm mb-2 ${totales.RN > 0 ? "text-default-500" : "text-gray-400"
-                }`}
+              className={`text-sm mb-2 ${
+                totales.RN > 0 ? "text-default-500" : "text-gray-400"
+              }`}
             >
               Recargo Nocturno
             </div>
@@ -754,10 +781,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
               size="lg"
               color={totales.RN > 0 ? "primary" : "default"}
               variant={totales.RN > 0 ? "flat" : "bordered"}
-              className={`w-full font-bold transition-all duration-200 ${totales.RN > 0
-                ? "text-primary-700"
-                : "text-gray-400 border-gray-300"
-                }`}
+              className={`w-full font-bold transition-all duration-200 ${
+                totales.RN > 0
+                  ? "text-primary-700"
+                  : "text-gray-400 border-gray-300"
+              }`}
             >
               {totales.RN} hrs
             </Chip>
@@ -765,20 +793,23 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
           {/* RD - Recargo Dominical */}
           <div
-            className={`p-3 rounded-lg border text-center transition-all duration-200 ${totales.RD > 0
-              ? "bg-white border-danger-200 shadow-sm hover:shadow-md"
-              : "bg-gray-50 border-gray-200"
-              }`}
+            className={`p-3 rounded-lg border text-center transition-all duration-200 ${
+              totales.RD > 0
+                ? "bg-white border-danger-200 shadow-sm hover:shadow-md"
+                : "bg-gray-50 border-gray-200"
+            }`}
           >
             <div
-              className={`text-xs font-medium mb-1 ${totales.RD > 0 ? "text-danger-600" : "text-gray-400"
-                }`}
+              className={`text-xs font-medium mb-1 ${
+                totales.RD > 0 ? "text-danger-600" : "text-gray-400"
+              }`}
             >
               RD • 75%
             </div>
             <div
-              className={`text-sm mb-2 ${totales.RD > 0 ? "text-default-500" : "text-gray-400"
-                }`}
+              className={`text-sm mb-2 ${
+                totales.RD > 0 ? "text-default-500" : "text-gray-400"
+              }`}
             >
               Recargo Dominical
             </div>
@@ -786,10 +817,11 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
               size="lg"
               color={totales.RD > 0 ? "danger" : "default"}
               variant={totales.RD > 0 ? "flat" : "bordered"}
-              className={`w-full font-bold transition-all duration-200 ${totales.RD > 0
-                ? "text-danger-700"
-                : "text-gray-400 border-gray-300"
-                }`}
+              className={`w-full font-bold transition-all duration-200 ${
+                totales.RD > 0
+                  ? "text-danger-700"
+                  : "text-gray-400 border-gray-300"
+              }`}
             >
               {totales.RD} hrs
             </Chip>
