@@ -2650,7 +2650,6 @@ const CanvasRecargosDashboard = () => {
                 <div
                   key={item.id}
                   className={`flex relative ${selectedRows.has(item.id) ? "opacity-70" : ""} cursor-pointer`}
-                  onClick={() => handleRowClick(item.id)}
                   style={{ width: `${totalWidth}px` }}
                 >
                   <div
