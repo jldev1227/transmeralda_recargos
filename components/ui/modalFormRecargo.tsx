@@ -326,31 +326,155 @@ export default function ModalFormRecargo({
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  const [activeTab, setActiveTab] = useState("informacion");
   const [editMode, setEditMode] = useState(false);
-
-  const [formData, setFormData] = useState({
-    conductorId: "",
-    vehiculoId: "",
-    empresaId: "",
-    tmNumber: "",
-  });
 
   const [archivoAdjunto, setArchivoAdjunto] = useState<File | null>(null);
   const [archivoExistente, setArchivoExistente] = useState<string | null>(null);
 
-  const [diasLaborales, setDiasLaborales] = useState<DiaLaboral[]>([
-    {
-      id: "1",
-      dia: "",
-      mes: "",
-      año: new Date().getFullYear().toString(),
-      hora_inicio: "",
-      hora_fin: "",
-      es_domingo: false,
-      es_festivo: false,
-    },
-  ]);
+  // ===== FUNCIONES DE PERSISTENCIA DE DATOS =====
+  const STORAGE_KEY = 'modalFormRecargo_data';
+
+  const saveToLocalStorage = useCallback((data: any) => {
+    try {
+      const dataToSave = {
+        ...data,
+        timestamp: Date.now(),
+        month: currentMonth,
+        year: currentYear,
+        editMode: !!recargoId,
+        recargoId: recargoId || null,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    } catch {
+      // Error manejado silenciosamente
+    }
+  }, [currentMonth, currentYear, recargoId]);
+
+  const clearLocalStorage = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Error manejado silenciosamente
+    }
+  }, []);
+
+  // ===== ESTADOS CON INICIALIZACIÓN INTELIGENTE =====
+  const [formData, setFormData] = useState(() => {
+    // Si estamos en modo edición, devolver valores vacíos (se cargarán del servidor)
+    if (recargoId) {
+      return {
+        conductorId: "",
+        vehiculoId: "",
+        empresaId: "",
+        tmNumber: "",
+      };
+    }
+
+    // Si no hay recargoId, intentar cargar desde localStorage
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        
+        if (
+          parsedData.month === currentMonth &&
+          parsedData.year === currentYear &&
+          parsedData.formData
+        ) {
+          return parsedData.formData;
+        }
+      }
+    } catch {
+      // Error manejado silenciosamente
+    }
+
+    // Valores por defecto si no hay nada guardado
+    return {
+      conductorId: "",
+      vehiculoId: "",
+      empresaId: "",
+      tmNumber: "",
+    };
+  });
+
+  const [activeTab, setActiveTab] = useState(() => {
+    // Si estamos en modo edición, siempre empezar en información
+    if (recargoId) {
+      return "informacion";
+    }
+
+    // Si no hay recargoId, intentar cargar desde localStorage
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        
+        if (
+          parsedData.month === currentMonth &&
+          parsedData.year === currentYear &&
+          parsedData.activeTab
+        ) {
+          return parsedData.activeTab;
+        }
+      }
+    } catch {
+      // Error manejado silenciosamente
+    }
+
+    // Tab por defecto
+    return "informacion";
+  });
+
+  const [diasLaborales, setDiasLaborales] = useState(() => {
+    // Si estamos en modo edición, devolver valor por defecto (se cargará del servidor)
+    if (recargoId) {
+      return [
+        {
+          id: "1",
+          dia: "",
+          mes: "",
+          año: new Date().getFullYear().toString(),
+          hora_inicio: "",
+          hora_fin: "",
+          es_domingo: false,
+          es_festivo: false,
+        },
+      ];
+    }
+
+    // Si no hay recargoId, intentar cargar desde localStorage
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        const parsedData = JSON.parse(savedData);
+        
+        if (
+          parsedData.month === currentMonth &&
+          parsedData.year === currentYear &&
+          parsedData.diasLaborales &&
+          Array.isArray(parsedData.diasLaborales)
+        ) {
+          return parsedData.diasLaborales;
+        }
+      }
+    } catch {
+      // Error manejado silenciosamente
+    }
+
+    // Valor por defecto si no hay nada guardado
+    return [
+      {
+        id: "1",
+        dia: "",
+        mes: "",
+        año: new Date().getFullYear().toString(),
+        hora_inicio: "",
+        hora_fin: "",
+        es_domingo: false,
+        es_festivo: false,
+      },
+    ];
+  });
 
   const getPresignedUrl = useCallback(async (s3Key: string) => {
     try {
@@ -421,7 +545,7 @@ export default function ModalFormRecargo({
   );
 
   // Función para resetear el formulario
-  const resetearFormulario = () => {
+  const resetearFormulario = useCallback(() => {
     setFormData({
       conductorId: "",
       vehiculoId: "",
@@ -445,16 +569,51 @@ export default function ModalFormRecargo({
     setIsLoading(false);
     setActiveTab("informacion");
     setEditMode(false);
-  };
+    
+    // Limpiar localStorage al resetear
+    clearLocalStorage();
+  }, [clearLocalStorage]);
 
+  // ===== EFECTOS PARA PERSISTENCIA DE DATOS =====
+  
+  // Efecto para guardar formData cuando cambie
   useEffect(() => {
-    if (recargoId && isOpen) {
-      cargarDatosRecargo(recargoId);
-    } else if (isOpen && !recargoId) {
-      resetearFormulario();
+    if (isOpen && !editMode && !isLoadingData) {
+      const dataToSave = {
+        formData,
+        activeTab,
+      };
+      saveToLocalStorage(dataToSave);
     }
-    setArchivoAdjunto(null);
+  }, [formData, activeTab, isOpen, editMode, isLoadingData, saveToLocalStorage]);
+
+  // Efecto para guardar diasLaborales cuando cambien
+  useEffect(() => {
+    if (isOpen && !editMode && !isLoadingData) {
+      const dataToSave = {
+        formData,
+        diasLaborales,
+        activeTab,
+      };
+      saveToLocalStorage(dataToSave);
+    }
+  }, [diasLaborales, formData, activeTab, isOpen, editMode, isLoadingData, saveToLocalStorage]);
+
+  // Efecto principal para cargar datos al abrir el modal
+  useEffect(() => {
+    if (isOpen && recargoId) {
+      // Solo cargar datos del servidor si estamos editando
+      cargarDatosRecargo(recargoId);
+    }
   }, [isOpen, recargoId, cargarDatosRecargo]);
+
+  // Efecto separado para resetear archivo adjunto solo al abrir/cerrar modal
+  useEffect(() => {
+    if (isOpen) {
+      // Solo resetear archivo al abrir el modal, no al cambiar tabs
+      setArchivoAdjunto(null);
+    }
+  }, [isOpen]);
 
   // Cálculo del progreso del formulario
   const calculateProgress = () => {
@@ -464,7 +623,7 @@ export default function ModalFormRecargo({
     if (formData.conductorId) completed++;
     if (formData.vehiculoId) completed++;
     if (formData.empresaId) completed++;
-    if (diasLaborales.some((dia) => dia.dia && dia.hora_inicio && dia.hora_fin))
+    if (diasLaborales.some((dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin))
       completed++;
 
     return { completed, total };
@@ -479,7 +638,7 @@ export default function ModalFormRecargo({
         ? true
         : false,
     horarios: diasLaborales.some(
-      (dia) => dia.dia && dia.hora_inicio && dia.hora_fin,
+      (dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin,
     ),
   };
 
@@ -520,7 +679,7 @@ export default function ModalFormRecargo({
 
   const eliminarDiaLaboral = (id: string) => {
     if (diasLaborales.length > 1) {
-      setDiasLaborales(diasLaborales.filter((dia) => dia.id !== id));
+      setDiasLaborales(diasLaborales.filter((dia: DiaLaboral) => dia.id !== id));
     }
   };
 
@@ -530,7 +689,7 @@ export default function ModalFormRecargo({
     valor: string,
   ) => {
     setDiasLaborales(
-      diasLaborales.map((dia) =>
+      diasLaborales.map((dia: DiaLaboral) =>
         dia.id === id ? { ...dia, [campo]: valor } : dia,
       ),
     );
@@ -576,7 +735,7 @@ export default function ModalFormRecargo({
     }
 
     if (
-      diasLaborales.some((dia) => !dia.dia || !dia.hora_inicio || !dia.hora_fin)
+      diasLaborales.some((dia: DiaLaboral) => !dia.dia || !dia.hora_inicio || !dia.hora_fin)
     ) {
       addToast({
         title: "Información incompleta",
@@ -606,7 +765,7 @@ export default function ModalFormRecargo({
         numero_planilla: formData.tmNumber,
         mes: currentMonth,
         año: currentYear,
-        dias_laborales: diasLaborales.map((dia) => ({
+        dias_laborales: diasLaborales.map((dia: DiaLaboral) => ({
           dia: dia.dia,
           horaInicio: dia.hora_inicio,
           horaFin: dia.hora_fin,
@@ -624,11 +783,17 @@ export default function ModalFormRecargo({
       if (editMode && recargoId) {
         const result = await actualizarRecargo(recargoId, formDataToSend);
         if (result?.success) {
+          // Limpiar localStorage al enviar exitosamente
+          clearLocalStorage();
           onClose();
         }
       } else {
         const result = await registrarRecargo(formDataToSend);
         if (result?.success) {
+          // Limpiar localStorage al enviar exitosamente
+          clearLocalStorage();
+          // También resetear el formulario en nuevo registro exitoso
+          resetearFormulario();
           onClose();
         }
       }
@@ -666,9 +831,12 @@ export default function ModalFormRecargo({
       isOpen={isOpen}
       size="5xl"
       scrollBehavior="inside"
-      onOpenChange={() => {
-        setArchivoAdjunto(null);
-        onClose();
+      onOpenChange={(open) => {
+        if (!open) {
+          // Solo resetear archivo adjunto al cerrar, mantener otros datos
+          setArchivoAdjunto(null);
+          onClose();
+        }
       }}
       hideCloseButton
       classNames={{
@@ -734,7 +902,11 @@ export default function ModalFormRecargo({
                 </div>
                 {!isLoading && !isLoadingData && (
                   <Button
-                    onPress={onClose}
+                    onPress={() => {
+                      // Solo resetear archivo adjunto al cerrar con X
+                      setArchivoAdjunto(null);
+                      onClose();
+                    }}
                     isIconOnly
                     variant="light"
                     className="text-gray-400 hover:text-gray-600"
@@ -973,6 +1145,8 @@ export default function ModalFormRecargo({
                           <UploadPlanilla
                             onFileChange={handleFileChange}
                             maxSizeMB={15}
+                            currentFile={archivoAdjunto}
+                            key={`upload-${isOpen}`} // Forzar remount solo cuando se abre el modal
                           />
                         </div>
                       </div>
@@ -1123,7 +1297,11 @@ export default function ModalFormRecargo({
                   <Button
                     color="danger"
                     variant="light"
-                    onPress={onClose}
+                    onPress={() => {
+                      // Resetear completamente el formulario al cancelar
+                      resetearFormulario();
+                      onClose();
+                    }}
                     isDisabled={isLoading || isLoadingData}
                     className="min-w-[100px]"
                   >

@@ -1,12 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@heroui/button";
 import { Card, CardBody } from "@heroui/card";
 import { Upload, FileText, ImageIcon, X, Eye, AlertCircle } from "lucide-react";
-import Image from "next/image";
 
 interface ArchivoAdjunto {
   file: File;
-  preview?: string;
+  previewUrl?: string;  // URL temporal en lugar de base64
   pdfDataUrl?: string;
   id: string;
 }
@@ -15,18 +14,74 @@ interface UploadPlanillaProps {
   onFileChange?: (archivo: File | null) => void;
   maxSizeMB?: number;
   className?: string;
+  currentFile?: File | null;  // Archivo actual desde el componente padre
 }
 
 const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
   onFileChange,
   maxSizeMB = 10,
   className = "",
+  currentFile = null,
 }) => {
   const [archivo, setArchivo] = useState<ArchivoAdjunto | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string>("");
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cleanup de URLs temporales al desmontar componente
+  useEffect(() => {
+    return () => {
+      if (archivo?.previewUrl) {
+        URL.revokeObjectURL(archivo.previewUrl);
+      }
+    };
+  }, [archivo?.previewUrl]);
+
+  // Función para crear preview OPTIMIZADA
+  const crearPreview = useCallback((file: File): Promise<ArchivoAdjunto> => {
+    return new Promise((resolve) => {
+      const archivoData: ArchivoAdjunto = {
+        file,
+        id: `${Date.now()}-${Math.random()}`,
+      };
+
+      if (file.type.startsWith("image/")) {
+        // Usar createObjectURL en lugar de FileReader para imágenes
+        archivoData.previewUrl = URL.createObjectURL(file);
+        resolve(archivoData);
+      } else if (file.type === "application/pdf") {
+        // Solo para PDF mantener base64 (necesario para iframe)
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          archivoData.pdfDataUrl = e.target?.result as string;
+          resolve(archivoData);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        resolve(archivoData);
+      }
+    });
+  }, []);
+
+  // Sincronizar con archivo del componente padre
+  useEffect(() => {
+    const syncWithParent = async () => {
+      if (currentFile && (!archivo || archivo.file !== currentFile)) {
+        // Si hay un archivo del padre y es diferente al actual, sincronizar
+        const archivoData = await crearPreview(currentFile);
+        setArchivo(archivoData);
+      } else if (!currentFile && archivo) {
+        // Si el padre no tiene archivo pero el componente sí, limpiar
+        if (archivo.previewUrl) {
+          URL.revokeObjectURL(archivo.previewUrl);
+        }
+        setArchivo(null);
+      }
+    };
+
+    syncWithParent();
+  }, [currentFile, crearPreview]); // Remover archivo de las dependencias para evitar loops
 
   // Tipos de archivo permitidos
   const tiposPermitidos = {
@@ -52,34 +107,6 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
     }
 
     return null;
-  };
-
-  // Función para crear preview
-  const crearPreview = (file: File): Promise<ArchivoAdjunto> => {
-    return new Promise((resolve) => {
-      const archivoData: ArchivoAdjunto = {
-        file,
-        id: `${Date.now()}-${Math.random()}`,
-      };
-
-      if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          archivoData.preview = e.target?.result as string;
-          resolve(archivoData);
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type === "application/pdf") {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          archivoData.pdfDataUrl = e.target?.result as string;
-          resolve(archivoData);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        resolve(archivoData);
-      }
-    });
   };
 
   // Función para procesar archivo
@@ -133,8 +160,13 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
     }
   };
 
-  // Función para eliminar archivo
+  // Función para eliminar archivo OPTIMIZADA
   const eliminarArchivo = () => {
+    // Limpiar URL temporal antes de eliminar
+    if (archivo?.previewUrl) {
+      URL.revokeObjectURL(archivo.previewUrl);
+    }
+
     setArchivo(null);
     setShowPreview(false);
 
@@ -168,11 +200,11 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
                 className="w-12 h-12 bg-default-100 rounded-lg border flex-shrink-0 flex items-center justify-center overflow-hidden cursor-pointer"
                 onClick={() => setShowPreview(true)}
               >
-                {archivo.preview ? (
-                  <Image
-                    src={archivo.preview}
+                {archivo.previewUrl ? (
+                  <img
+                    src={archivo.previewUrl}
                     alt="Preview"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-lg"
                   />
                 ) : archivo.file.type === "application/pdf" ? (
                   <FileText size={20} className="text-danger" />
@@ -249,11 +281,11 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
 
               {/* Contenido del preview */}
               <div className="flex-1 flex items-center justify-center overflow-auto">
-                {archivo.preview ? (
-                  <Image
-                    src={archivo.preview}
+                {archivo.previewUrl ? (
+                  <img
+                    src={archivo.previewUrl}
                     alt={archivo.file.name}
-                    className="max-w-full max-h-full object-contain"
+                    className="max-w-full max-h-full object-contain rounded-lg"
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : archivo.pdfDataUrl ? (
@@ -281,11 +313,10 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
   return (
     <div className={`w-full ${className}`}>
       <Card
-        className={`border-2 border-dashed transition-all duration-200 cursor-pointer ${
-          isDragOver
+        className={`border-2 border-dashed transition-all duration-200 cursor-pointer ${isDragOver
             ? "border-primary bg-primary-50"
             : "border-default-300 hover:border-primary hover:bg-default-50"
-        }`}
+          }`}
       >
         <CardBody
           className="p-4 text-center"
@@ -296,9 +327,8 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
         >
           <div className="flex items-center justify-center gap-3">
             <div
-              className={`p-2 rounded-full transition-colors ${
-                isDragOver ? "bg-primary-100" : "bg-default-100"
-              }`}
+              className={`p-2 rounded-full transition-colors ${isDragOver ? "bg-primary-100" : "bg-default-100"
+                }`}
             >
               <Upload
                 size={20}

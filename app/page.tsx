@@ -230,6 +230,40 @@ const CanvasRecargosDashboard = () => {
   // Función mejorada para copiar múltiples filas seleccionadas
   const handleCopySelectedRows = async () => {
     try {
+      // Función helper para convertir números a formato con coma decimal
+      const formatNumberWithComma = (value: string | number): string => {
+        if (value === "" || value === "-" || value === null || value === undefined) {
+          return value?.toString() || "";
+        }
+        
+        // Convertir a número si es string
+        const numValue = typeof value === "string" ? parseFloat(value) : value;
+        
+        // Si no es un número válido, devolver el valor original
+        if (isNaN(numValue)) {
+          return value.toString();
+        }
+        
+        // Convertir a string con punto decimal y reemplazar punto por coma
+        return numValue.toString().replace(".", ",");
+      };
+
+      // Definir campos que necesitan formato con coma decimal
+      const numericFieldsWithComma = [
+        ...Array.from(
+          { length: getDaysInMonth(selectedMonth, selectedYear) },
+          (_, i) => `day_${i + 1}`,
+        ),
+        "total_horas",
+        "promedio_diario", 
+        "total_hed",
+        "total_hen",
+        "total_hefd",
+        "total_hefn",
+        "total_rn",
+        "total_rd",
+      ];
+
       // Definir el orden EXACTO para copiar
       const orderedKeys = [
         "empresa",
@@ -260,7 +294,14 @@ const CanvasRecargosDashboard = () => {
         orderedKeys
           .map((key) => {
             const column = columns.find((col) => col.key === key);
-            return column ? getCellCopyValue(item, column) : "";
+            let cellValue = column ? getCellCopyValue(item, column) : "";
+            
+            // Aplicar formato con coma decimal a campos numéricos
+            if (numericFieldsWithComma.includes(key)) {
+              cellValue = formatNumberWithComma(cellValue);
+            }
+            
+            return cellValue;
           })
           .join("\t"),
       );
