@@ -1746,7 +1746,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!prevCanvasData) return prevCanvasData;
           return {
             ...prevCanvasData,
-            recargos: [...prevCanvasData.recargos, recargo],
+            recargos: [recargo, ...prevCanvasData.recargos],
             total_recargos: prevCanvasData.total_recargos + 1,
           };
         });

@@ -5,7 +5,7 @@ import { Upload, FileText, ImageIcon, X, Eye, AlertCircle } from "lucide-react";
 
 interface ArchivoAdjunto {
   file: File;
-  previewUrl?: string;  // URL temporal en lugar de base64
+  previewUrl?: string; // URL temporal en lugar de base64
   pdfDataUrl?: string;
   id: string;
 }
@@ -14,7 +14,7 @@ interface UploadPlanillaProps {
   onFileChange?: (archivo: File | null) => void;
   maxSizeMB?: number;
   className?: string;
-  currentFile?: File | null;  // Archivo actual desde el componente padre
+  currentFile?: File | null; // Archivo actual desde el componente padre
 }
 
 const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
@@ -313,10 +313,11 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
   return (
     <div className={`w-full ${className}`}>
       <Card
-        className={`border-2 border-dashed transition-all duration-200 cursor-pointer ${isDragOver
+        className={`border-2 border-dashed transition-all duration-200 cursor-pointer ${
+          isDragOver
             ? "border-primary bg-primary-50"
             : "border-default-300 hover:border-primary hover:bg-default-50"
-          }`}
+        }`}
       >
         <CardBody
           className="p-4 text-center"
@@ -327,8 +328,9 @@ const UploadPlanilla: React.FC<UploadPlanillaProps> = ({
         >
           <div className="flex items-center justify-center gap-3">
             <div
-              className={`p-2 rounded-full transition-colors ${isDragOver ? "bg-primary-100" : "bg-default-100"
-                }`}
+              className={`p-2 rounded-full transition-colors ${
+                isDragOver ? "bg-primary-100" : "bg-default-100"
+              }`}
             >
               <Upload
                 size={20}

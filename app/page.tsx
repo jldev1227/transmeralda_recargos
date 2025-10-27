@@ -232,18 +232,23 @@ const CanvasRecargosDashboard = () => {
     try {
       // Función helper para convertir números a formato con coma decimal
       const formatNumberWithComma = (value: string | number): string => {
-        if (value === "" || value === "-" || value === null || value === undefined) {
+        if (
+          value === "" ||
+          value === "-" ||
+          value === null ||
+          value === undefined
+        ) {
           return value?.toString() || "";
         }
-        
+
         // Convertir a número si es string
         const numValue = typeof value === "string" ? parseFloat(value) : value;
-        
+
         // Si no es un número válido, devolver el valor original
         if (isNaN(numValue)) {
           return value.toString();
         }
-        
+
         // Convertir a string con punto decimal y reemplazar punto por coma
         return numValue.toString().replace(".", ",");
       };
@@ -255,7 +260,7 @@ const CanvasRecargosDashboard = () => {
           (_, i) => `day_${i + 1}`,
         ),
         "total_horas",
-        "promedio_diario", 
+        "promedio_diario",
         "total_hed",
         "total_hen",
         "total_hefd",
@@ -295,12 +300,12 @@ const CanvasRecargosDashboard = () => {
           .map((key) => {
             const column = columns.find((col) => col.key === key);
             let cellValue = column ? getCellCopyValue(item, column) : "";
-            
+
             // Aplicar formato con coma decimal a campos numéricos
             if (numericFieldsWithComma.includes(key)) {
               cellValue = formatNumberWithComma(cellValue);
             }
-            
+
             return cellValue;
           })
           .join("\t"),

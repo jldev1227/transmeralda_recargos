@@ -332,23 +332,26 @@ export default function ModalFormRecargo({
   const [archivoExistente, setArchivoExistente] = useState<string | null>(null);
 
   // ===== FUNCIONES DE PERSISTENCIA DE DATOS =====
-  const STORAGE_KEY = 'modalFormRecargo_data';
+  const STORAGE_KEY = "modalFormRecargo_data";
 
-  const saveToLocalStorage = useCallback((data: any) => {
-    try {
-      const dataToSave = {
-        ...data,
-        timestamp: Date.now(),
-        month: currentMonth,
-        year: currentYear,
-        editMode: !!recargoId,
-        recargoId: recargoId || null,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
-    } catch {
-      // Error manejado silenciosamente
-    }
-  }, [currentMonth, currentYear, recargoId]);
+  const saveToLocalStorage = useCallback(
+    (data: any) => {
+      try {
+        const dataToSave = {
+          ...data,
+          timestamp: Date.now(),
+          month: currentMonth,
+          year: currentYear,
+          editMode: !!recargoId,
+          recargoId: recargoId || null,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      } catch {
+        // Error manejado silenciosamente
+      }
+    },
+    [currentMonth, currentYear, recargoId],
+  );
 
   const clearLocalStorage = useCallback(() => {
     try {
@@ -375,7 +378,7 @@ export default function ModalFormRecargo({
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
-        
+
         if (
           parsedData.month === currentMonth &&
           parsedData.year === currentYear &&
@@ -408,7 +411,7 @@ export default function ModalFormRecargo({
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
-        
+
         if (
           parsedData.month === currentMonth &&
           parsedData.year === currentYear &&
@@ -447,7 +450,7 @@ export default function ModalFormRecargo({
       const savedData = localStorage.getItem(STORAGE_KEY);
       if (savedData) {
         const parsedData = JSON.parse(savedData);
-        
+
         if (
           parsedData.month === currentMonth &&
           parsedData.year === currentYear &&
@@ -569,13 +572,13 @@ export default function ModalFormRecargo({
     setIsLoading(false);
     setActiveTab("informacion");
     setEditMode(false);
-    
+
     // Limpiar localStorage al resetear
     clearLocalStorage();
   }, [clearLocalStorage]);
 
   // ===== EFECTOS PARA PERSISTENCIA DE DATOS =====
-  
+
   // Efecto para guardar formData cuando cambie
   useEffect(() => {
     if (isOpen && !editMode && !isLoadingData) {
@@ -585,7 +588,14 @@ export default function ModalFormRecargo({
       };
       saveToLocalStorage(dataToSave);
     }
-  }, [formData, activeTab, isOpen, editMode, isLoadingData, saveToLocalStorage]);
+  }, [
+    formData,
+    activeTab,
+    isOpen,
+    editMode,
+    isLoadingData,
+    saveToLocalStorage,
+  ]);
 
   // Efecto para guardar diasLaborales cuando cambien
   useEffect(() => {
@@ -597,7 +607,15 @@ export default function ModalFormRecargo({
       };
       saveToLocalStorage(dataToSave);
     }
-  }, [diasLaborales, formData, activeTab, isOpen, editMode, isLoadingData, saveToLocalStorage]);
+  }, [
+    diasLaborales,
+    formData,
+    activeTab,
+    isOpen,
+    editMode,
+    isLoadingData,
+    saveToLocalStorage,
+  ]);
 
   // Efecto principal para cargar datos al abrir el modal
   useEffect(() => {
@@ -623,7 +641,11 @@ export default function ModalFormRecargo({
     if (formData.conductorId) completed++;
     if (formData.vehiculoId) completed++;
     if (formData.empresaId) completed++;
-    if (diasLaborales.some((dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin))
+    if (
+      diasLaborales.some(
+        (dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin,
+      )
+    )
       completed++;
 
     return { completed, total };
@@ -679,7 +701,9 @@ export default function ModalFormRecargo({
 
   const eliminarDiaLaboral = (id: string) => {
     if (diasLaborales.length > 1) {
-      setDiasLaborales(diasLaborales.filter((dia: DiaLaboral) => dia.id !== id));
+      setDiasLaborales(
+        diasLaborales.filter((dia: DiaLaboral) => dia.id !== id),
+      );
     }
   };
 
@@ -735,7 +759,9 @@ export default function ModalFormRecargo({
     }
 
     if (
-      diasLaborales.some((dia: DiaLaboral) => !dia.dia || !dia.hora_inicio || !dia.hora_fin)
+      diasLaborales.some(
+        (dia: DiaLaboral) => !dia.dia || !dia.hora_inicio || !dia.hora_fin,
+      )
     ) {
       addToast({
         title: "Información incompleta",
