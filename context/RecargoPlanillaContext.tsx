@@ -341,6 +341,17 @@ export interface SocketEventLog {
   timestamp: Date;
 }
 
+export interface ConfiguracionSalarioFormData {
+  salario_basico: string;
+  valor_hora_trabajador: string;
+  horas_mensuales_base: number;
+  vigencia_desde: string;
+  observaciones: string;
+  activo: boolean;
+  empresa_id?: number;
+  sede: string;
+}
+
 // ✅ INTERFAZ DEL CONTEXTO MEJORADA CON NUEVAS FUNCIONALIDADES
 interface RecargoContextType {
   canvasData: CanvasData | null;
@@ -358,7 +369,6 @@ interface RecargoContextType {
   // ✅ NUEVOS ESTADOS PARA TIPOS DE RECARGO Y CONFIGURACIÓN
   tiposRecargo: TipoRecargo[];
   configuracionesSalario: ConfiguracionSalario[];
-  configuracionSalarioVigente: ConfiguracionSalario | null;
 
   // Estados de UI
   loading: boolean;
@@ -434,11 +444,11 @@ interface RecargoContextType {
     filtros?: FiltrosConfigSalario,
   ) => Promise<ConfiguracionesSalarioData>;
   crearConfiguracionSalario: (
-    configData: Partial<ConfiguracionSalario>,
+    configData: Partial<ConfiguracionSalarioFormData>,
   ) => Promise<{ success: boolean; data?: ConfiguracionSalario }>;
   actualizarConfiguracionSalario: (
     id: string,
-    configData: Partial<ConfiguracionSalario>,
+    configData: Partial<ConfiguracionSalarioFormData>,
   ) => Promise<{ success: boolean; data?: ConfiguracionSalario }>;
   eliminarConfiguracionSalario: (id: string) => Promise<{ success: boolean }>;
   calcularValorHora: (
@@ -784,7 +794,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   // CREAR CONFIGURACIÓN DE SALARIO
   const crearConfiguracionSalario = useCallback(
     async (
-      configData: Partial<ConfiguracionSalario>,
+      configData: Partial<ConfiguracionSalarioFormData>,
     ): Promise<{ success: boolean; data?: ConfiguracionSalario }> => {
       try {
         setLoadingConfigSalario(true);
@@ -830,7 +840,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const actualizarConfiguracionSalario = useCallback(
     async (
       id: string,
-      configData: Partial<ConfiguracionSalario>,
+      configData: Partial<ConfiguracionSalarioFormData>,
     ): Promise<{ success: boolean; data?: ConfiguracionSalario }> => {
       try {
         setLoadingConfigSalario(true);

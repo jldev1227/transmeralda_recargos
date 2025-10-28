@@ -55,6 +55,8 @@ export type ConfiguracionSalario = {
   /** ID de la empresa (null para configuración global) */
   empresa_id: string | null; // ← CORREGIDO: debe poder ser null
 
+  empresa: Empresa | null;
+
   /** Salario básico mensual */
   salario_basico: number;
 

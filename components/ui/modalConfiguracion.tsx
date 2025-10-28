@@ -19,9 +19,7 @@ import {
   Settings,
   DollarSign,
   Clock,
-  CheckCircle,
   AlertCircle,
-  Building,
   Calendar,
   Hash,
   Percent,
@@ -32,21 +30,11 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import {
+  ConfiguracionSalarioFormData,
   TipoRecargoFormData,
   useRecargo,
 } from "@/context/RecargoPlanillaContext";
 import { formatearCOP } from "@/helpers";
-
-interface ConfiguracionSalarioFormData {
-  salario_basico: string;
-  valor_hora_trabajador: string;
-  horas_mensuales_base: number;
-  vigencia_desde: string;
-  observaciones: string;
-  activo: boolean;
-  empresa_id?: number;
-  sede: string;
-}
 
 // ===== COMPONENTE TAB PERSONALIZADO =====
 interface TabProps {
@@ -221,7 +209,7 @@ export default function ModalConfiguracion() {
     null,
   );
   const [editingConfigSalario, setEditingConfigSalario] = useState<
-    number | null
+    string | null
   >(null);
   const [showNewTipoRecargo, setShowNewTipoRecargo] = useState(false);
   const [showNewConfigSalario, setShowNewConfigSalario] = useState(false);
@@ -261,7 +249,6 @@ export default function ModalConfiguracion() {
   const {
     tiposRecargo,
     configuracionesSalario,
-    configuracionSalarioVigente,
     loadingTiposRecargo,
     loadingConfigSalario,
     error,
@@ -1077,78 +1064,6 @@ export default function ModalConfiguracion() {
                       {/* Formulario de nuevo/edición */}
                       {(showNewConfigSalario || editingConfigSalario) &&
                         renderConfigSalarioForm()}
-
-                      {/* Configuración vigente destacada */}
-                      {configuracionSalarioVigente && (
-                        <Card className="border-2 border-green-500 bg-green-50">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="w-5 h-5 text-green-600" />
-                              <span className="text-medium font-semibold text-green-800">
-                                Configuración Vigente
-                              </span>
-                            </div>
-                          </CardHeader>
-                          <CardBody className="pt-0">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div className="text-center">
-                                <div className="flex items-center justify-center gap-1 mb-1">
-                                  <DollarSign className="w-4 h-4 text-green-600" />
-                                  <span className="text-small font-medium text-green-700">
-                                    Salario Básico
-                                  </span>
-                                </div>
-                                <p className="text-large font-bold text-green-900 font-mono">
-                                  {formatearCOP(
-                                    configuracionSalarioVigente.salario_basico,
-                                  )}
-                                </p>
-                              </div>
-
-                              <div className="text-center">
-                                <div className="flex items-center justify-center gap-1 mb-1">
-                                  <Clock className="w-4 h-4 text-green-600" />
-                                  <span className="text-small font-medium text-green-700">
-                                    Valor Hora
-                                  </span>
-                                </div>
-                                <p className="text-large font-bold text-green-900 font-mono">
-                                  {formatearCOP(
-                                    configuracionSalarioVigente.valor_hora_trabajador,
-                                  )}
-                                </p>
-                              </div>
-
-                              <div className="text-center">
-                                <div className="flex items-center justify-center gap-1 mb-1">
-                                  <Hash className="w-4 h-4 text-green-600" />
-                                  <span className="text-small font-medium text-green-700">
-                                    Horas Mensuales
-                                  </span>
-                                </div>
-                                <p className="text-large font-bold text-green-900">
-                                  {
-                                    configuracionSalarioVigente.horas_mensuales_base
-                                  }
-                                </p>
-                              </div>
-
-                              <div className="text-center">
-                                <div className="flex items-center justify-center gap-1 mb-1">
-                                  <Building className="w-4 h-4 text-green-600" />
-                                  <span className="text-small font-medium text-green-700">
-                                    Alcance
-                                  </span>
-                                </div>
-                                <p className="text-small font-medium text-green-900">
-                                  {configuracionSalarioVigente.empresa
-                                    ?.nombre || "Global"}
-                                </p>
-                              </div>
-                            </div>
-                          </CardBody>
-                        </Card>
-                      )}
 
                       {/* Lista de configuraciones */}
                       {loadingConfigSalario ? (
