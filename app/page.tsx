@@ -444,11 +444,10 @@ const CanvasRecargosDashboard = () => {
 
     const result = await liquidarRecargoConfirm({
       title: "Liquidar recargos",
-      message: `¿Deseas liquidar ${recargosParaLiquidar.length} recargo(s) seleccionado(s)?${
-        recargosYaLiquidados.length > 0
-          ? ` (Se omitirán ${recargosYaLiquidados.length} recargo(s) ya liquidado(s))`
-          : ""
-      }`,
+      message: `¿Deseas liquidar ${recargosParaLiquidar.length} recargo(s) seleccionado(s)?${recargosYaLiquidados.length > 0
+        ? ` (Se omitirán ${recargosYaLiquidados.length} recargo(s) ya liquidado(s))`
+        : ""
+        }`,
       planillasLength: recargosParaLiquidar.length,
       confirmText: "Sí, liquidar",
     });
@@ -999,11 +998,25 @@ const CanvasRecargosDashboard = () => {
 
       let totalGeneral = 0;
 
+      // ✅ Contar todos los días para estadísticas (sin filtrar disponibilidad)
       const totalFestivos = item.dias_laborales.filter(
         (dia) => dia.es_festivo,
       ).length;
 
       const totalDomingos = item.dias_laborales.filter(
+        (dia) => dia.es_domingo,
+      ).length;
+
+      // ✅ PERO filtrar los días con disponibilidad para el cálculo de VALOR
+      const diasParaCalculoValor = item.dias_laborales.filter(
+        (dia) => !dia.disponibilidad
+      );
+
+      const festivosParaValor = diasParaCalculoValor.filter(
+        (dia) => dia.es_festivo,
+      ).length;
+
+      const domingosParaValor = diasParaCalculoValor.filter(
         (dia) => dia.es_domingo,
       ).length;
 
@@ -1027,7 +1040,8 @@ const CanvasRecargosDashboard = () => {
           }
 
           const valorRecargo = valorDiarioBase * (1 + porcentaje / 100);
-          const totalDiasEspeciales = totalFestivos + totalDomingos;
+          // ✅ Usar los días filtrados (sin disponibilidad) para el cálculo
+          const totalDiasEspeciales = festivosParaValor + domingosParaValor;
           valorCalculado = totalDiasEspeciales * valorRecargo;
 
           totalGeneral += valorCalculado;
@@ -1036,16 +1050,31 @@ const CanvasRecargosDashboard = () => {
 
         const campoHoras =
           MAPEO_CAMPOS_HORAS[
-            tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
+          tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
           ];
 
         if (!campoHoras) {
           continue;
         }
 
-        const horasTrabajadas = item[
+        // ✅ Calcular horas trabajadas solo de días SIN disponibilidad
+        const horasTrabajadasTotal = item[
           campoHoras as keyof CanvasRecargo
         ] as number;
+
+        // Calcular proporción de horas basada en días válidos
+        const totalDiasItem = item.dias_laborales.length;
+        const diasValidosCount = diasParaCalculoValor.length;
+
+        // Si todos los días tienen disponibilidad, no calcular nada
+        if (diasValidosCount === 0) {
+          continue;
+        }
+
+        // Calcular las horas proporcionales de los días sin disponibilidad
+        const horasTrabajadas = totalDiasItem > 0
+          ? (horasTrabajadasTotal * diasValidosCount) / totalDiasItem
+          : horasTrabajadasTotal;
 
         if (
           !horasTrabajadas ||
@@ -1569,11 +1598,10 @@ const CanvasRecargosDashboard = () => {
             <div className="text-xs w-full py-1">
               {/* ✅ Horas trabajadas - Siempre visible */}
               <div
-                className={`font-bold text-center mb-1 px-1 py-1 rounded ${
-                  dayData.es_domingo || dayData.es_festivo
-                    ? "text-red-800 bg-red-100 border border-red-200"
-                    : "text-emerald-800 bg-emerald-100 border border-emerald-200"
-                }`}
+                className={`font-bold text-center mb-1 px-1 py-1 rounded ${dayData.es_domingo || dayData.es_festivo
+                  ? "text-red-800 bg-red-100 border border-red-200"
+                  : "text-emerald-800 bg-emerald-100 border border-emerald-200"
+                  }`}
               >
                 {toNumber(dayData.total_horas).toFixed(1)}h
               </div>
@@ -1677,8 +1705,8 @@ const CanvasRecargosDashboard = () => {
       () =>
         dropdownSearch
           ? values.filter((v) =>
-              v.toLowerCase().includes(dropdownSearch.toLowerCase()),
-            )
+            v.toLowerCase().includes(dropdownSearch.toLowerCase()),
+          )
           : values,
       [values, dropdownSearch],
     );
@@ -2582,17 +2610,15 @@ const CanvasRecargosDashboard = () => {
                     >
                       <div className="p-2 flex items-center justify-between">
                         <div
-                          className={`flex-1 text-xs font-bold flex items-center justify-${
-                            column.align === "center"
-                              ? "center"
-                              : column.align === "right"
-                                ? "end"
-                                : "start"
-                          } ${
-                            column.isSunday || column.isHoliday
+                          className={`flex-1 text-xs font-bold flex items-center justify-${column.align === "center"
+                            ? "center"
+                            : column.align === "right"
+                              ? "end"
+                              : "start"
+                            } ${column.isSunday || column.isHoliday
                               ? "text-white"
                               : "text-gray-700"
-                          }`}
+                            }`}
                           style={{ height: "100%" }}
                         >
                           <div className="whitespace-pre-line leading-tight">
@@ -2617,21 +2643,19 @@ const CanvasRecargosDashboard = () => {
                           {column.sortable && (
                             <button
                               onClick={() => handleSort(column.key)}
-                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${
-                                column.isSunday || column.isHoliday
-                                  ? "hover:bg-white/20"
-                                  : ""
-                              }`}
+                              className={`p-1 hover:bg-gray-200 rounded transition-colors ${column.isSunday || column.isHoliday
+                                ? "hover:bg-white/20"
+                                : ""
+                                }`}
                             >
                               <ArrowUpDown
                                 size={10}
-                                className={`cursor-pointer ${
-                                  sortField === column.key
-                                    ? "text-emerald-600"
-                                    : column.isSunday || column.isHoliday
-                                      ? "text-white"
-                                      : "text-gray-400"
-                                }`}
+                                className={`cursor-pointer ${sortField === column.key
+                                  ? "text-emerald-600"
+                                  : column.isSunday || column.isHoliday
+                                    ? "text-white"
+                                    : "text-gray-400"
+                                  }`}
                               />
                             </button>
                           )}
@@ -2647,12 +2671,12 @@ const CanvasRecargosDashboard = () => {
                               className={`cursor-pointer p-1 hover:bg-gray-200 rounded transition-colors ${
                                 // Mostrar como activo si tiene filtros aplicados O si está abierto
                                 filters[getFilterKey(column.key)]?.length > 0 ||
-                                showFilters[getFilterKey(column.key)]
+                                  showFilters[getFilterKey(column.key)]
                                   ? "text-emerald-600 bg-emerald-50"
                                   : column.isSunday || column.isHoliday
                                     ? "text-white hover:bg-white/20"
                                     : "text-gray-400"
-                              }`}
+                                }`}
                               title={
                                 showFilters[getFilterKey(column.key)]
                                   ? "Cerrar filtro"
@@ -2934,11 +2958,10 @@ const CanvasRecargosDashboard = () => {
                         <button
                           key={pageNum}
                           onClick={() => setCurrentPage(pageNum)}
-                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${
-                            currentPage === pageNum
-                              ? "bg-emerald-600 text-white font-medium"
-                              : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
-                          }`}
+                          className={`min-w-[2.5rem] px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${currentPage === pageNum
+                            ? "bg-emerald-600 text-white font-medium"
+                            : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                            }`}
                         >
                           {pageNum}
                         </button>

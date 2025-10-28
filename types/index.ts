@@ -36,6 +36,7 @@ export type DiaLaboral = {
   hora_fin: string;
   es_domingo: boolean;
   es_festivo: boolean;
+  disponibilidad: boolean;
 };
 
 export type DiaLaboralServidor = {
@@ -45,6 +46,7 @@ export type DiaLaboralServidor = {
   hora_fin: string;
   es_domingo: boolean;
   es_festivo: boolean;
+  disponibilidad: boolean ;
   // No tiene mes ni año
 };
 

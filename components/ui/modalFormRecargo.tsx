@@ -441,6 +441,7 @@ export default function ModalFormRecargo({
           hora_fin: "",
           es_domingo: false,
           es_festivo: false,
+          disponibilidad: false,
         },
       ];
     }
@@ -475,6 +476,7 @@ export default function ModalFormRecargo({
         hora_fin: "",
         es_domingo: false,
         es_festivo: false,
+        disponibilidad: false,
       },
     ];
   });
@@ -526,9 +528,9 @@ export default function ModalFormRecargo({
                 hora_fin: detalle.hora_fin,
                 es_domingo: detalle.es_domingo,
                 es_festivo: detalle.es_festivo,
+                disponibilidad: detalle.disponibilidad || false, // ✅ Nuevo campo
               }),
             );
-
             setDiasLaborales(diasCargados);
           }
 
@@ -567,6 +569,7 @@ export default function ModalFormRecargo({
         hora_fin: "",
         es_domingo: false,
         es_festivo: false,
+        disponibilidad: false,
       },
     ]);
     setIsLoading(false);
@@ -694,6 +697,7 @@ export default function ModalFormRecargo({
         hora_fin: "",
         es_domingo: false,
         es_festivo: false,
+        disponibilidad: false,
       };
       setDiasLaborales([...diasLaborales, nuevoDia]);
     }
@@ -797,6 +801,7 @@ export default function ModalFormRecargo({
           horaFin: dia.hora_fin,
           esDomingo: esDomingo(dia.dia, currentMonth, currentYear), // ✅ CAMPO AGREGADO COMO BOOLEAN
           esFestivo: verificarEsFestivo(parseInt(dia.dia)), // ✅ CAMPO AGREGADO COMO BOOLEAN
+          disponibilidad: dia.disponibilidad, // ✅ CAMPO AGREGADO
         })),
       };
 
@@ -1230,6 +1235,7 @@ export default function ModalFormRecargo({
                                       hora_fin: "",
                                       es_domingo: false,
                                       es_festivo: false,
+                                      disponibilidad: false,
                                     }),
                                   );
                                   setDiasLaborales([
@@ -1259,6 +1265,7 @@ export default function ModalFormRecargo({
                                     hora_fin: "",
                                     es_domingo: false,
                                     es_festivo: false,
+                                    disponibilidad: false,
                                   },
                                 ]);
                               }}
