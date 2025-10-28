@@ -937,14 +937,17 @@ const CanvasRecargosDashboard = () => {
         item: CanvasRecargo,
       ): ConfiguracionSalario | null => {
         if (!item?.empresa?.id) {
+          console.warn("⚠️ Item sin empresa_id:", item);
           return null;
         }
 
         if (!configuracionesSalario || !Array.isArray(configuracionesSalario)) {
+          console.warn("⚠️ configuracionesSalario no disponible o no es array");
           return null;
         }
 
         let configuracionGlobal: ConfiguracionSalario | null = null;
+        let configuracionEmpresa: ConfiguracionSalario | null = null;
 
         for (const salario of configuracionesSalario) {
           // Solo considerar configuraciones activas
@@ -952,26 +955,40 @@ const CanvasRecargosDashboard = () => {
             continue;
           }
 
-          // Si encontramos configuración específica para la empresa
-          if (salario.empresa_id === item.empresa.id) {
-            return salario;
+          // PRIORIDAD 1: Configuración por sede (coincidencia exacta)
+          if (salario.sede && item.conductor?.sede_trabajo) {
+            const sedeConfig = salario.sede.trim().toLowerCase();
+            const sedeConductor = item.conductor.sede_trabajo
+              .trim()
+              .toLowerCase();
+
+            if (sedeConfig === sedeConductor) {
+              return salario; // ✅ Retorno inmediato - máxima prioridad
+            }
           }
 
-          // Guardamos la primera configuración global que encontremos
+          // PRIORIDAD 2: Configuración específica para empresa
+          if (salario.empresa_id === item.empresa.id && !configuracionEmpresa) {
+            configuracionEmpresa = salario;
+          }
+
+          // PRIORIDAD 3: Configuración global (sin empresa ni sede específica)
           if (
             !configuracionGlobal &&
-            (salario.empresa_id === null || salario.empresa_id === undefined)
+            (salario.empresa_id === null || salario.empresa_id === undefined) &&
+            !salario.sede
           ) {
             configuracionGlobal = salario;
           }
         }
 
-        return configuracionGlobal;
-      };
+        const resultado = configuracionEmpresa || configuracionGlobal;
+
+        return resultado;
+      }; // ✅ CIERRE de obtenerSalarioBase
 
       // Obtener el salario base para este item
       const configuracionSalario = obtenerSalarioBase(item);
-
       if (!configuracionSalario) {
         return 0;
       }
@@ -985,6 +1002,7 @@ const CanvasRecargosDashboard = () => {
       const totalFestivos = item.dias_laborales.filter(
         (dia) => dia.es_festivo,
       ).length;
+
       const totalDomingos = item.dias_laborales.filter(
         (dia) => dia.es_domingo,
       ).length;
@@ -997,27 +1015,21 @@ const CanvasRecargosDashboard = () => {
       for (const tipoRecargo of tiposActivos) {
         const pagaDiasFestivos =
           configuracionSalario.paga_dias_festivos || false;
-        let valorCalculado = 0; // ✅ Mover la declaración aquí para que esté disponible en todo el scope
+        let valorCalculado = 0;
 
         // Si la configuración paga días festivos, calcular recargo especial para RD
         if (pagaDiasFestivos && tipoRecargo.codigo === "RD") {
           const valorDiarioBase = configuracionSalario.salario_basico / 30;
-
           const porcentaje = tipoRecargo.porcentaje;
 
-          // ✅ Validar que el porcentaje sea válido
           if (isNaN(porcentaje)) {
             continue;
           }
 
           const valorRecargo = valorDiarioBase * (1 + porcentaje / 100);
-
-          // Total de días festivos/domingos (evitar duplicados)
           const totalDiasEspeciales = totalFestivos + totalDomingos;
-
           valorCalculado = totalDiasEspeciales * valorRecargo;
 
-          // ✅ Agregar al total y continuar con el siguiente tipo de recargo
           totalGeneral += valorCalculado;
           continue;
         }
@@ -1035,7 +1047,6 @@ const CanvasRecargosDashboard = () => {
           campoHoras as keyof CanvasRecargo
         ] as number;
 
-        // ✅ Validar que horasTrabajadas sea un número válido
         if (
           !horasTrabajadas ||
           horasTrabajadas <= 0 ||
@@ -1045,20 +1056,16 @@ const CanvasRecargosDashboard = () => {
         }
 
         if (tipoRecargo.es_valor_fijo && tipoRecargo.valor_fijo) {
-          // Para valores fijos (como COVID)
           const valorFijo = tipoRecargo.valor_fijo;
           if (isNaN(valorFijo)) {
             continue;
           }
           valorCalculado = valorFijo;
         } else {
-          // Para porcentajes
           const porcentaje = tipoRecargo.porcentaje;
-
           if (isNaN(porcentaje)) {
             continue;
           }
-
           if (isNaN(valorPorHora) || valorPorHora <= 0) {
             continue;
           }
@@ -1072,7 +1079,6 @@ const CanvasRecargosDashboard = () => {
           }
         }
 
-        // ✅ Validar el resultado antes de sumarlo
         if (isNaN(valorCalculado)) {
           continue;
         }

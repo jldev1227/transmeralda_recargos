@@ -45,6 +45,7 @@ interface ConfiguracionSalarioFormData {
   observaciones: string;
   activo: boolean;
   empresa_id?: number;
+  sede: string;
 }
 
 // ===== COMPONENTE TAB PERSONALIZADO =====
@@ -248,6 +249,7 @@ export default function ModalConfiguracion() {
   const [configSalarioForm, setConfigSalarioForm] =
     useState<ConfiguracionSalarioFormData>({
       salario_basico: "",
+      sede: "YOPAL",
       valor_hora_trabajador: "",
       horas_mensuales_base: 240,
       vigencia_desde: new Date().toISOString().split("T")[0],
@@ -267,6 +269,8 @@ export default function ModalConfiguracion() {
     refrescarConfiguracionesSalario,
     crearTipoRecargo,
     actualizarTipoRecargo,
+    actualizarConfiguracionSalario,
+    crearConfiguracionSalario,
   } = useRecargo();
 
   // Cargar datos al abrir el modal
@@ -351,15 +355,19 @@ export default function ModalConfiguracion() {
       observaciones: config.observaciones || "",
       activo: config.activo,
       empresa_id: config.empresa?.id,
+      sede: config.sede,
     });
   };
 
   const handleSaveConfigSalario = async () => {
     try {
       if (editingConfigSalario) {
-        // await actualizarConfiguracionSalario(editingConfigSalario, configSalarioForm);
+        await actualizarConfiguracionSalario(
+          editingConfigSalario,
+          configSalarioForm,
+        );
       } else {
-        // await crearConfiguracionSalario(configSalarioForm);
+        await crearConfiguracionSalario(configSalarioForm);
       }
       setEditingConfigSalario(null);
       setShowNewConfigSalario(false);
@@ -379,6 +387,7 @@ export default function ModalConfiguracion() {
       vigencia_desde: new Date().toISOString().split("T")[0],
       observaciones: "",
       activo: true,
+      sede: "YOPAL",
     });
   };
 
@@ -661,17 +670,34 @@ export default function ModalConfiguracion() {
           />
         </div>
 
-        <Input
-          type="date"
-          label="Vigencia Desde"
-          value={configSalarioForm.vigencia_desde}
-          onChange={(e) =>
-            setConfigSalarioForm({
-              ...configSalarioForm,
-              vigencia_desde: e.target.value,
-            })
-          }
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            type="date"
+            label="Vigencia Desde"
+            value={configSalarioForm.vigencia_desde}
+            onChange={(e) =>
+              setConfigSalarioForm({
+                ...configSalarioForm,
+                vigencia_desde: e.target.value,
+              })
+            }
+          />
+
+          <Select
+            label="sede"
+            selectedKeys={[configSalarioForm.sede]}
+            onChange={(e) =>
+              setConfigSalarioForm({
+                ...configSalarioForm,
+                sede: e.target.value,
+              })
+            }
+          >
+            <SelectItem key="YOPAL">Yopal</SelectItem>
+            <SelectItem key="VILLANUEVA">Villanueva</SelectItem>
+            <SelectItem key="TAURAMENA">Tauramena</SelectItem>
+          </Select>
+        </div>
 
         <Textarea
           label="Observaciones"

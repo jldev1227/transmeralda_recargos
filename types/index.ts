@@ -9,6 +9,7 @@ export type Conductor = {
   nombre: string;
   apellido: string;
   numero_identificacion: number;
+  sede_trabajo: string;
 };
 
 export type Vehiculo = {
@@ -62,6 +63,8 @@ export type ConfiguracionSalario = {
 
   /** Horas base mensuales para cálculos (default: 240) */
   horas_mensuales_base: number;
+
+  sede: string;
 
   /** Fecha desde la cual es válida esta configuración */
   vigencia_desde: Date | string;

@@ -8,7 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { AxiosError, isAxiosError } from "axios";
-import { Conductor, Empresa, Vehiculo } from "@/types";
+import { Conductor, ConfiguracionSalario, Empresa, Vehiculo } from "@/types";
 import { apiClient } from "@/config/apiClient";
 import { obtenerFestivosCompletos } from "@/helpers";
 import { useAuth } from "./AuthContext";
@@ -95,24 +95,6 @@ interface TiposRecargoData {
       direccion: string;
     };
   };
-}
-
-// ✅ NUEVAS INTERFACES PARA CONFIGURACIÓN DE SALARIOS
-interface ConfiguracionSalario {
-  id: string;
-  empresa_id: string | null;
-  salario_basico: number; // Viene como number del backend
-  valor_hora_trabajador: number; // Viene como number del backend
-  horas_mensuales_base: number;
-  vigencia_desde: string;
-  vigencia_hasta: string | null;
-  activo: boolean;
-  observaciones: string | null;
-  creado_por_id: string | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  empresa: Empresa | null;
 }
 
 interface ConfiguracionesSalarioData {
@@ -451,9 +433,6 @@ interface RecargoContextType {
   obtenerConfiguracionesSalario: (
     filtros?: FiltrosConfigSalario,
   ) => Promise<ConfiguracionesSalarioData>;
-  obtenerConfiguracionSalarioVigente: (
-    empresaId?: string,
-  ) => Promise<ConfiguracionSalario | null>;
   crearConfiguracionSalario: (
     configData: Partial<ConfiguracionSalario>,
   ) => Promise<{ success: boolean; data?: ConfiguracionSalario }>;
@@ -543,8 +522,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const [configuracionesSalario, setConfiguracionesSalario] = useState<
     ConfiguracionSalario[]
   >([]);
-  const [configuracionSalarioVigente, setConfiguracionSalarioVigente] =
-    useState<ConfiguracionSalario | null>(null);
 
   // ✅ NUEVOS ESTADOS DE LOADING ESPECÍFICOS
   const [loadingTiposRecargo, setLoadingTiposRecargo] =
@@ -804,44 +781,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     ],
   );
 
-  // OBTENER CONFIGURACIÓN DE SALARIO VIGENTE
-  const obtenerConfiguracionSalarioVigente = useCallback(
-    async (empresaId?: string): Promise<ConfiguracionSalario | null> => {
-      try {
-        setLoadingConfigSalario(true);
-        const params = new URLSearchParams();
-
-        if (empresaId) {
-          params.append("empresa_id", empresaId);
-        }
-
-        const response = await apiClient.get<ApiResponse<ConfiguracionSalario>>(
-          `/api/configuraciones-salario/vigente?${params.toString()}`,
-        );
-
-        if (response.data.success) {
-          const config = response.data.data;
-          setConfiguracionSalarioVigente(config);
-          return config;
-        } else {
-          throw new Error(
-            response.data.message || "No se encontró configuración vigente",
-          );
-        }
-      } catch (err) {
-        const errorMessage = handleApiError(
-          err,
-          "Error al obtener configuración vigente",
-        );
-        setError(errorMessage);
-        return null;
-      } finally {
-        setLoadingConfigSalario(false);
-      }
-    },
-    [handleApiError],
-  );
-
   // CREAR CONFIGURACIÓN DE SALARIO
   const crearConfiguracionSalario = useCallback(
     async (
@@ -1048,7 +987,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         if (response.data.success) {
           // ✅ Invalidar cache de recargos para que se recarguen
           setLastFetch((prev) => ({ ...prev, recargos: undefined }));
-
           return {
             success: true,
             data: response.data.data,
@@ -1615,7 +1553,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           obtenerEmpresas(),
           obtenerTiposRecargo(),
           obtenerConfiguracionesSalario(),
-          obtenerConfiguracionSalarioVigente(),
         ]);
       } catch {
         // Error handled silently
@@ -1629,7 +1566,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     obtenerEmpresas,
     obtenerTiposRecargo,
     obtenerConfiguracionesSalario,
-    obtenerConfiguracionSalarioVigente,
   ]);
 
   // Inicializar Socket.IO cuando el usuario esté autenticado
@@ -1986,7 +1922,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     // ✅ NUEVOS ESTADOS
     tiposRecargo,
     configuracionesSalario,
-    configuracionSalarioVigente,
 
     // Estados de UI existentes
     loading,
@@ -2022,7 +1957,6 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // ✅ NUEVAS FUNCIONES PARA CONFIGURACIÓN DE SALARIOS
     obtenerConfiguracionesSalario,
-    obtenerConfiguracionSalarioVigente,
     crearConfiguracionSalario,
     actualizarConfiguracionSalario,
     eliminarConfiguracionSalario,
@@ -2118,31 +2052,6 @@ export const useTiposRecargo = (categoria?: string) => {
     loading: loadingTiposRecargo,
     error,
     refrescar: cargarTipos,
-  };
-};
-
-// ✅ NUEVO HOOK PARA CONFIGURACIÓN DE SALARIOS
-export const useConfiguracionSalario = (empresaId?: string) => {
-  const {
-    configuracionSalarioVigente,
-    obtenerConfiguracionSalarioVigente,
-    loadingConfigSalario,
-    error,
-  } = useRecargo();
-
-  const cargarConfiguracion = useCallback(async () => {
-    await obtenerConfiguracionSalarioVigente(empresaId);
-  }, [empresaId, obtenerConfiguracionSalarioVigente]);
-
-  useEffect(() => {
-    cargarConfiguracion();
-  }, [cargarConfiguracion]);
-
-  return {
-    configuracion: configuracionSalarioVigente,
-    loading: loadingConfigSalario,
-    error,
-    refrescar: cargarConfiguracion,
   };
 };
 
