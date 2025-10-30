@@ -235,6 +235,9 @@ export interface DiaLaboralPlanilla {
   /** Indica si el día es domingo */
   es_domingo: boolean;
 
+  /** Disponibilidad */
+  disponibilidad: boolean;
+
   /** Observaciones específicas del día */
   observaciones?: string | null;
 

@@ -473,7 +473,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
                 {/* DISPONIBLE */}
                 <TableCell className="text-center">
-                  <Switch color="primary" size="sm" isSelected={dia.disponibilidad} onChange={(e) => actualizarDiaLaboral(dia.id, "disponibilidad", e.target.checked)} />
+                  <Switch color="primary" size="sm" isSelected={dia.disponibilidad} onChange={(e) => actualizarDiaLaboral(dia.id, "disponibilidad", e.target.checked ? "true" : "false")} />
                 </TableCell>
 
                 {/* TOTAL HORAS */}

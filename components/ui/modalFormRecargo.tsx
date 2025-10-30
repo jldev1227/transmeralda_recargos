@@ -518,19 +518,19 @@ export default function ModalFormRecargo({
           });
 
           if (recargo.dias_laborales && recargo.dias_laborales.length > 0) {
-            const diasCargados = recargo.dias_laborales.map(
-              (detalle: DiaLaboralServidor) => ({
-                id: detalle.id,
-                dia: detalle.dia.toString(), // ✅ Convertir a string
-                mes: currentMonth.toString(), // ✅ Convertir a string
-                año: currentYear.toString(), // ✅ Convertir a string
-                hora_inicio: detalle.hora_inicio,
-                hora_fin: detalle.hora_fin,
-                es_domingo: detalle.es_domingo,
-                es_festivo: detalle.es_festivo,
-                disponibilidad: detalle.disponibilidad || false, // ✅ Nuevo campo
-              }),
-            );
+            const diasCargados = Array.isArray(recargo.dias_laborales)
+              ? recargo.dias_laborales.map((detalle: any) => ({
+                  id: detalle.id,
+                  dia: detalle.dia.toString(), // ✅ Convertir a string
+                  mes: currentMonth.toString(), // ✅ Convertir a string
+                  año: currentYear.toString(), // ✅ Convertir a string
+                  hora_inicio: detalle.hora_inicio,
+                  hora_fin: detalle.hora_fin,
+                  es_domingo: detalle.es_domingo,
+                  es_festivo: detalle.es_festivo,
+                  disponibilidad: detalle.disponibilidad ?? false, // ✅ Nuevo campo
+                }))
+              : [];
             setDiasLaborales(diasCargados);
           }
 
