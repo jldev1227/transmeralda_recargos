@@ -931,7 +931,7 @@ const CanvasRecargosDashboard = () => {
 
   const obtenerTotalRecargos = useCallback(
     (item: CanvasRecargo): number => {
-      // Función para obtener salario base dentro del callback
+      // Función para obtener salario base
       const obtenerSalarioBase = (
         item: CanvasRecargo,
       ): ConfiguracionSalario | null => {
@@ -949,20 +949,17 @@ const CanvasRecargosDashboard = () => {
         let configuracionEmpresa: ConfiguracionSalario | null = null;
 
         for (const salario of configuracionesSalario) {
-          // Solo considerar configuraciones activas
           if (!salario.activo) {
             continue;
           }
 
-          // PRIORIDAD 1: Configuración por sede (coincidencia exacta)
+          // PRIORIDAD 1: Configuración por sede
           if (salario.sede && item.conductor?.sede_trabajo) {
             const sedeConfig = salario.sede.trim().toLowerCase();
-            const sedeConductor = item.conductor.sede_trabajo
-              .trim()
-              .toLowerCase();
+            const sedeConductor = item.conductor.sede_trabajo.trim().toLowerCase();
 
             if (sedeConfig === sedeConductor) {
-              return salario; // ✅ Retorno inmediato - máxima prioridad
+              return salario;
             }
           }
 
@@ -971,7 +968,7 @@ const CanvasRecargosDashboard = () => {
             configuracionEmpresa = salario;
           }
 
-          // PRIORIDAD 3: Configuración global (sin empresa ni sede específica)
+          // PRIORIDAD 3: Configuración global
           if (
             !configuracionGlobal &&
             (salario.empresa_id === null || salario.empresa_id === undefined) &&
@@ -982,9 +979,8 @@ const CanvasRecargosDashboard = () => {
         }
 
         const resultado = configuracionEmpresa || configuracionGlobal;
-
         return resultado;
-      }; // ✅ CIERRE de obtenerSalarioBase
+      };
 
       // Obtener el salario base para este item
       const configuracionSalario = obtenerSalarioBase(item);
@@ -993,131 +989,196 @@ const CanvasRecargosDashboard = () => {
       }
 
       const valorPorHora =
-        configuracionSalario.salario_basico /
-        configuracionSalario.horas_mensuales_base;
+        configuracionSalario.salario_basico / configuracionSalario.horas_mensuales_base;
 
       let totalGeneral = 0;
 
-      // ✅ Contar todos los días para estadísticas (sin filtrar disponibilidad)
-      const totalFestivos = item.dias_laborales.filter(
-        (dia) => dia.es_festivo,
-      ).length;
-
-      const totalDomingos = item.dias_laborales.filter(
-        (dia) => dia.es_domingo,
-      ).length;
-
-      // ✅ PERO filtrar los días con disponibilidad para el cálculo de VALOR
+      // ✅ Filtrar los días SIN disponibilidad para el cálculo
       const diasParaCalculoValor = item.dias_laborales.filter(
         (dia) => !dia.disponibilidad
       );
 
-      const festivosParaValor = diasParaCalculoValor.filter(
-        (dia) => dia.es_festivo,
-      ).length;
+      const pagaDiasFestivos = configuracionSalario.paga_dias_festivos || false;
+      const tieneConfiguracionEmpresa = configuracionSalario.empresa_id !== null &&
+        configuracionSalario.empresa_id !== undefined;
 
-      const domingosParaValor = diasParaCalculoValor.filter(
-        (dia) => dia.es_domingo,
-      ).length;
+      // 🎯 LÓGICA ESPECIAL: Si paga días festivos Y tiene configuración de empresa
+      if (pagaDiasFestivos && tieneConfiguracionEmpresa) {
+        // Separar días especiales (festivos O domingos) de días normales
+        const diasEspeciales = diasParaCalculoValor.filter(
+          (dia) => dia.es_festivo || dia.es_domingo
+        );
+        const diasNormales = diasParaCalculoValor.filter(
+          (dia) => !dia.es_festivo && !dia.es_domingo
+        );
 
-      // Filtrar tipos de recargo activos y ordenar por orden de cálculo
-      const tiposActivos = tiposRecargo
-        .filter((tipo) => tipo.activo)
-        .sort((a, b) => a.orden_calculo - b.orden_calculo);
+        // 1️⃣ CALCULAR DÍAS ESPECIALES (festivos Y domingos) con recargo DF (180%)
+        if (diasEspeciales.length > 0) {
+          const tipoDF = tiposRecargo.find((tipo) => tipo.codigo === "DF" && tipo.activo);
 
-      for (const tipoRecargo of tiposActivos) {
-        const pagaDiasFestivos =
-          configuracionSalario.paga_dias_festivos || false;
-        let valorCalculado = 0;
+          if (tipoDF) {
+            const salarioBasico = parseFloat(configuracionSalario.salario_basico.toString());
+            const valorDiarioBase = salarioBasico / 30;
+            const porcentaje = parseFloat(tipoDF.porcentaje.toString());
 
-        // Si la configuración paga días festivos, calcular recargo especial para RD
-        if (pagaDiasFestivos && tipoRecargo.codigo === "RD") {
-          const valorDiarioBase = configuracionSalario.salario_basico / 30;
-          const porcentaje = tipoRecargo.porcentaje;
+            if (!isNaN(porcentaje) && !isNaN(valorDiarioBase)) {
+              // ✅ Aplicar el 180% sobre el valor diario
+              const valorDiaConRecargo = valorDiarioBase * (porcentaje / 100);
+              const valorTotalEspeciales = diasEspeciales.length * valorDiaConRecargo;
 
-          if (isNaN(porcentaje)) {
-            continue;
-          }
-
-          const valorRecargo = valorDiarioBase * (1 + porcentaje / 100);
-          // ✅ Usar los días filtrados (sin disponibilidad) para el cálculo
-          const totalDiasEspeciales = festivosParaValor + domingosParaValor;
-          valorCalculado = totalDiasEspeciales * valorRecargo;
-
-          totalGeneral += valorCalculado;
-          continue;
-        }
-
-        const campoHoras =
-          MAPEO_CAMPOS_HORAS[
-          tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS
-          ];
-
-        if (!campoHoras) {
-          continue;
-        }
-
-        // ✅ Calcular horas trabajadas solo de días SIN disponibilidad
-        const horasTrabajadasTotal = item[
-          campoHoras as keyof CanvasRecargo
-        ] as number;
-
-        // Calcular proporción de horas basada en días válidos
-        const totalDiasItem = item.dias_laborales.length;
-        const diasValidosCount = diasParaCalculoValor.length;
-
-        // Si todos los días tienen disponibilidad, no calcular nada
-        if (diasValidosCount === 0) {
-          continue;
-        }
-
-        // Calcular las horas proporcionales de los días sin disponibilidad
-        const horasTrabajadas = totalDiasItem > 0
-          ? (horasTrabajadasTotal * diasValidosCount) / totalDiasItem
-          : horasTrabajadasTotal;
-
-        if (
-          !horasTrabajadas ||
-          horasTrabajadas <= 0 ||
-          isNaN(horasTrabajadas)
-        ) {
-          continue;
-        }
-
-        if (tipoRecargo.es_valor_fijo && tipoRecargo.valor_fijo) {
-          const valorFijo = tipoRecargo.valor_fijo;
-          if (isNaN(valorFijo)) {
-            continue;
-          }
-          valorCalculado = valorFijo;
-        } else {
-          const porcentaje = tipoRecargo.porcentaje;
-          if (isNaN(porcentaje)) {
-            continue;
-          }
-          if (isNaN(valorPorHora) || valorPorHora <= 0) {
-            continue;
-          }
-
-          if (tipoRecargo.adicional) {
-            const valorHoraConRecargo = valorPorHora * (1 + porcentaje / 100);
-            valorCalculado = valorHoraConRecargo * horasTrabajadas;
-          } else {
-            const valorHoraConRecargo = valorPorHora * (porcentaje / 100);
-            valorCalculado = valorHoraConRecargo * horasTrabajadas;
+              totalGeneral += valorTotalEspeciales;
+            }
           }
         }
 
-        if (isNaN(valorCalculado)) {
-          continue;
+        // 2️⃣ CALCULAR DÍAS NORMALES con recargos estándar (excluyendo RD y DF)
+        if (diasNormales.length > 0) {
+          const totalNormales = calcularRecargosNormales(
+            diasNormales,
+            item,
+            configuracionSalario,
+            valorPorHora,
+            true, // Excluir RD y DF
+            tieneConfiguracionEmpresa
+          );
+          totalGeneral += totalNormales;
         }
-
-        totalGeneral += valorCalculado;
+      } else {
+        // ✅ Lógica normal: SIN configuración de empresa
+        totalGeneral = calcularRecargosNormales(
+          diasParaCalculoValor,
+          item,
+          configuracionSalario,
+          valorPorHora,
+          false, // NO excluir RD ni DF
+          tieneConfiguracionEmpresa
+        );
       }
 
       return totalGeneral;
+
+      // 🔧 FUNCIÓN AUXILIAR: Calcular recargos normales
+      function calcularRecargosNormales(
+        dias: any[],
+        item: CanvasRecargo,
+        configuracionSalario: ConfiguracionSalario,
+        valorPorHora: number,
+        excluirRDyDF: boolean = false,
+        tieneConfigEmpresa: boolean = false
+      ): number {
+        let total = 0;
+
+        // Filtrar tipos de recargo activos y ordenar
+        const tiposActivos = tiposRecargo
+          .filter((tipo) => {
+            if (!tipo.activo) return false;
+            // Si tiene config empresa, excluir RD y DF de días normales
+            if (excluirRDyDF && (tipo.codigo === "RD" || tipo.codigo === "DF")) {
+              return false;
+            }
+            return true;
+          })
+          .sort((a, b) => a.orden_calculo - b.orden_calculo);
+
+        for (const tipoRecargo of tiposActivos) {
+          let valorCalculado = 0;
+
+          // ========== MANEJO DE RD (Recargo Dominical) ==========
+          if (tipoRecargo.codigo === "RD") {
+            // RD aplica SOLO cuando NO hay configuración de empresa
+            // Y aplica tanto para domingos como para festivos
+            const diasDominicalesYFestivos = dias.filter(
+              (dia) => dia.es_domingo || dia.es_festivo
+            );
+
+            if (diasDominicalesYFestivos.length > 0) {
+              const porcentaje = parseFloat(tipoRecargo.porcentaje.toString());
+
+              if (!isNaN(porcentaje) && !isNaN(valorPorHora) && valorPorHora > 0) {
+                // 🔑 CALCULAR POR HORAS, NO POR DÍAS
+                // Sumar total de horas de días dominicales/festivos
+                const totalHorasDominicalesFestivos = diasDominicalesYFestivos.reduce(
+                  (sum, dia) => sum + (dia.total_horas || 0),
+                  0
+                );
+
+                if (totalHorasDominicalesFestivos > 0) {
+                  // RD se calcula como: valor_hora × porcentaje × horas
+                  const valorRecargoPorHora = valorPorHora * (porcentaje / 100);
+                  valorCalculado = valorRecargoPorHora * totalHorasDominicalesFestivos;
+                  total += valorCalculado;
+                }
+              }
+            }
+            continue;
+          }
+
+          // ========== MANEJO DE DF (Días Festivos) ==========
+          // DF solo se usa cuando NO hay configuración de empresa
+          if (tipoRecargo.codigo === "DF") {
+            // Cuando DF está activo sin config empresa, NO se debe usar
+            // porque ya se usó RD arriba
+            continue;
+          }
+
+          // ========== OTROS RECARGOS (HED, HEN, HEFD, HEFN, RN, etc.) ==========
+          const campoHoras =
+            MAPEO_CAMPOS_HORAS[tipoRecargo.codigo as keyof typeof MAPEO_CAMPOS_HORAS];
+
+          if (!campoHoras) {
+            continue;
+          }
+
+          // Calcular horas proporcionales de los días válidos
+          const horasTrabajadasTotal = item[campoHoras as keyof CanvasRecargo] as number;
+          const totalDiasItem = item.dias_laborales.length;
+          const diasValidosCount = dias.length;
+
+          if (diasValidosCount === 0) {
+            continue;
+          }
+
+          const horasTrabajadas =
+            totalDiasItem > 0
+              ? (horasTrabajadasTotal * diasValidosCount) / totalDiasItem
+              : horasTrabajadasTotal;
+
+          if (!horasTrabajadas || horasTrabajadas <= 0 || isNaN(horasTrabajadas)) {
+            continue;
+          }
+
+          // Calcular según tipo de recargo
+          if (tipoRecargo.es_valor_fijo && tipoRecargo.valor_fijo) {
+            const valorFijo = parseFloat(tipoRecargo.valor_fijo.toString());
+            if (!isNaN(valorFijo)) {
+              valorCalculado = valorFijo;
+            }
+          } else {
+            const porcentaje = parseFloat(tipoRecargo.porcentaje.toString());
+            if (isNaN(porcentaje) || isNaN(valorPorHora) || valorPorHora <= 0) {
+              continue;
+            }
+
+            if (tipoRecargo.adicional) {
+              // Recargo adicional: valor_hora * (1 + porcentaje/100)
+              const valorHoraConRecargo = valorPorHora * (1 + porcentaje / 100);
+              valorCalculado = valorHoraConRecargo * horasTrabajadas;
+            } else {
+              // Recargo normal: valor_hora * (porcentaje/100)
+              const valorHoraConRecargo = valorPorHora * (porcentaje / 100);
+              valorCalculado = valorHoraConRecargo * horasTrabajadas;
+            }
+          }
+
+          if (!isNaN(valorCalculado) && valorCalculado > 0) {
+            total += valorCalculado;
+          }
+        }
+
+        return total;
+      }
     },
-    [tiposRecargo, MAPEO_CAMPOS_HORAS, configuracionesSalario],
+    [tiposRecargo, MAPEO_CAMPOS_HORAS, configuracionesSalario]
   );
 
   // Datos paginados
