@@ -1714,6 +1714,8 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         // Extraer información del recargo
         const recargo = data.data;
 
+        console.log(recargo)
+
         // Obtener los días específicos que se actualizaron
         const diasRegistrados =
           recargo.dias_laborales?.map((dia: any) => dia.dia) || [];
@@ -1724,7 +1726,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // Construir descripción informativa
         const descripcion = [
-          `${recargo.total_dias_laborados} día${recargo.total_dias_laborados !== 1 ? "s" : ""} laborado${recargo.total_dias_laborados !== 1 ? "s" : ""}`,
+          `${recargo.total_dias} día${recargo.total_dias !== 1 ? "s" : ""} laborado${recargo.total_dias !== 1 ? "s" : ""}`,
           diasTexto,
           `Conductor: ${recargo.conductor.nombre} ${recargo.conductor.apellido}`,
           `Vehículo: ${recargo.vehiculo.placa} (${recargo.vehiculo.marca})`,

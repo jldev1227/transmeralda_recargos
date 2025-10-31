@@ -91,12 +91,11 @@ const CustomTab: React.FC<TabProps> = ({
       className={`
         relative flex items-center gap-3 px-6 py-4 font-medium text-sm
         transition-all duration-200 border-b-2 hover:bg-gray-50 flex-1
-        ${
-          isActive
-            ? editMode
-              ? "text-blue-600 border-blue-500 bg-blue-50/50"
-              : "text-emerald-600 border-emerald-500 bg-emerald-50/50"
-            : "text-gray-600 border-transparent hover:text-gray-800"
+        ${isActive
+          ? editMode
+            ? "text-blue-600 border-blue-500 bg-blue-50/50"
+            : "text-emerald-600 border-emerald-500 bg-emerald-50/50"
+          : "text-gray-600 border-transparent hover:text-gray-800"
         } cursor-pointer
       `}
     >
@@ -113,13 +112,12 @@ const CustomTab: React.FC<TabProps> = ({
       <div className="flex items-center gap-2">
         <span
           className={`
-          ${
-            isActive
+          ${isActive
               ? editMode
                 ? "text-blue-600"
                 : "text-emerald-600"
               : "text-gray-500"
-          }
+            }
         `}
         >
           {icon}
@@ -382,6 +380,7 @@ export default function ModalFormRecargo({
         if (
           parsedData.month === currentMonth &&
           parsedData.year === currentYear &&
+          parsedData.editMode === false &&
           parsedData.formData
         ) {
           return parsedData.formData;
@@ -415,6 +414,7 @@ export default function ModalFormRecargo({
         if (
           parsedData.month === currentMonth &&
           parsedData.year === currentYear &&
+          parsedData.editMode === false &&
           parsedData.activeTab
         ) {
           return parsedData.activeTab;
@@ -455,6 +455,7 @@ export default function ModalFormRecargo({
         if (
           parsedData.month === currentMonth &&
           parsedData.year === currentYear &&
+          parsedData.editMode === false &&
           parsedData.diasLaborales &&
           Array.isArray(parsedData.diasLaborales)
         ) {
@@ -499,6 +500,9 @@ export default function ModalFormRecargo({
     async (id: string) => {
       try {
         setIsLoadingData(true);
+        clearLocalStorage();
+        resetearFormulario()
+
         const response = await obtenerRecargoPorId(id);
         const recargo = response?.data.recargo;
 
@@ -520,16 +524,16 @@ export default function ModalFormRecargo({
           if (recargo.dias_laborales && recargo.dias_laborales.length > 0) {
             const diasCargados = Array.isArray(recargo.dias_laborales)
               ? recargo.dias_laborales.map((detalle: any) => ({
-                  id: detalle.id,
-                  dia: detalle.dia.toString(), // ✅ Convertir a string
-                  mes: currentMonth.toString(), // ✅ Convertir a string
-                  año: currentYear.toString(), // ✅ Convertir a string
-                  hora_inicio: detalle.hora_inicio,
-                  hora_fin: detalle.hora_fin,
-                  es_domingo: detalle.es_domingo,
-                  es_festivo: detalle.es_festivo,
-                  disponibilidad: detalle.disponibilidad ?? false, // ✅ Nuevo campo
-                }))
+                id: detalle.id,
+                dia: detalle.dia.toString(), // ✅ Convertir a string
+                mes: currentMonth.toString(), // ✅ Convertir a string
+                año: currentYear.toString(), // ✅ Convertir a string
+                hora_inicio: detalle.hora_inicio,
+                hora_fin: detalle.hora_fin,
+                es_domingo: detalle.es_domingo,
+                es_festivo: detalle.es_festivo,
+                disponibilidad: detalle.disponibilidad ?? false, // ✅ Nuevo campo
+              }))
               : [];
             setDiasLaborales(diasCargados);
           }
@@ -866,6 +870,12 @@ export default function ModalFormRecargo({
         if (!open) {
           // Solo resetear archivo adjunto al cerrar, mantener otros datos
           setArchivoAdjunto(null)
+
+          // ✅ Si estamos en modo edición, limpiar localStorage al cerrar
+          if (editMode) {
+            clearLocalStorage();
+            resetearFormulario();
+          }
           onClose();
         }
       }}
@@ -1315,11 +1325,10 @@ export default function ModalFormRecargo({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <div
-                    className={`w-2 h-2 rounded-full ${
-                      progress.completed === progress.total
-                        ? "bg-green-500"
-                        : "bg-amber-500"
-                    }`}
+                    className={`w-2 h-2 rounded-full ${progress.completed === progress.total
+                      ? "bg-green-500"
+                      : "bg-amber-500"
+                      }`}
                   />
                   {progress.completed === progress.total
                     ? "Formulario completo"
@@ -1331,7 +1340,8 @@ export default function ModalFormRecargo({
                     color="danger"
                     variant="light"
                     onPress={() => {
-                      // Resetear completamente el formulario al cancelar
+                      // ✅ Limpiar storage siempre al cancelar
+                      clearLocalStorage();
                       resetearFormulario();
                       onClose();
                     }}

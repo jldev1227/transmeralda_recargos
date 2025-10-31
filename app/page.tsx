@@ -1088,7 +1088,7 @@ const CanvasRecargosDashboard = () => {
             // RD aplica SOLO cuando NO hay configuración de empresa
             // Y aplica tanto para domingos como para festivos
             const diasDominicalesYFestivos = dias.filter(
-              (dia) => dia.es_domingo || dia.es_festivo
+              (dia) => dia.es_domingo || dia.es_festivo && !dia.disponibilidad
             );
 
             if (diasDominicalesYFestivos.length > 0) {
@@ -1658,14 +1658,17 @@ const CanvasRecargosDashboard = () => {
           return (
             <div className="text-xs w-full py-1">
               {/* ✅ Horas trabajadas - Siempre visible */}
-              <div
-                className={`font-bold text-center mb-1 px-1 py-1 rounded ${dayData.es_domingo || dayData.es_festivo
-                  ? "text-red-800 bg-red-100 border border-red-200"
-                  : "text-emerald-800 bg-emerald-100 border border-emerald-200"
-                  }`}
-              >
+                <div
+                className={`font-bold text-center mb-1 px-1 py-1 rounded ${
+                  dayData.disponibilidad
+                  ? "text-gray-400 bg-gray-100 border border-gray-200"
+                  : dayData.es_domingo || dayData.es_festivo
+                    ? "text-red-800 bg-red-100 border border-red-200"
+                    : "text-emerald-800 bg-emerald-100 border border-emerald-200"
+                }`}
+                >
                 {toNumber(dayData.total_horas).toFixed(1)}h
-              </div>
+                </div>
             </div>
           );
         }
