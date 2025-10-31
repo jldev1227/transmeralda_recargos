@@ -1143,7 +1143,7 @@ const CanvasRecargosDashboard = () => {
               ? (horasTrabajadasTotal * diasValidosCount) / totalDiasItem
               : horasTrabajadasTotal;
 
-          if (!horasTrabajadas || horasTrabajadas <= 0 || isNaN(horasTrabajadas)) {
+          if (!horasTrabajadas || isNaN(horasTrabajadas)) {
             continue;
           }
 
@@ -1155,7 +1155,7 @@ const CanvasRecargosDashboard = () => {
             }
           } else {
             const porcentaje = parseFloat(tipoRecargo.porcentaje.toString());
-            if (isNaN(porcentaje) || isNaN(valorPorHora) || valorPorHora <= 0) {
+            if (isNaN(porcentaje) || isNaN(valorPorHora)) {
               continue;
             }
 
@@ -1170,7 +1170,7 @@ const CanvasRecargosDashboard = () => {
             }
           }
 
-          if (!isNaN(valorCalculado) && valorCalculado > 0) {
+          if (!isNaN(valorCalculado)) {
             total += valorCalculado;
           }
         }

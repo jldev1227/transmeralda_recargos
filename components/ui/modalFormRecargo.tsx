@@ -865,7 +865,7 @@ export default function ModalFormRecargo({
       onOpenChange={(open) => {
         if (!open) {
           // Solo resetear archivo adjunto al cerrar, mantener otros datos
-          setArchivoAdjunto(null);
+          setArchivoAdjunto(null)
           onClose();
         }
       }}
