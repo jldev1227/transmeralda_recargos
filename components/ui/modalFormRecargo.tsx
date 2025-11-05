@@ -328,6 +328,8 @@ export default function ModalFormRecargo({
 
   const [archivoAdjunto, setArchivoAdjunto] = useState<File | null>(null);
   const [archivoExistente, setArchivoExistente] = useState<string | null>(null);
+  // Guardamos también la clave S3 original para no perderla al actualizar
+  const [archivoExistenteKey, setArchivoExistenteKey] = useState<string | null>(null);
 
   // ===== FUNCIONES DE PERSISTENCIA DE DATOS =====
   const STORAGE_KEY = "modalFormRecargo_data";
@@ -509,8 +511,11 @@ export default function ModalFormRecargo({
         if (recargo?.planilla_s3key) {
           const url = await getPresignedUrl(recargo.planilla_s3key);
           setArchivoExistente(url);
+          // Guardar la clave s3 para preservarla si el usuario no reemplaza el archivo
+          setArchivoExistenteKey(recargo.planilla_s3key);
         } else {
           setArchivoExistente(null);
+          setArchivoExistenteKey(null);
         }
 
         if (recargo) {
@@ -563,6 +568,7 @@ export default function ModalFormRecargo({
     });
     setArchivoAdjunto(null);
     setArchivoExistente(null);
+  setArchivoExistenteKey(null);
     setDiasLaborales([
       {
         id: "1",
@@ -730,7 +736,9 @@ export default function ModalFormRecargo({
   const handleFileChange = (archivo: File | null) => {
     setArchivoAdjunto(archivo);
     if (archivo) {
+      // Si el usuario adjunta un archivo nuevo, descartamos la referencia al archivo existente
       setArchivoExistente(null);
+      setArchivoExistenteKey(null);
     }
   };
 
@@ -742,6 +750,7 @@ export default function ModalFormRecargo({
 
   const eliminarArchivoExistente = () => {
     setArchivoExistente(null);
+    setArchivoExistenteKey(null);
   };
 
   const handleSubmit = async () => {
@@ -792,7 +801,7 @@ export default function ModalFormRecargo({
           .some((f) => f.dia === dia);
       };
 
-      const recargoData = {
+      const recargoData: any = {
         conductor_id: formData.conductorId,
         vehiculo_id: formData.vehiculoId,
         empresa_id: formData.empresaId,
@@ -808,6 +817,13 @@ export default function ModalFormRecargo({
           disponibilidad: dia.disponibilidad, // ✅ CAMPO AGREGADO
         })),
       };
+
+      // Si estamos en modo edición y existe una planilla previamente almacenada (clave S3)
+      // y el usuario NO ha adjuntado un archivo nuevo, incluir la clave S3 en el JSON
+      // para que el backend preserve la planilla en la actualización.
+      if (editMode && archivoExistenteKey && !archivoAdjunto) {
+        recargoData.planilla_s3key = archivoExistenteKey;
+      }
 
       formDataToSend.append("recargo_data", JSON.stringify(recargoData));
 
