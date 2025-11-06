@@ -230,7 +230,7 @@ const CanvasRecargosDashboard = () => {
   };
 
   // Función mejorada para copiar múltiples filas seleccionadas
-const handleCopySelectedRows = async () => {
+  const handleCopySelectedRows = async () => {
     try {
       // Función helper para convertir números a formato con coma decimal
       const formatNumberWithComma = (value: string | number): string => {
@@ -303,8 +303,8 @@ const handleCopySelectedRows = async () => {
             const column = columns.find((col) => col.key === key);
             let cellValue = column ? getCellCopyValue(item, column) : "";
 
-            // Añadir prefijo "TM-" al numero_planilla
-            if (key === "numero_planilla" && cellValue) {
+            // Añadir prefijo "TM-" al numero_planilla si es solo números
+            if (key === "numero_planilla" && cellValue && /^\d+$/.test(cellValue) && !cellValue.startsWith("TM-")) {
               cellValue = `TM-${cellValue}`;
             }
 
@@ -1570,14 +1570,11 @@ const handleCopySelectedRows = async () => {
 
         return (
           <div className={`flex items-center gap-2 py-2 px-5 rounded-full ${cellBg}`}>
-            <Tooltip content={tooltipText}>
-              {(planillaStateCell === "no_esta") ? (
-                <FileX size={16} className={iconClass} />
-              ) : (
-                <FileText size={16} className={iconClass} />
-              )}
-            </Tooltip>
-
+            {/* Indicador visual de archivo - Solo mostrar icono si hay archivo */}
+            {item.planilla_s3key && (
+              <FileText size={16} className={iconClass} />
+            )}
+            
             {/* Mostrar número de planilla si existe */}
             {item.numero_planilla ? (
               <span className={`text-xs ${cellText}`}>{item.numero_planilla}</span>
