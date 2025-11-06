@@ -14,7 +14,6 @@ import {
   PlusIcon,
   Clock,
   Trash2,
-  Minus,
   Copy,
   FileText,
   FileX,
@@ -231,7 +230,7 @@ const CanvasRecargosDashboard = () => {
   };
 
   // Función mejorada para copiar múltiples filas seleccionadas
-  const handleCopySelectedRows = async () => {
+const handleCopySelectedRows = async () => {
     try {
       // Función helper para convertir números a formato con coma decimal
       const formatNumberWithComma = (value: string | number): string => {
@@ -303,6 +302,11 @@ const CanvasRecargosDashboard = () => {
           .map((key) => {
             const column = columns.find((col) => col.key === key);
             let cellValue = column ? getCellCopyValue(item, column) : "";
+
+            // Añadir prefijo "TM-" al numero_planilla
+            if (key === "numero_planilla" && cellValue) {
+              cellValue = `TM-${cellValue}`;
+            }
 
             // Aplicar formato con coma decimal a campos numéricos
             if (numericFieldsWithComma.includes(key)) {
@@ -2821,7 +2825,7 @@ const CanvasRecargosDashboard = () => {
                     paginatedData.length > 0
                   }
                   onChange={handleSelectAll}
-                  className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                 />
               </div>
             </div>
