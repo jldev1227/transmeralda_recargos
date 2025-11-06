@@ -473,7 +473,19 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
                 {/* DISPONIBLE */}
                 <TableCell className="text-center">
-                  <Switch color="primary" size="sm" isSelected={dia.disponibilidad} onChange={(e) => actualizarDiaLaboral(dia.id, "disponibilidad", e.target.checked ? "true" : "false")} />
+                  {/*
+                    El campo `dia.disponibilidad` puede venir como booleano o como string "true"/"false".
+                    `isSelected` debe recibir un booleano, por eso normalizamos.
+                  */}
+                  <Switch
+                    color="primary"
+                    size="sm"
+                    isSelected={String(dia.disponibilidad) === "true"}
+                    onChange={(e) => {
+                      const checked = !!(e && (e.target as any)?.checked);
+                      actualizarDiaLaboral(dia.id, "disponibilidad", checked ? "true" : "false");
+                    }}
+                  />
                 </TableCell>
 
                 {/* TOTAL HORAS */}

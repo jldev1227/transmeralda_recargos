@@ -15,12 +15,15 @@ interface LiquidarRecargoConfirmProps {
   message?: React.ReactNode;
   confirmText?: string;
   cancelText?: string;
-  onConfirm: () => void;
+  // onConfirm will receive the chosen action key when applicable
+  onConfirm: (action?: string) => void;
   onCancel?: () => void;
   isOpen: boolean;
   onClose: () => void;
   isLoading?: boolean;
   planillasLength: number;
+  // Optional list of action options to present (key,label)
+  actionOptions?: Array<{ key: string; label: string }>;
 }
 
 /**
@@ -37,9 +40,13 @@ const LiquidarRecargoConfirm: React.FC<LiquidarRecargoConfirmProps> = ({
   onClose,
   isLoading = false,
   planillasLength,
+  actionOptions = [],
 }) => {
+  const [selectedAction, setSelectedAction] = useState<string | undefined>(
+    actionOptions.length > 0 ? actionOptions[0].key : undefined,
+  );
   const handleConfirm = () => {
-    onConfirm();
+    onConfirm(selectedAction);
   };
 
   const handleCancel = () => {
@@ -94,24 +101,51 @@ const LiquidarRecargoConfirm: React.FC<LiquidarRecargoConfirmProps> = ({
                     )}
                   </div>
                 )}
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle
-                      size={16}
-                      className="text-yellow-600 mt-0.5 flex-shrink-0"
-                    />
-                    <div className="text-sm text-yellow-800">
-                      <p className="font-medium mb-1">
-                        Esta acción liquidará los recargos seleccionados
-                      </p>
-                      <p>
-                        Las siguientes planillas serán liquidadas. Por favor
-                        verifica que sean correctas antes de continuar.
-                      </p>
+                {/* If actionOptions provided, show a selector (useful when handling different patch actions) */}
+                {actionOptions.length > 0 ? (
+                  <div className="space-y-3">
+                    <div className="text-sm text-gray-700">
+                      Selecciona la acción a aplicar a las planillas
+                      seleccionadas.
+                    </div>
+                    <div className="flex flex-col space-y-2">
+                      {actionOptions.map((opt) => (
+                        <label
+                          key={opt.key}
+                          className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-gray-50 ${selectedAction === opt.key ? "bg-gray-100" : ""}`}
+                          onClick={() => setSelectedAction(opt.key)}
+                        >
+                          <input
+                            type="radio"
+                            name="liquidar_action"
+                            checked={selectedAction === opt.key}
+                            onChange={() => setSelectedAction(opt.key)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm text-gray-800">{opt.label}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle
+                        size={16}
+                        className="text-yellow-600 mt-0.5 flex-shrink-0"
+                      />
+                      <div className="text-sm text-yellow-800">
+                        <p className="font-medium mb-1">
+                          Esta acción liquidará los recargos seleccionados
+                        </p>
+                        <p>
+                          Las siguientes planillas serán liquidadas. Por favor
+                          verifica que sean correctas antes de continuar.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </ModalBody>
 
@@ -167,15 +201,15 @@ export const useLiquidarRecargoConfirm = () => {
   const confirm = (
     options: Partial<Omit<LiquidarRecargoConfirmProps, "isOpen" | "onClose">>,
   ) => {
-    return new Promise<{ confirmed: boolean }>((resolve) => {
+    return new Promise<{ confirmed: boolean; action?: string }>((resolve) => {
       const newConfig = {
         ...config,
         ...options,
-        onConfirm: () => {
+        onConfirm: (action?: string) => {
           if (options.onConfirm) {
-            options.onConfirm();
+            options.onConfirm(action);
           }
-          resolve({ confirmed: true });
+          resolve({ confirmed: true, action });
           onClose();
         },
         onCancel: () => {

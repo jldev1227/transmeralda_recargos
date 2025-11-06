@@ -827,6 +827,16 @@ export default function ModalFormRecargo({
 
       formDataToSend.append("recargo_data", JSON.stringify(recargoData));
 
+      // Si estamos en edición y existe la clave S3 pero NO hay archivo adjunto,
+      // añadimos campos explícitos al multipart para indicar al backend que
+      // preserve la planilla existente (si el backend está preparado para leerlos).
+      if (editMode && archivoExistenteKey && !archivoAdjunto) {
+        // Campo suelto (multipart) que algunos backends pueden chequear más fácilmente
+        formDataToSend.append("planilla_s3key", archivoExistenteKey);
+        // Flag explícita para indicar conservación de la planilla
+        formDataToSend.append("keep_planilla", "true");
+      }
+
       if (archivoAdjunto) {
         formDataToSend.append("planilla", archivoAdjunto);
       }

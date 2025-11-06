@@ -31,7 +31,6 @@ interface DiaLaboral {
   rn: number;
   rd: number;
 }
-
 // ✅ NUEVAS INTERFACES PARA TIPOS DE RECARGO
 interface TipoRecargo {
   id: string;
@@ -281,7 +280,7 @@ export interface CanvasRecargo {
   total_rn: number;
   total_rd: number;
   dias_laborales: DiaLaboralPlanilla[];
-  estado: "pendiente" | "liquidada" | "facturada";
+  estado: "pendiente" | "liquidada" | "facturada" | "encontrada" | "no está";
   planilla_s3key: string;
 }
 
@@ -761,7 +760,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           throw new Error(
             response.data.message ||
-              "Error al obtener configuraciones de salario",
+            "Error al obtener configuraciones de salario",
           );
         }
       } catch (err) {
@@ -868,7 +867,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           setError(
             response.data.message ||
-              "Error al actualizar configuración de salario",
+            "Error al actualizar configuración de salario",
           );
           return { success: false };
         }
@@ -909,7 +908,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           setError(
             response.data.message ||
-              "Error al eliminar configuración de salario",
+            "Error al eliminar configuración de salario",
           );
           return { success: false };
         }
@@ -1824,6 +1823,57 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       };
 
+      const handleRecargoAcciones = (data: any) => {
+        setSocketEventLogs(prev => [
+          ...prev,
+          {
+            eventName: "recargo-planilla:acciones",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+
+        const selectedIds: string[] = data.selectedIds ?? [];
+        const action: string = data.action ?? "";
+        const usuario = data.usuarioNombre ?? "Usuario";
+        const esActor = data.usuarioId === user.id;
+        const cantidad = selectedIds.length;
+        const numerosPlanilla: string[] = data.numerosPlanilla ?? [];
+
+        const mapActionToEstado: Record<string, string> = {
+          liquidar: "liquidada",
+          marcar_pendiente: "pendiente",
+          marcar_no_esta: "no_esta",
+          marcar_facturada: "facturada",
+          marcar_encontrada: "encontrada",
+        };
+
+        const nuevoEstado = mapActionToEstado[action];
+
+        setCanvasData(prev => {
+          if (!prev || selectedIds.length === 0) return prev;
+
+          const recargosActualizados = prev.recargos.map(rec => {
+            if (!selectedIds.includes(rec.id)) return rec;
+
+            const updatedFromServer = data.recargos?.find((r: any) => r.id === rec.id);
+            if (updatedFromServer) return { ...rec, ...updatedFromServer };
+
+            if (nuevoEstado) return { ...rec, estado: nuevoEstado };
+
+            return rec;
+          });
+
+          return { ...prev, recargos: recargosActualizados };
+        });
+
+        addToast({
+          title: esActor ? "Acción aplicada" : "Acción en recargos",
+          description: `${esActor ? "Has aplicado" : `${usuario} aplicó`} '${mapActionToEstado[action]}' a ${cantidad} recargo${cantidad > 1 ? "s" : ""}${numerosPlanilla.length ? ` • Planillas: ${numerosPlanilla.join(", ")}` : ""}`,
+          color: esActor ? "success" : "primary",
+        });
+      };
+
       const handleRecargoEliminado = (data: any) => {
         setSocketEventLogs((prev) => [
           ...prev,
@@ -1896,6 +1946,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       socketService.on("recargo-planilla:eliminado", handleRecargoEliminado);
       socketService.on("recargo-planilla:liquidado", handleRecargoLiquidado);
+      socketService.on("recargo-planilla:acciones", handleRecargoAcciones);
       socketService.on("recargo-planilla:error", handleRecargoError);
 
       return () => {
@@ -1909,6 +1960,7 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         socketService.off("recargo-planilla:actualizado");
         socketService.off("recargo-planilla:eliminado");
         socketService.off("recargo-planilla:liquidado");
+        socketService.off("recargo-planilla:acciones");
         socketService.off("recargo-planilla:error");
       };
     }

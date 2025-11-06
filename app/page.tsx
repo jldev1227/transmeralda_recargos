@@ -142,6 +142,9 @@ const months = [
   { key: 12, label: "Diciembre", short: "Dic" },
 ];
 
+// CONFIG: ID de la empresa PAREX (poner aquí el id real)
+const PAREX_COMPANY_ID = ""; // <-- coloca el id de PAREX aquí
+
 const CanvasRecargosDashboard = () => {
   const { user } = useAuth();
   const { logout } = useLogout();
@@ -386,6 +389,35 @@ const CanvasRecargosDashboard = () => {
     [canvasData?.recargos],
   );
 
+  // Helper para determinar el estado visual de la planilla
+  // NOTE: Prioriza exclusivamente el campo `item.estado` (enum del servidor):
+  // 'pendiente', 'liquidada', 'facturada', 'no_esta', 'encontrada'.
+  // Se ignoran heurísticas basadas en número/archivo de planilla.
+  const getPlanillaVisualState = useCallback((item: CanvasRecargo) => {
+    const estado = (item.estado || "").toLowerCase();
+
+    switch (estado) {
+      case "no_esta":
+      case "noesta":
+      case "no-esta":
+        return "no_esta"; // rojo
+
+      case "encontrada":
+      case "found":
+        return "found"; // celeste
+
+      case "liquidada":
+        return "liquidada_no_facturada"; // lila
+
+      case "facturada":
+        return "liquidada_facturada"; // verde (emerald)
+
+      case "pendiente":
+      default:
+        return "pendiente"; // neutro/default
+    }
+  }, []);
+
   // Estados de filtros
   const [filters, setFilters] = useState<Filters>({
     conductores: [],
@@ -435,35 +467,49 @@ const CanvasRecargosDashboard = () => {
     }
   };
 
-  const handleLiquidar = async () => {
+  const handleAcciones = async () => {
     // Si no hay recargos para liquidar, mostrar mensaje
-    if (recargosParaLiquidar.length === 0) {
-      // TODO: Mostrar notificación de que no hay recargos para liquidar
+    if (selectedRows.size === 0) {
+      // nothing selected
       return;
     }
 
+    const actionOptions = [
+      { key: "liquidar", label: "Liquidar" },
+      { key: "marcar_pendiente", label: "Marcar como Pendiente" },
+      { key: "marcar_no_esta", label: "Marcar como No Está" },
+      { key: "marcar_facturada", label: "Marcar como Facturada" },
+      { key: "marcar_encontrada", label: "Marcar como Encontrada" },
+    ];
+
     const result = await liquidarRecargoConfirm({
-      title: "Liquidar recargos",
-      message: `¿Deseas liquidar ${recargosParaLiquidar.length} recargo(s) seleccionado(s)?${recargosYaLiquidados.length > 0
-        ? ` (Se omitirán ${recargosYaLiquidados.length} recargo(s) ya liquidado(s))`
-        : ""
-        }`,
-      planillasLength: recargosParaLiquidar.length,
-      confirmText: "Sí, liquidar",
+      title: selectedRows.size > 1 ? "Acciones múltiples" : "Acciones",
+      message: `Selecciona la acción a aplicar a ${selectedRows.size} recargo(s) seleccionado(s).`,
+      planillasLength: selectedRows.size,
+      confirmText: selectedRows.size > 1 ? "Aplicar" : "Aplicar",
+      actionOptions,
     });
 
     if (result.confirmed) {
       try {
         setLiquidarLoading(true);
-        await apiClient.patch("/api/recargos/liquidar", {
-          data: {
-            selectedIds: recargosParaLiquidar.map((item) => item.id), // Solo enviar IDs de recargos no liquidados
-          },
-        });
+
+        const selectedIds = Array.from(selectedRows);
+
+        if (result.action === "liquidar") {
+          await apiClient.patch("/api/recargos/liquidar", {
+            data: { selectedIds },
+          });
+        } else {
+          // Generic action endpoint - backend should handle mapping
+          await apiClient.patch("/api/recargos/acciones", {
+            data: { action: result.action, selectedIds },
+          });
+        }
 
         setSelectedRows(new Set());
-      } catch {
-        // Error manejado silenciosamente
+      } catch (err) {
+        // Error manejado silenciosamente - podría mostrar notificación
       } finally {
         setLiquidarLoading(false);
       }
@@ -1399,17 +1445,19 @@ const CanvasRecargosDashboard = () => {
     switch (column.key) {
       case "select":
         return (
-          <input
-            type="checkbox"
-            checked={selectedRows.has(item.id)}
-            onChange={() => handleSelectRow(item.id)}
-            className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 ml-1"
-          />
+          <div onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={selectedRows.has(item.id)}
+              onChange={() => handleSelectRow(item.id)}
+              className="w-5 h-5 text-emerald-600 border-gray-300 rounded-md focus:ring-emerald-500 ml-1 cursor-pointer"
+            />
+          </div>
         );
 
       case "acciones":
         return (
-          <div className="flex items-center justify-center space-x-1">
+          <div className="flex items-center justify-center space-x-1" onClick={(e) => e.stopPropagation()}>
             <Button
               title="Ver"
               isIconOnly
@@ -1476,58 +1524,61 @@ const CanvasRecargosDashboard = () => {
         );
 
       case "numero_planilla":
-        const tienePlanilla = item.planilla_s3key;
-        const tieneNumero = item.numero_planilla;
+        const planillaStateCell = getPlanillaVisualState(item);
+        let cellBg = "bg-gray-100";
+        let cellText = "text-gray-700";
+        let iconClass = "text-gray-500";
+        let tooltipText = "Planilla";
 
-        // Determinar el estado y colores
-        let estado, bgColor, textColor, iconColor;
+        switch (planillaStateCell) {
+          case "no_esta":
+            cellBg = "bg-red-100";
+            cellText = "text-red-600";
+            iconClass = "text-red-500";
+            tooltipText = "No está";
+            break;
 
-        if (tienePlanilla && tieneNumero) {
-          // Estado completo - success
-          estado = "completo";
-          bgColor = "bg-green-100";
-          textColor = "text-green-600";
-          iconColor = "text-green-500";
-        } else if (tienePlanilla && !tieneNumero) {
-          // Tiene archivo pero falta número - primary
-          estado = "falta-numero";
-          bgColor = "bg-blue-100";
-          textColor = "text-blue-600";
-          iconColor = "text-blue-500";
-        } else {
-          // Sin numero_planilla - danger
-          estado = "sin-numero_planilla";
-          bgColor = "bg-red-100";
-          textColor = "text-red-600";
-          iconColor = "text-red-500";
+          case "found":
+            cellBg = "bg-sky-100";
+            cellText = "text-sky-600";
+            iconClass = "text-sky-500";
+            tooltipText = "Planilla adjunta";
+            break;
+          case "pendiente":
+            cellBg = "bg-gray-100";
+            cellText = "text-gray-700";
+            iconClass = "text-gray-400";
+            tooltipText = "Pendiente";
+            break;
+          case "liquidada_no_facturada":
+            cellBg = "bg-violet-100";
+            cellText = "text-violet-600";
+            iconClass = "text-violet-500";
+            tooltipText = "Liquidada (no facturada)";
+            break;
+          case "liquidada_facturada":
+            cellBg = "bg-green-100";
+            cellText = "text-green-600";
+            iconClass = "text-green-500";
+            tooltipText = "Liquidada y facturada";
+            break;
         }
 
         return (
-          <div
-            className={`flex items-center gap-2 py-2 px-5 rounded-full ${bgColor}`}
-          >
-            {tienePlanilla ? (
-              <Tooltip content="Con numero planilla">
-                <FileText size={16} className={iconColor} />
-              </Tooltip>
+          <div className={`flex items-center gap-2 py-2 px-5 rounded-full ${cellBg}`}>
+            <Tooltip content={tooltipText}>
+              {(planillaStateCell === "no_esta") ? (
+                <FileX size={16} className={iconClass} />
+              ) : (
+                <FileText size={16} className={iconClass} />
+              )}
+            </Tooltip>
+
+            {/* Mostrar número de planilla si existe */}
+            {item.numero_planilla ? (
+              <span className={`text-xs ${cellText}`}>{item.numero_planilla}</span>
             ) : (
-              <Tooltip content="Sin numero de planilla">
-                <FileX size={16} className={iconColor} />
-              </Tooltip>
-            )}
-
-            {/* Indicador de estado incompleto */}
-            {estado === "falta-numero" && (
-              <Tooltip content="Falta número de numero_planilla">
-                <Minus size={12} className="text-blue-400" />
-              </Tooltip>
-            )}
-
-            {/* Número de numero_planilla si existe */}
-            {tieneNumero && (
-              <span className={`text-xs ${textColor}`}>
-                {item.numero_planilla}
-              </span>
+              <span className={`text-xs ${cellText} opacity-80`}>-</span>
             )}
           </div>
         );
@@ -1551,14 +1602,24 @@ const CanvasRecargosDashboard = () => {
             estadoLabel = "pendiente";
             break;
           case "liquidada":
-            estadoBg = "bg-yellow-100";
-            estadoText = "text-yellow-800";
+            estadoBg = "bg-violet-100";
+            estadoText = "text-violet-800";
             estadoLabel = "liquidada";
             break;
           case "facturada":
             estadoBg = "bg-green-100";
             estadoText = "text-green-800";
             estadoLabel = "facturada";
+            break;
+          case "encontrada":
+            estadoBg = "bg-sky-100";
+            estadoText = "text-sky-800";
+            estadoLabel = "encontrada";
+            break;
+          case "no_esta":
+            estadoBg = "bg-red-100";
+            estadoText = "text-red-800";
+            estadoLabel = "no está";
             break;
           default:
             estadoBg = "bg-gray-100";
@@ -1658,17 +1719,16 @@ const CanvasRecargosDashboard = () => {
           return (
             <div className="text-xs w-full py-1">
               {/* ✅ Horas trabajadas - Siempre visible */}
-                <div
-                className={`font-bold text-center mb-1 px-1 py-1 rounded ${
-                  dayData.disponibilidad
+              <div
+                className={`font-bold text-center mb-1 px-1 py-1 rounded ${dayData.disponibilidad
                   ? "text-gray-400 bg-gray-100 border border-gray-200"
                   : dayData.es_domingo || dayData.es_festivo
                     ? "text-red-800 bg-red-100 border border-red-200"
                     : "text-emerald-800 bg-emerald-100 border border-emerald-200"
-                }`}
-                >
+                  }`}
+              >
                 {toNumber(dayData.total_horas).toFixed(1)}h
-                </div>
+              </div>
             </div>
           );
         }
@@ -2355,16 +2415,15 @@ const CanvasRecargosDashboard = () => {
                 <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                   <div className="flex flex-col">
                     <span className="text-sm text-emerald-700 font-medium">
-                      {selectedRows.size} seleccionado
-                      {selectedRows.size > 1 ? "s" : ""}
+                      {selectedRows.size} seleccionado{selectedRows.size > 1 ? "s" : ""}
                     </span>
                     {recargosYaLiquidados.length > 0 && (
                       <span className="text-xs text-amber-600">
-                        {recargosYaLiquidados.length} ya liquidado
-                        {recargosYaLiquidados.length > 1 ? "s" : ""}
+                        {recargosYaLiquidados.length} ya liquidado{recargosYaLiquidados.length > 1 ? "s" : ""}
                       </span>
                     )}
                   </div>
+
                   <div className="flex items-center space-x-2">
                     <Button
                       onPress={handleEliminar}
@@ -2376,19 +2435,18 @@ const CanvasRecargosDashboard = () => {
                     >
                       Eliminar
                     </Button>
+
                     <Button
-                      onPress={handleLiquidar}
+                      onPress={handleAcciones}
                       color="warning"
                       variant="flat"
                       size="sm"
-                      isDisabled={recargosParaLiquidar.length === 0}
+                      isDisabled={selectedRows.size === 0}
                       startContent={<Copy size={12} />}
                     >
-                      Liquidar{" "}
-                      {recargosParaLiquidar.length > 0
-                        ? `(${recargosParaLiquidar.length})`
-                        : ""}
+                      {selectedRows.size > 1 ? "Acciones múltiples" : "Acciones"} {selectedRows.size > 0 ? `(${selectedRows.size})` : ""}
                     </Button>
+
                     <Button
                       onPress={handleCopySelectedRows}
                       color="primary"
@@ -2399,56 +2457,51 @@ const CanvasRecargosDashboard = () => {
                     >
                       {copiedRowId ? "Copiado!" : "Copiar"}
                     </Button>
+
                     <button
                       onClick={() => setSelectedRows(new Set())}
                       className="text-xs text-gray-600 hover:text-gray-800 underline"
                     >
                       Cancelar
                     </button>
+
+                    {activeFiltersCount > 0 && (
+                      <>
+                        <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
+                          {activeFiltersCount} filtros
+                        </span>
+                        <Button
+                          onPress={clearAllFilters}
+                          variant="light"
+                          size="sm"
+                          className="text-xs text-red-600 px-2 py-1"
+                        >
+                          Limpiar
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Fila inferior móvil */}
-              <div className="flex items-center justify-between">
-                {/* Filtros activos móvil */}
-                <div className="flex items-center space-x-2">
-                  {activeFiltersCount > 0 && (
-                    <>
-                      <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full text-xs font-medium">
-                        {activeFiltersCount} filtros
-                      </span>
-                      <Button
-                        onPress={clearAllFilters}
-                        variant="light"
-                        size="sm"
-                        className="text-xs text-red-600 px-2 py-1"
-                      >
-                        Limpiar
-                      </Button>
-                    </>
-                  )}
-                </div>
-
-                {/* Paginación compacta móvil */}
-                <div className="flex items-center space-x-2 text-sm">
-                  <span className="text-gray-600 text-xs">
-                    {(currentPage - 1) * itemsPerPage + 1}-
-                    {Math.min(currentPage * itemsPerPage, processedData.length)}
-                  </span>
-                  <select
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(parseInt(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="border border-gray-300 rounded px-1 py-1 text-xs bg-white"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                </div>
+              {/* Paginación compacta móvil */}
+              <div className="flex items-center space-x-2 text-sm">
+                <span className="text-gray-600 text-xs">
+                  {(currentPage - 1) * itemsPerPage + 1}-
+                  {Math.min(currentPage * itemsPerPage, processedData.length)}
+                </span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(parseInt(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="border border-gray-300 rounded px-1 py-1 text-xs bg-white"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
               </div>
             </div>
 
@@ -2552,14 +2605,13 @@ const CanvasRecargosDashboard = () => {
                         </div>
 
                         <Button
-                          onPress={handleLiquidar}
+                          onPress={handleAcciones}
                           color="warning"
                           variant="flat"
                           size="sm"
-                          isDisabled={recargosParaLiquidar.length === 0}
                           startContent={<Copy size={12} />}
                         >
-                          Liquidar{" "}
+                          Acciones{" "}
                           {recargosParaLiquidar.length > 0
                             ? `(${recargosParaLiquidar.length})`
                             : ""}
@@ -2785,12 +2837,14 @@ const CanvasRecargosDashboard = () => {
               }, 0);
 
               const isLiquidada = item.estado === "liquidada";
+              const planillaState = getPlanillaVisualState(item);
 
               return (
                 <div
                   key={item.id}
                   className={`flex relative ${selectedRows.has(item.id) ? "opacity-70" : ""} cursor-pointer`}
                   style={{ width: `${totalWidth}px` }}
+                  onClick={() => handleSelectRow(item.id)}
                 >
                   <div
                     className="absolute left-0 bottom-0 h-[2px] bg-gray-300 opacity-60"
@@ -2813,12 +2867,52 @@ const CanvasRecargosDashboard = () => {
                   {/* Mask overlay que cubre toda la fila */}
                   {isLiquidada && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-amber-100/10 z-50 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-violet-100/10 z-50 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
-                        backgroundImage:
-                          "linear-gradient(135deg, transparent, rgba(255, 204, 0, 0.1), transparent)",
-                        backgroundSize: "20px 20px",
+                        backgroundColor: "rgba(255, 204, 0, 0.06)"
+                      }}
+                    />
+                  )}
+
+                  {/* Overlays por estado de PLANILLA (missing, parex_missing, liquidada states) */}
+                  {planillaState === "no_esta" && (
+                    <div
+                      className="absolute top-0 left-0 h-full bg-red-100/10 z-40 pointer-events-none"
+                      style={{
+                        width: `${totalWidth}px`,
+                        backgroundColor: "rgba(250, 0,0, 0.06)",
+                      }}
+                    />
+                  )}
+
+                  {/* Overlays por estado de PLANILLA found (missing, parex_missing, liquidada states) */}
+                  {planillaState === "found" && (
+                    <div
+                      className="absolute top-0 left-0 h-full bg-sky-100/10 z-40 pointer-events-none"
+                      style={{
+                        width: `${totalWidth}px`,
+                        backgroundColor: "rgba(135, 206, 235, 0.16)"
+                      }}
+                    />
+                  )}
+
+                  {planillaState === "liquidada_no_facturada" && (
+                    <div
+                      className="absolute top-0 left-0 h-full bg-violet-100/10 z-40 pointer-events-none"
+                      style={{
+                        width: `${totalWidth}px`,
+                        backgroundColor: "rgba(127, 0, 255, 0.1)",
+                      }}
+                    />
+                  )}
+
+                  {planillaState === "liquidada_facturada" && (
+                    <div
+                      className="absolute top-0 left-0 h-full bg-green-100/8 z-40 pointer-events-none"
+                      style={{
+                        width: `${totalWidth}px`,
+                        backgroundColor: "rgba(0, 172, 127, 0.16)",
                       }}
                     />
                   )}
@@ -2862,6 +2956,14 @@ const CanvasRecargosDashboard = () => {
                               : column.align === "right"
                                 ? "flex-end"
                                 : "flex-start",
+                        }}
+                        // Prevent row click when interacting with form controls inside the cell
+                        onClick={(e) => {
+                          const target = e.target as HTMLElement;
+                          // If clicking on an interactive element, let it handle its own click
+                          if (target.tagName === "BUTTON" || target.tagName === "A" || target.closest("button") || target.closest("a")) {
+                            e.stopPropagation();
+                          }
                         }}
                       >
                         {renderCell(item, column as Column)}
@@ -3069,21 +3171,21 @@ const CanvasRecargosDashboard = () => {
             </div>
           </div>
         </div>
+        <ModalFormRecargo
+          currentMonth={selectedMonth}
+          currentYear={selectedYear}
+          recargoId={recargoId}
+          isOpen={modalFormIsOpen}
+          onClose={handleOpenFormModal}
+        />
+        <ModalVisualizarRecargo
+          recargoId={viewModalState.recargoId}
+          isOpen={viewModalState.isOpen}
+          onClose={() => setViewModalState({ isOpen: false, recargoId: null })}
+        />
+        {EliminarDialog}
+        {LiquidarDialog}
       </div>
-      <ModalFormRecargo
-        currentMonth={selectedMonth}
-        currentYear={selectedYear}
-        recargoId={recargoId}
-        isOpen={modalFormIsOpen}
-        onClose={handleOpenFormModal}
-      />
-      <ModalVisualizarRecargo
-        recargoId={viewModalState.recargoId}
-        isOpen={viewModalState.isOpen}
-        onClose={() => setViewModalState({ isOpen: false, recargoId: null })}
-      />
-      {EliminarDialog}
-      {LiquidarDialog}
     </>
   );
 };
