@@ -16,7 +16,6 @@ import {
   Trash2,
   Copy,
   FileText,
-  FileX,
 } from "lucide-react";
 import ModalFormRecargo from "@/components/ui/modalFormRecargo";
 import {
@@ -31,7 +30,6 @@ import { formatearCOP } from "@/helpers";
 import { ConfiguracionSalario } from "@/types";
 import { Select, SelectItem } from "@heroui/select";
 import { Input } from "@heroui/input";
-import { Tooltip } from "@heroui/tooltip";
 import { useEliminarRecargoConfirm } from "@/components/ui/eliminarRecargoConfirm";
 import { apiClient } from "@/config/apiClient";
 import { useLiquidarRecargoConfirm } from "@/components/ui/liquidarRecargoConfirm";
@@ -997,10 +995,17 @@ const CanvasRecargosDashboard = () => {
 
         let configuracionGlobal: ConfiguracionSalario | null = null;
         let configuracionEmpresa: ConfiguracionSalario | null = null;
+        let configuracionSede: ConfiguracionSalario | null = null;
 
         for (const salario of configuracionesSalario) {
           if (!salario.activo) {
             continue;
+          }
+
+          // PRIORIDAD 2: Configuración específica para empresa
+          if (salario.empresa_id === item.empresa.id && !configuracionEmpresa) {
+            configuracionEmpresa = salario;
+            continue
           }
 
           // PRIORIDAD 1: Configuración por sede
@@ -1009,13 +1014,9 @@ const CanvasRecargosDashboard = () => {
             const sedeConductor = item.conductor.sede_trabajo.trim().toLowerCase();
 
             if (sedeConfig === sedeConductor) {
-              return salario;
+              configuracionSede = salario;
+              continue;
             }
-          }
-
-          // PRIORIDAD 2: Configuración específica para empresa
-          if (salario.empresa_id === item.empresa.id && !configuracionEmpresa) {
-            configuracionEmpresa = salario;
           }
 
           // PRIORIDAD 3: Configuración global
@@ -1025,6 +1026,7 @@ const CanvasRecargosDashboard = () => {
             !salario.sede
           ) {
             configuracionGlobal = salario;
+            continue;
           }
         }
 
@@ -1091,6 +1093,7 @@ const CanvasRecargosDashboard = () => {
             true, // Excluir RD y DF
             tieneConfiguracionEmpresa
           );
+
           totalGeneral += totalNormales;
         }
       } else {
@@ -1259,24 +1262,30 @@ const CanvasRecargosDashboard = () => {
       };
     }
 
+    // Si hay filas seleccionadas, usamos solo esas; si no, usamos todo
+    const dataToProcess =
+      selectedRows && selectedRows.size > 0
+        ? processedData.filter((item) => selectedRows.has(item.id))
+        : processedData;
+
     // Calcular totales básicos
-    const totalHoras = processedData.reduce(
-      (acc, item) => acc + (item.total_horas || item.total_horas || 0),
-      0,
+    const totalHoras = dataToProcess.reduce(
+      (acc, item) => acc + (item.total_horas || 0),
+      0
     );
 
-    const totalesDias = processedData.reduce(
-      (acc, item) => acc + item.dias_laborales.length,
-      0,
+    const totalesDias = dataToProcess.reduce(
+      (acc, item) => acc + (item.dias_laborales?.length || 0),
+      0
     );
 
-    const totalValor = processedData.reduce(
+    const totalValor = dataToProcess.reduce(
       (acc, item) => acc + obtenerTotalRecargos(item),
-      0,
+      0
     );
 
-    // Calcular todos los tipos de recargos
-    const totalesRecargos = processedData.reduce(
+    // Calcular tipos de recargos
+    const totalesRecargos = dataToProcess.reduce(
       (acc, item) => ({
         totalHED: acc.totalHED + (item.total_hed || 0),
         totalHEN: acc.totalHEN + (item.total_hen || 0),
@@ -1286,26 +1295,26 @@ const CanvasRecargosDashboard = () => {
         totalRD: acc.totalRD + (item.total_rd || 0),
       }),
       {
-        totalHED: 0, // Horas Extras Diurnas
-        totalHEN: 0, // Horas Extras Nocturnas
-        totalHEFD: 0, // Horas Extras Festivas Diurnas
-        totalHEFN: 0, // Horas Extras Festivas Nocturnas
-        totalRN: 0, // Recargo Nocturno
-        totalRD: 0, // Recargo Dominical
-      },
+        totalHED: 0,
+        totalHEN: 0,
+        totalHEFD: 0,
+        totalHEFN: 0,
+        totalRN: 0,
+        totalRD: 0,
+      }
     );
 
-    // Calcular empresas únicas
+    // Empresas únicas
     const empresasActivas = new Set(
-      processedData
+      dataToProcess
         .map((item) => item.empresa?.id)
-        .filter((id) => id !== null && id !== undefined),
+        .filter((id) => id !== null && id !== undefined)
     ).size;
 
-    const resultado = {
-      totalRegistros: processedData.length,
+    return {
+      totalRegistros: dataToProcess.length,
       totalHoras: totalHoras.toFixed(1),
-      totalValor: totalValor,
+      totalValor,
       totalHED: totalesRecargos.totalHED.toFixed(1),
       totalHEN: totalesRecargos.totalHEN.toFixed(1),
       totalHEFD: totalesRecargos.totalHEFD.toFixed(1),
@@ -1313,11 +1322,9 @@ const CanvasRecargosDashboard = () => {
       totalRN: totalesRecargos.totalRN.toFixed(1),
       totalRD: totalesRecargos.totalRD.toFixed(1),
       totalDias: totalesDias.toFixed(1),
-      empresasActivas: empresasActivas,
+      empresasActivas,
     };
-
-    return resultado;
-  }, [processedData, obtenerTotalRecargos]);
+  }, [processedData, selectedRows, obtenerTotalRecargos]);
 
   // Handlers
   const handleSort = (field: string) => {
@@ -1532,39 +1539,33 @@ const CanvasRecargosDashboard = () => {
         let cellBg = "bg-gray-100";
         let cellText = "text-gray-700";
         let iconClass = "text-gray-500";
-        let tooltipText = "Planilla";
 
         switch (planillaStateCell) {
           case "no_esta":
             cellBg = "bg-red-100";
             cellText = "text-red-600";
             iconClass = "text-red-500";
-            tooltipText = "No está";
             break;
 
           case "found":
             cellBg = "bg-sky-100";
             cellText = "text-sky-600";
             iconClass = "text-sky-500";
-            tooltipText = "Planilla adjunta";
             break;
           case "pendiente":
             cellBg = "bg-gray-100";
             cellText = "text-gray-700";
             iconClass = "text-gray-400";
-            tooltipText = "Pendiente";
             break;
           case "liquidada_no_facturada":
             cellBg = "bg-violet-100";
             cellText = "text-violet-600";
             iconClass = "text-violet-500";
-            tooltipText = "Liquidada (no facturada)";
             break;
           case "liquidada_facturada":
             cellBg = "bg-green-100";
             cellText = "text-green-600";
             iconClass = "text-green-500";
-            tooltipText = "Liquidada y facturada";
             break;
         }
 
@@ -1574,7 +1575,7 @@ const CanvasRecargosDashboard = () => {
             {item.planilla_s3key && (
               <FileText size={16} className={iconClass} />
             )}
-            
+
             {/* Mostrar número de planilla si existe */}
             {item.numero_planilla ? (
               <span className={`text-xs ${cellText}`}>{item.numero_planilla}</span>
@@ -2840,6 +2841,8 @@ const CanvasRecargosDashboard = () => {
               const isLiquidada = item.estado === "liquidada";
               const planillaState = getPlanillaVisualState(item);
 
+              const empresaHaveConfig = configuracionesSalario.some(config => config.empresa_id === item.empresa.id);
+
               return (
                 <div
                   key={item.id}
@@ -2852,10 +2855,10 @@ const CanvasRecargosDashboard = () => {
                     style={{ width: `${totalWidth}px`, zIndex: 1 }}
                   />
 
-                  {/* Mask overlay que cubre toda la fila */}
+                  {/* Mask overlay selección - z-index bajo para no tapar dropdowns */}
                   {selectedRows.has(item.id) && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-primary-500/10 z-50 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-primary-500/10 z-0 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
                         backgroundImage:
@@ -2865,10 +2868,20 @@ const CanvasRecargosDashboard = () => {
                     />
                   )}
 
-                  {/* Mask overlay que cubre toda la fila */}
+                  {empresaHaveConfig && (
+                    <div
+                      className="absolute top-0 left-0 h-full bg-orange-100/10 z-0 pointer-events-none"
+                      style={{
+                        width: `${totalWidth}px`,
+                        backgroundColor: "rgba(255, 165, 0, 0.1)",
+                      }}
+                    />
+                  )}
+
+                  {/* Mask overlay liquidada */}
                   {isLiquidada && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-violet-100/10 z-50 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-violet-100/10 z-0 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
                         backgroundColor: "rgba(255, 204, 0, 0.06)"
@@ -2879,7 +2892,7 @@ const CanvasRecargosDashboard = () => {
                   {/* Overlays por estado de PLANILLA (missing, parex_missing, liquidada states) */}
                   {planillaState === "no_esta" && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-red-100/10 z-40 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-red-100/10 z-0 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
                         backgroundColor: "rgba(250, 0,0, 0.06)",
@@ -2890,7 +2903,7 @@ const CanvasRecargosDashboard = () => {
                   {/* Overlays por estado de PLANILLA found (missing, parex_missing, liquidada states) */}
                   {planillaState === "found" && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-sky-100/10 z-40 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-sky-100/10 z-0 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
                         backgroundColor: "rgba(135, 206, 235, 0.16)"
@@ -2900,7 +2913,7 @@ const CanvasRecargosDashboard = () => {
 
                   {planillaState === "liquidada_no_facturada" && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-violet-100/10 z-40 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-violet-100/10 z-0 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
                         backgroundColor: "rgba(127, 0, 255, 0.1)",
@@ -2910,7 +2923,7 @@ const CanvasRecargosDashboard = () => {
 
                   {planillaState === "liquidada_facturada" && (
                     <div
-                      className="absolute top-0 left-0 h-full bg-green-100/8 z-40 pointer-events-none"
+                      className="absolute top-0 left-0 h-full bg-green-100/8 z-0 pointer-events-none"
                       style={{
                         width: `${totalWidth}px`,
                         backgroundColor: "rgba(0, 172, 127, 0.16)",
