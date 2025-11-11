@@ -13,8 +13,9 @@ import { PlusIcon, SaveIcon } from "lucide-react";
 import { useState } from "react";
 import { Select, SelectItem } from "@heroui/select";
 
-import { ApiResponse, Vehiculo } from "@/context/serviceContext";
+import { ApiResponse } from "@/context/RecargoPlanillaContext";
 import { apiClient } from "@/config/apiClient";
+import { Vehiculo } from "@/types";
 
 const clasesVehiculo = [
   { key: "CAMIONETA", label: "Camioneta" },
@@ -206,7 +207,7 @@ export default function ModalNewVehiculo() {
     setErrores(nuevosErrores);
 
     // Si hay errores, no continuar
-    if (nuevosErrores.placa || nuevosErrores.marca) {
+    if (nuevosErrores.placa) {
       return;
     }
 

@@ -21,6 +21,7 @@ export type Vehiculo = {
   linea: string;
   modelo: string;
   color: string;
+  clase_vehiculo: string;
 };
 
 export type Empresa = {
