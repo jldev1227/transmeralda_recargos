@@ -979,6 +979,16 @@ const CanvasRecargosDashboard = () => {
 
   const obtenerTotalRecargos = useCallback(
     (item: CanvasRecargo): number => {
+      // DEBUG: activar para ver cálculos detallados en consola
+      const DEBUG_RECARGOS = true;
+      const dbg = (...args: any[]) => {
+        if (!DEBUG_RECARGOS) return;
+        // eslint-disable-next-line no-console
+        console.log(
+          `[RECARGO DEBUG] id=${item.id} planilla=${item.numero_planilla || "-"}`,
+          ...args,
+        );
+      };
       // Función para obtener salario base
       const obtenerSalarioBase = (
         item: CanvasRecargo,
@@ -1039,9 +1049,17 @@ const CanvasRecargosDashboard = () => {
       if (!configuracionSalario) {
         return 0;
       }
+      dbg("configuracionSalario", {
+        empresa_id: configuracionSalario.empresa_id,
+        sede: (configuracionSalario as any).sede,
+        paga_dias_festivos: configuracionSalario.paga_dias_festivos,
+        salario_basico: configuracionSalario.salario_basico,
+        horas_mensuales_base: configuracionSalario.horas_mensuales_base,
+      });
 
       const valorPorHora =
-        configuracionSalario.salario_basico / configuracionSalario.horas_mensuales_base;
+        configuracionSalario.salario_basico / (configuracionSalario.horas_mensuales_base || 240);
+      dbg("valorPorHora", valorPorHora);
 
       let totalGeneral = 0;
 
@@ -1049,10 +1067,12 @@ const CanvasRecargosDashboard = () => {
       const diasParaCalculoValor = item.dias_laborales.filter(
         (dia) => !dia.disponibilidad
       );
+      dbg("diasParaCalculoValor count", diasParaCalculoValor.length);
 
       const pagaDiasFestivos = configuracionSalario.paga_dias_festivos || false;
       const tieneConfiguracionEmpresa = configuracionSalario.empresa_id !== null &&
         configuracionSalario.empresa_id !== undefined;
+      dbg("flags", { pagaDiasFestivos, tieneConfiguracionEmpresa });
 
       // 🎯 LÓGICA ESPECIAL: Si paga días festivos Y tiene configuración de empresa
       if (pagaDiasFestivos && tieneConfiguracionEmpresa) {
@@ -1063,6 +1083,7 @@ const CanvasRecargosDashboard = () => {
         const diasNormales = diasParaCalculoValor.filter(
           (dia) => !dia.es_festivo && !dia.es_domingo
         );
+        dbg("branch=pagaFestivos+configEmpresa", { diasEspeciales: diasEspeciales.length, diasNormales: diasNormales.length });
 
         // 1️⃣ CALCULAR DÍAS ESPECIALES (festivos Y domingos) con recargo DF (180%)
         if (diasEspeciales.length > 0) {
@@ -1079,6 +1100,7 @@ const CanvasRecargosDashboard = () => {
               const valorTotalEspeciales = diasEspeciales.length * valorDiaConRecargo;
 
               totalGeneral += valorTotalEspeciales;
+              dbg("DF_calculo", { valorDiarioBase, porcentaje, diasEspeciales: diasEspeciales.length, valorDiaConRecargo, valorTotalEspeciales });
             }
           }
         }
@@ -1095,6 +1117,7 @@ const CanvasRecargosDashboard = () => {
           );
 
           totalGeneral += totalNormales;
+          dbg("subtotal_normales_excl_RDyDF", totalNormales);
         }
       } else {
         // ✅ Lógica normal: SIN configuración de empresa
@@ -1106,8 +1129,10 @@ const CanvasRecargosDashboard = () => {
           false, // NO excluir RD ni DF
           tieneConfiguracionEmpresa
         );
+        dbg("branch=normal subtotal", totalGeneral);
       }
 
+      dbg("TOTAL_GENERAL", totalGeneral);
       return totalGeneral;
 
       // 🔧 FUNCIÓN AUXILIAR: Calcular recargos normales
@@ -1120,6 +1145,7 @@ const CanvasRecargosDashboard = () => {
         tieneConfigEmpresa: boolean = false
       ): number {
         let total = 0;
+        console.log(item, "ITEM")
 
         // Filtrar tipos de recargo activos y ordenar
         const tiposActivos = tiposRecargo
@@ -1141,25 +1167,33 @@ const CanvasRecargosDashboard = () => {
             // RD aplica SOLO cuando NO hay configuración de empresa
             // Y aplica tanto para domingos como para festivos
             const diasDominicalesYFestivos = dias.filter(
-              (dia) => dia.es_domingo || dia.es_festivo && !dia.disponibilidad
+              (dia) => (dia.es_domingo || dia.es_festivo) && !dia.disponibilidad
             );
 
             if (diasDominicalesYFestivos.length > 0) {
               const porcentaje = parseFloat(tipoRecargo.porcentaje.toString());
 
               if (!isNaN(porcentaje) && !isNaN(valorPorHora) && valorPorHora > 0) {
+
                 // 🔑 CALCULAR POR HORAS, NO POR DÍAS
-                // Sumar total de horas de días dominicales/festivos
-                const totalHorasDominicalesFestivos = diasDominicalesYFestivos.reduce(
-                  (sum, dia) => sum + (dia.total_horas || 0),
+                // Sumar solo las horas RD específicas de esos días
+                const totalHorasRDEspeciales = diasDominicalesYFestivos.reduce(
+                  (sum, dia) => sum + (Number(dia.rd) || 0),
                   0
                 );
 
-                if (totalHorasDominicalesFestivos > 0) {
+                const mapDominicalesFestivos = diasDominicalesYFestivos.map(dia => ({
+                  dia: dia.dia,
+                  total_horas: dia.total_horas || 0
+                }));
+                dbg("RD diasDominicalesYFestivos", mapDominicalesFestivos);
+
+                if (totalHorasRDEspeciales > 0) {
                   // RD se calcula como: valor_hora × porcentaje × horas
                   const valorRecargoPorHora = valorPorHora * (porcentaje / 100);
-                  valorCalculado = valorRecargoPorHora * totalHorasDominicalesFestivos;
+                  valorCalculado = valorRecargoPorHora * totalHorasRDEspeciales;
                   total += valorCalculado;
+                  dbg("RD", { porcentaje, valorPorHora, valorRecargoPorHora, horas: totalHorasRDEspeciales, valorCalculado });
                 }
               }
             }
@@ -1205,6 +1239,7 @@ const CanvasRecargosDashboard = () => {
             const valorFijo = parseFloat(tipoRecargo.valor_fijo.toString());
             if (!isNaN(valorFijo)) {
               valorCalculado = valorFijo;
+              dbg(tipoRecargo.codigo, { modo: "valor_fijo", valorFijo, valorCalculado });
             }
           } else {
             const porcentaje = parseFloat(tipoRecargo.porcentaje.toString());
@@ -1216,10 +1251,12 @@ const CanvasRecargosDashboard = () => {
               // Recargo adicional: valor_hora * (1 + porcentaje/100)
               const valorHoraConRecargo = valorPorHora * (1 + porcentaje / 100);
               valorCalculado = valorHoraConRecargo * horasTrabajadas;
+              dbg(tipoRecargo.codigo, { modo: "adicional", porcentaje, valorPorHora, horas: horasTrabajadas, valorHoraConRecargo, valorCalculado });
             } else {
               // Recargo normal: valor_hora * (porcentaje/100)
               const valorHoraConRecargo = valorPorHora * (porcentaje / 100);
               valorCalculado = valorHoraConRecargo * horasTrabajadas;
+              dbg(tipoRecargo.codigo, { modo: "normal", porcentaje, valorPorHora, horas: horasTrabajadas, valorHoraConRecargo, valorCalculado });
             }
           }
 
@@ -2399,10 +2436,7 @@ const CanvasRecargosDashboard = () => {
             <div className="block md:hidden space-y-3">
               {/* Búsqueda móvil - ancho completo */}
               <div className="relative">
-                <Search
-                  size={16}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                />
+                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Buscar..."
@@ -2587,7 +2621,6 @@ const CanvasRecargosDashboard = () => {
                     </div>
                   )}
                 </div>
-
                 {/* Sección derecha */}
                 <div className="flex items-center justify-between sm:justify-end space-x-4 w-full lg:w-auto">
                   {/* Información de registros */}

@@ -40,7 +40,6 @@ import ReactSelect, {
 import {
   Conductor,
   DiaLaboral,
-  DiaLaboralServidor,
   Empresa,
   Vehiculo,
 } from "@/types";
@@ -50,6 +49,9 @@ import TablaConRecargos from "./tableRecargos";
 import UploadPlanilla from "../uploadPlanilla";
 import { esDomingo } from "@/helpers";
 import { apiClient } from "@/config/apiClient";
+import ModalNewConductor from "./modalNewConductor";
+import ModalNewVehiculo from "./modalNewVehiculo";
+import ModalNewEmpresa from "./modalNewEmpresa";
 
 interface Option {
   value: string;
@@ -568,7 +570,7 @@ export default function ModalFormRecargo({
     });
     setArchivoAdjunto(null);
     setArchivoExistente(null);
-  setArchivoExistenteKey(null);
+    setArchivoExistenteKey(null);
     setDiasLaborales([
       {
         id: "1",
@@ -907,7 +909,7 @@ export default function ModalFormRecargo({
       }}
       hideCloseButton
       classNames={{
-        base: "max-h-[95vh] max-w-6xl",
+        base: "max-h-[95vh] max-w-7xl",
         body: "py-6",
       }}
     >
@@ -1021,7 +1023,7 @@ export default function ModalFormRecargo({
                       {/* Campos principales */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Conductor */}
-                        <div>
+                        <div className="">
                           <FieldLabel
                             icon={<User size={16} />}
                             required
@@ -1029,33 +1031,37 @@ export default function ModalFormRecargo({
                           >
                             Conductor
                           </FieldLabel>
-                          <ReactSelect
-                            options={conductorOptions}
-                            value={
-                              conductorOptions.find(
-                                (option) =>
-                                  option.value === formData.conductorId,
-                              ) || null
-                            }
-                            onChange={(selectedOption) => {
-                              setFormData({
-                                ...formData,
-                                conductorId: selectedOption
-                                  ? selectedOption.value
-                                  : "",
-                              });
-                            }}
-                            placeholder="Buscar y seleccionar conductor..."
-                            isSearchable={true}
-                            isClearable={true}
-                            styles={customStyles}
-                            components={{ Option: EmpresaOption }}
-                            noOptionsMessage={({ inputValue }) =>
-                              inputValue
-                                ? `No se encontraron conductores con "${inputValue}"`
-                                : "No hay conductores disponibles"
-                            }
-                          />
+                          <div className="flex items-center justify-between gap-4">
+                            <ReactSelect
+                              className="flex-1"
+                              options={conductorOptions}
+                              value={
+                                conductorOptions.find(
+                                  (option) =>
+                                    option.value === formData.conductorId,
+                                ) || null
+                              }
+                              onChange={(selectedOption) => {
+                                setFormData({
+                                  ...formData,
+                                  conductorId: selectedOption
+                                    ? selectedOption.value
+                                    : "",
+                                });
+                              }}
+                              placeholder="Buscar y seleccionar conductor..."
+                              isSearchable={true}
+                              isClearable={true}
+                              styles={customStyles}
+                              components={{ Option: EmpresaOption }}
+                              noOptionsMessage={({ inputValue }) =>
+                                inputValue
+                                  ? `No se encontraron conductores con "${inputValue}"`
+                                  : "No hay conductores disponibles"
+                              }
+                            />
+                            <ModalNewConductor />
+                          </div>
                         </div>
 
                         {/* Vehículo */}
@@ -1067,33 +1073,37 @@ export default function ModalFormRecargo({
                           >
                             Vehículo
                           </FieldLabel>
-                          <ReactSelect
-                            options={vehiculoOptions}
-                            value={
-                              vehiculoOptions.find(
-                                (option) =>
-                                  option.value === formData.vehiculoId,
-                              ) || null
-                            }
-                            onChange={(selectedOption) => {
-                              setFormData({
-                                ...formData,
-                                vehiculoId: selectedOption
-                                  ? selectedOption.value
-                                  : "",
-                              });
-                            }}
-                            placeholder="Buscar por placa..."
-                            isSearchable={true}
-                            isClearable={true}
-                            styles={customStyles}
-                            components={{ Option: EmpresaOption }}
-                            noOptionsMessage={({ inputValue }) =>
-                              inputValue
-                                ? `No se encontraron vehículos con "${inputValue}"`
-                                : "No hay vehículos disponibles"
-                            }
-                          />
+                          <div className="flex items-center justify-between gap-4">
+                            <ReactSelect
+                              className="flex-1"
+                              options={vehiculoOptions}
+                              value={
+                                vehiculoOptions.find(
+                                  (option) =>
+                                    option.value === formData.vehiculoId,
+                                ) || null
+                              }
+                              onChange={(selectedOption) => {
+                                setFormData({
+                                  ...formData,
+                                  vehiculoId: selectedOption
+                                    ? selectedOption.value
+                                    : "",
+                                });
+                              }}
+                              placeholder="Buscar por placa..."
+                              isSearchable={true}
+                              isClearable={true}
+                              styles={customStyles}
+                              components={{ Option: EmpresaOption }}
+                              noOptionsMessage={({ inputValue }) =>
+                                inputValue
+                                  ? `No se encontraron vehículos con "${inputValue}"`
+                                  : "No hay vehículos disponibles"
+                              }
+                            />
+                            <ModalNewVehiculo />
+                          </div>
                         </div>
 
                         {/* Empresa */}
@@ -1105,32 +1115,36 @@ export default function ModalFormRecargo({
                           >
                             Empresa
                           </FieldLabel>
-                          <ReactSelect
-                            options={empresaOptions}
-                            value={
-                              empresaOptions.find(
-                                (option) => option.value === formData.empresaId,
-                              ) || null
-                            }
-                            onChange={(selectedOption) => {
-                              setFormData({
-                                ...formData,
-                                empresaId: selectedOption
-                                  ? selectedOption.value
-                                  : "",
-                              });
-                            }}
-                            placeholder="Buscar empresa..."
-                            isSearchable={true}
-                            isClearable={true}
-                            styles={customStyles}
-                            components={{ Option: EmpresaOption }}
-                            noOptionsMessage={({ inputValue }) =>
-                              inputValue
-                                ? `No se encontraron empresas con "${inputValue}"`
-                                : "No hay empresas disponibles"
-                            }
-                          />
+                          <div className="flex items-center justify-between gap-4">
+                            <ReactSelect
+                              className="flex-1"
+                              options={empresaOptions}
+                              value={
+                                empresaOptions.find(
+                                  (option) => option.value === formData.empresaId,
+                                ) || null
+                              }
+                              onChange={(selectedOption) => {
+                                setFormData({
+                                  ...formData,
+                                  empresaId: selectedOption
+                                    ? selectedOption.value
+                                    : "",
+                                });
+                              }}
+                              placeholder="Buscar empresa..."
+                              isSearchable={true}
+                              isClearable={true}
+                              styles={customStyles}
+                              components={{ Option: EmpresaOption }}
+                              noOptionsMessage={({ inputValue }) =>
+                                inputValue
+                                  ? `No se encontraron empresas con "${inputValue}"`
+                                  : "No hay empresas disponibles"
+                              }
+                            />
+                            <ModalNewEmpresa />
+                          </div>
                         </div>
 
                         {/* Número de planilla */}
