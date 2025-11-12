@@ -372,6 +372,11 @@ interface RecargoContextType {
   tiposRecargo: TipoRecargo[];
   configuracionesSalario: ConfiguracionSalario[];
 
+  // Estados de datos de creación (para notificaciones)
+  conductorCreado: Conductor | null;
+  vehiculoCreado: Vehiculo | null;
+  empresaCreado: Empresa | null;
+
   // Estados de UI
   loading: boolean;
   error: string | null;
@@ -488,6 +493,12 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
   const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
   const [canvasLoading, setCanvasLoading] = useState(false);
   const [canvasError, setCanvasError] = useState<string | null>(null);
+
+  const [vehiculoCreado, setVehiculoCreado] = useState<Vehiculo | null>(null);
+  const [conductorCreado, setConductorCreado] = useState<Conductor | null>(
+    null,
+  );
+  const [empresaCreado, setEmpresaCreado] = useState<Empresa | null>(null);
 
   const cargarDatosCanvas = useCallback(async () => {
     try {
@@ -1934,6 +1945,111 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       };
 
+      const handleEmpresaCreada = (data: Empresa) => {
+        setSocketEventLogs((prev) => [
+          ...prev,
+          {
+            eventName: "empresa:creado",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+        const { id, nombre, nit } = data;
+
+        const empresaCreada = {
+          id,
+          nombre,
+          nit,
+        };
+
+        setEmpresas((prev) => [...prev, empresaCreada]);
+        setEmpresaCreado(empresaCreada);
+        addToast({
+          title: "Acabas de registrar una nueva Empresa!",
+          description: `Has registrado la empresa: "${data.nombre}" con el NIT: "${data.nit}"`,
+          color: "success",
+        });
+      };
+
+      // Manejadores para eventos de conductores
+      const handleConductorCreado = (data: Conductor) => {
+        setSocketEventLogs((prev) => [
+          ...prev,
+          {
+            eventName: "conductor:creado",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+
+        const {
+          id,
+          nombre,
+          apellido,
+          numero_identificacion,
+          sede_trabajo,
+        } = data;
+
+        const conductorCreado = {
+          id,
+          nombre,
+          apellido,
+          numero_identificacion,
+          sede_trabajo,
+        };
+
+        setConductores((prev) => [...prev, conductorCreado]);
+        setConductorCreado(conductorCreado);
+
+        addToast({
+          title: "Se acaba de realizar el registro de un nuevo Conductor!",
+          description: `Se ha registrado el conductor: "${data.nombre} ${data.apellido}"`,
+          color: "success",
+        });
+      };
+
+      // Manejadores para eventos de vehiculos
+      const handleVehiculoCreado = (data: Vehiculo) => {
+        setSocketEventLogs((prev) => [
+          ...prev,
+          {
+            eventName: "vehiculo:creado",
+            data,
+            timestamp: new Date(),
+          },
+        ]);
+
+        const {
+          id,
+          placa,
+          marca,
+          clase_vehiculo,
+          linea,
+          modelo,
+          color,
+        } = data;
+
+        const vehiculoCreado = {
+          id,
+          placa,
+          marca,
+          clase_vehiculo,
+          linea,
+          modelo,
+          color,
+        };
+
+        setVehiculos((prev) => [...prev, vehiculoCreado]);
+
+        setVehiculoCreado(vehiculoCreado);
+
+        addToast({
+          title: "Se acaba de realizar el registro de un nuevo Vehículo!",
+          description: `Se ha registrado el vehículo: "${data.placa} - ${data.marca} - ${data.modelo}"`,
+          color: "success",
+        });
+      };
+
       // Registrar manejadores de eventos de conexión
       socketService.on("connect", handleConnect);
       socketService.on("disconnect", handleDisconnect);
@@ -1948,6 +2064,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
       socketService.on("recargo-planilla:liquidado", handleRecargoLiquidado);
       socketService.on("recargo-planilla:acciones", handleRecargoAcciones);
       socketService.on("recargo-planilla:error", handleRecargoError);
+      socketService.on("empresa:creado", handleEmpresaCreada);
+      socketService.on("conductor:creado", handleConductorCreado);
+      socketService.on("vehiculo:creado", handleVehiculoCreado);
 
       return () => {
         // Limpiar al desmontar
@@ -1961,6 +2080,9 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         socketService.off("recargo-planilla:eliminado");
         socketService.off("recargo-planilla:liquidado");
         socketService.off("recargo-planilla:acciones");
+        socketService.off("empresa:creado");
+        socketService.off("conductor:creado");
+        socketService.off("vehiculo:creado");
         socketService.off("recargo-planilla:error");
       };
     }
@@ -1989,6 +2111,11 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
     // ✅ NUEVOS ESTADOS
     tiposRecargo,
     configuracionesSalario,
+
+    // Estados de datos de creación (para notificaciones)
+    conductorCreado,
+    vehiculoCreado,
+    empresaCreado,
 
     // Estados de UI existentes
     loading,

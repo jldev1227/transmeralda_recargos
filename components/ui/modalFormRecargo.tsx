@@ -319,6 +319,9 @@ export default function ModalFormRecargo({
     conductores,
     vehiculos,
     empresas,
+    conductorCreado,
+    vehiculoCreado,
+    empresaCreado,
     registrarRecargo,
     actualizarRecargo,
     obtenerRecargoPorId,
@@ -647,6 +650,28 @@ export default function ModalFormRecargo({
       setArchivoAdjunto(null);
     }
   }, [isOpen]);
+
+  
+  useEffect(() => {
+    // Si se ha creado un vehículo, auto seleccionar el vehículo en el formulario
+    if (vehiculoCreado && formData.vehiculoId !== vehiculoCreado.id) {
+      setFormData((prev: typeof formData) => ({ ...prev, vehiculoId: vehiculoCreado.id }));
+    }
+  }, [vehiculoCreado]);
+
+  useEffect(() => {
+    // Si se ha creado un vehículo, auto seleccionar el vehículo en el formulario
+    if (empresaCreado && formData.empresaId !== empresaCreado.id) {
+      setFormData((prev: typeof formData) => ({ ...prev, empresaId: empresaCreado.id }));
+    }
+  }, [empresaCreado]);
+
+  useEffect(() => {
+    // Si se ha creado un vehículo, auto seleccionar el vehículo en el formulario
+    if (conductorCreado && formData.conductorId !== conductorCreado.id) {
+      setFormData((prev: typeof formData) => ({ ...prev, conductorId: conductorCreado.id }));
+    }
+  }, [conductorCreado]);
 
   // Cálculo del progreso del formulario
   const calculateProgress = () => {

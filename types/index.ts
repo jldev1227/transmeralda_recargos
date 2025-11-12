@@ -10,8 +10,6 @@ export type Conductor = {
   apellido: string;
   numero_identificacion: number;
   sede_trabajo: string;
-  telefono: number;
-  email: string;
 };
 
 export type Vehiculo = {
