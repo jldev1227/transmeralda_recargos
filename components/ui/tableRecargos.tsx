@@ -24,6 +24,7 @@ import {
 } from "@/helpers/index";
 import { DiaLaboral } from "@/types";
 import { Switch } from "@heroui/switch";
+import { useAuth } from "@/context/AuthContext";
 
 interface TablaRecargosProps {
   diasLaborales: DiaLaboral[];
@@ -37,6 +38,7 @@ interface TablaRecargosProps {
   mes: number;
   año: number;
   diasFestivos: number[];
+  isKilometrajeRole?: boolean;
 }
 
 const TablaConRecargos: React.FC<TablaRecargosProps> = ({
@@ -47,8 +49,13 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
   mes,
   año,
   diasFestivos = [],
+  isKilometrajeRole = false,
 }) => {
   const [selectedRow, setSelectedRow] = useState<string | null>(null);
+  const { user } = useAuth();
+  
+  // Verificar si el usuario solo tiene permisos de kilometraje
+  const isKilometrajeOnly = user?.role === "kilometraje" || user?.permisos?.kilometraje === true;
   const verificarEsFestivo = (dia: string): boolean => {
     return diasFestivos.some((f) => Number(f) === Number(dia));
   };
@@ -219,6 +226,8 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
         dia: diaValido,
         hora_inicio: diaOrigen.hora_inicio,
         hora_fin: diaOrigen.hora_fin,
+        kilometraje_inicial: diaOrigen.kilometraje_inicial,
+        kilometraje_final: diaOrigen.kilometraje_final,
       };
     });
 
@@ -266,8 +275,8 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
   return (
     <div className="w-full space-y-4">
-      {/* Panel de acciones de copiado - Solo se muestra si hay más de un día */}
-      {selectedRow && hayMasDeUnDia && (
+      {/* Panel de acciones de copiado - Solo se muestra si hay más de un día Y no es rol kilometraje */}
+      {selectedRow && hayMasDeUnDia && !isKilometrajeOnly && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -320,6 +329,8 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
           <TableColumn>DÍA</TableColumn>
           <TableColumn>HORA INICIO</TableColumn>
           <TableColumn>HORA FIN</TableColumn>
+          <TableColumn>KM INICIAL</TableColumn>
+          <TableColumn>KM FINAL</TableColumn>
           <TableColumn>DISPONIBLE</TableColumn>
           <TableColumn>TOTAL</TableColumn>
           <TableColumn className="text-center">
@@ -409,6 +420,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                       actualizarDiaLaboral(dia.id, "dia", value)
                     }
                     size="sm"
+                    isDisabled={isKilometrajeOnly}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </TableCell>
@@ -438,6 +450,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                       <span className="text-default-400 text-small">hrs</span>
                     }
                     size="sm"
+                    isDisabled={isKilometrajeOnly}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </TableCell>
@@ -467,6 +480,45 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                       <span className="text-default-400 text-small">hrs</span>
                     }
                     size="sm"
+                    isDisabled={isKilometrajeOnly}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </TableCell>
+
+                {/* KILOMETRAJE INICIAL */}
+                <TableCell>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    min="0"
+                    step="1"
+                    value={dia.kilometraje_inicial?.toString() || ""}
+                    onValueChange={(value) => {
+                      actualizarDiaLaboral(dia.id, "kilometraje_inicial", value);
+                    }}
+                    endContent={
+                      <span className="text-default-400 text-small">km</span>
+                    }
+                    size="sm"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </TableCell>
+
+                {/* KILOMETRAJE FINAL */}
+                <TableCell>
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    min="0"
+                    step="1"
+                    value={dia.kilometraje_final?.toString() || ""}
+                    onValueChange={(value) => {
+                      actualizarDiaLaboral(dia.id, "kilometraje_final", value);
+                    }}
+                    endContent={
+                      <span className="text-default-400 text-small">km</span>
+                    }
+                    size="sm"
                     onClick={(e) => e.stopPropagation()}
                   />
                 </TableCell>
@@ -481,6 +533,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
                     color="primary"
                     size="sm"
                     isSelected={String(dia.disponibilidad) === "true"}
+                    isDisabled={isKilometrajeOnly}
                     onChange={(e) => {
                       const checked = !!(e && (e.target as any)?.checked);
                       actualizarDiaLaboral(dia.id, "disponibilidad", checked ? "true" : "false");
@@ -592,7 +645,7 @@ const TablaConRecargos: React.FC<TablaRecargosProps> = ({
 
                 {/* ACCIONES */}
                 <TableCell onClick={(e) => e.stopPropagation()}>
-                  {diasLaborales.length > 1 && (
+                  {diasLaborales.length > 1 && !isKilometrajeOnly && (
                     <Button
                       size="sm"
                       color="danger"

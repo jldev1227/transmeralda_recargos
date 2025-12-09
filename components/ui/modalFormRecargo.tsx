@@ -44,6 +44,7 @@ import {
   Vehiculo,
 } from "@/types";
 import { useRecargo } from "@/context/RecargoPlanillaContext";
+import { useAuth } from "@/context/AuthContext";
 import { addToast } from "@heroui/toast";
 import TablaConRecargos from "./tableRecargos";
 import UploadPlanilla from "../uploadPlanilla";
@@ -327,6 +328,10 @@ export default function ModalFormRecargo({
     obtenerRecargoPorId,
   } = useRecargo();
 
+  // Hook de autenticación para verificar rol
+  const { user } = useAuth();
+  const isKilometrajeRole = user?.role === 'kilometraje';
+
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -540,6 +545,8 @@ export default function ModalFormRecargo({
                 año: currentYear.toString(), // ✅ Convertir a string
                 hora_inicio: detalle.hora_inicio,
                 hora_fin: detalle.hora_fin,
+                kilometraje_inicial: detalle.kilometraje_inicial || null,
+                kilometraje_final: detalle.kilometraje_final || null,
                 es_domingo: detalle.es_domingo,
                 es_festivo: detalle.es_festivo,
                 disponibilidad: detalle.disponibilidad ?? false, // ✅ Nuevo campo
@@ -839,6 +846,8 @@ export default function ModalFormRecargo({
           dia: dia.dia,
           horaInicio: dia.hora_inicio,
           horaFin: dia.hora_fin,
+          kilometraje_inicial: dia.kilometraje_inicial || null,
+          kilometraje_final: dia.kilometraje_final || null,
           esDomingo: esDomingo(dia.dia, currentMonth, currentYear), // ✅ CAMPO AGREGADO COMO BOOLEAN
           esFestivo: verificarEsFestivo(parseInt(dia.dia)), // ✅ CAMPO AGREGADO COMO BOOLEAN
           disponibilidad: dia.disponibilidad, // ✅ CAMPO AGREGADO
@@ -917,7 +926,7 @@ export default function ModalFormRecargo({
   return (
     <Modal
       isOpen={isOpen}
-      size="5xl"
+      size="full"
       scrollBehavior="inside"
       onOpenChange={(open) => {
         if (!open) {
@@ -934,7 +943,7 @@ export default function ModalFormRecargo({
       }}
       hideCloseButton
       classNames={{
-        base: "max-h-[95vh] max-w-7xl",
+        base: "max-h-[95vh] max-w-[95vw]",
         body: "py-6",
       }}
     >
@@ -1077,6 +1086,7 @@ export default function ModalFormRecargo({
                               placeholder="Buscar y seleccionar conductor..."
                               isSearchable={true}
                               isClearable={true}
+                              isDisabled={isKilometrajeRole}
                               styles={customStyles}
                               components={{ Option: EmpresaOption }}
                               noOptionsMessage={({ inputValue }) =>
@@ -1085,7 +1095,7 @@ export default function ModalFormRecargo({
                                   : "No hay conductores disponibles"
                               }
                             />
-                            <ModalNewConductor />
+                            {!isKilometrajeRole && <ModalNewConductor />}
                           </div>
                         </div>
 
@@ -1119,6 +1129,7 @@ export default function ModalFormRecargo({
                               placeholder="Buscar por placa..."
                               isSearchable={true}
                               isClearable={true}
+                              isDisabled={isKilometrajeRole}
                               styles={customStyles}
                               components={{ Option: EmpresaOption }}
                               noOptionsMessage={({ inputValue }) =>
@@ -1127,7 +1138,7 @@ export default function ModalFormRecargo({
                                   : "No hay vehículos disponibles"
                               }
                             />
-                            <ModalNewVehiculo />
+                            {!isKilometrajeRole && <ModalNewVehiculo />}
                           </div>
                         </div>
 
@@ -1160,6 +1171,7 @@ export default function ModalFormRecargo({
                               placeholder="Buscar empresa..."
                               isSearchable={true}
                               isClearable={true}
+                              isDisabled={isKilometrajeRole}
                               styles={customStyles}
                               components={{ Option: EmpresaOption }}
                               noOptionsMessage={({ inputValue }) =>
@@ -1168,7 +1180,7 @@ export default function ModalFormRecargo({
                                   : "No hay empresas disponibles"
                               }
                             />
-                            <ModalNewEmpresa />
+                            {!isKilometrajeRole && <ModalNewEmpresa />}
                           </div>
                         </div>
 
@@ -1199,6 +1211,7 @@ export default function ModalFormRecargo({
                             onValueChange={(value) =>
                               setFormData({ ...formData, tmNumber: value })
                             }
+                            isDisabled={isKilometrajeRole}
                           />
                         </div>
                       </div>
@@ -1377,6 +1390,7 @@ export default function ModalFormRecargo({
                             diasFestivos={diasFestivos
                               .filter((f) => f.mes === currentMonth)
                               .map((f) => f.dia)}
+                            isKilometrajeRole={isKilometrajeRole}
                           />
                         </CardBody>
                       </Card>

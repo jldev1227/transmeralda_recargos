@@ -37,6 +37,8 @@ export type DiaLaboral = {
   año?: string;
   hora_inicio: string;
   hora_fin: string;
+  kilometraje_inicial?: number | null;
+  kilometraje_final?: number | null;
   es_domingo: boolean;
   es_festivo: boolean;
   disponibilidad: boolean;
@@ -47,6 +49,8 @@ export type DiaLaboralServidor = {
   dia: number; // Viene como número del servidor
   hora_inicio: string;
   hora_fin: string;
+  kilometraje_inicial?: number | null;
+  kilometraje_final?: number | null;
   es_domingo: boolean;
   es_festivo: boolean;
   disponibilidad: boolean ;

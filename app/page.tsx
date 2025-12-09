@@ -145,6 +145,10 @@ const PAREX_COMPANY_ID = ""; // <-- coloca el id de PAREX aquí
 const CanvasRecargosDashboard = () => {
   const { user } = useAuth();
   const { logout } = useLogout();
+  
+  // Detectar si el usuario tiene rol de kilometraje
+  const isKilometrajeRole = user?.role === 'kilometraje';
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("");
@@ -713,8 +717,13 @@ const CanvasRecargosDashboard = () => {
       },
     ];
 
-    return [...baseColumns, ...dayColumns, ...summaryColumns];
-  }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday]);
+    // Filtrar columna de selección si es rol kilometraje
+    const finalColumns = isKilometrajeRole 
+      ? [...baseColumns.filter(col => col.key !== 'select'), ...dayColumns, ...summaryColumns]
+      : [...baseColumns, ...dayColumns, ...summaryColumns];
+
+    return finalColumns;
+  }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday, isKilometrajeRole]);
 
   const MAPEO_CAMPOS_HORAS = useMemo(
     () =>
@@ -2447,7 +2456,8 @@ const CanvasRecargosDashboard = () => {
               </div>
 
               {/* Elementos seleccionados móvil */}
-              {selectedRows.size > 0 && (
+              {/* Barra de acciones masivas - oculta para rol kilometraje */}
+              {selectedRows.size > 0 && !isKilometrajeRole && (
                 <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                   <div className="flex flex-col">
                     <span className="text-sm text-emerald-700 font-medium">
@@ -2625,7 +2635,7 @@ const CanvasRecargosDashboard = () => {
                 <div className="flex items-center justify-between sm:justify-end space-x-4 w-full lg:w-auto">
                   {/* Información de registros */}
                   <div className="flex items-center space-x-3 text-sm">
-                    {selectedRows.size > 0 && (
+                    {selectedRows.size > 0 && !isKilometrajeRole && (
                       <div className="flex items-center space-x-2">
                         <div className="flex flex-col">
                           <span className="text-sm text-emerald-600 font-medium">
@@ -2847,18 +2857,20 @@ const CanvasRecargosDashboard = () => {
                 })}
               </div>
 
-              {/* Header de selección múltiple */}
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                <input
-                  type="checkbox"
-                  checked={
-                    selectedRows.size === paginatedData.length &&
-                    paginatedData.length > 0
-                  }
-                  onChange={handleSelectAll}
-                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                />
-              </div>
+              {/* Header de selección múltiple - oculto para rol kilometraje */}
+              {!isKilometrajeRole && (
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                  <input
+                    type="checkbox"
+                    checked={
+                      selectedRows.size === paginatedData.length &&
+                      paginatedData.length > 0
+                    }
+                    onChange={handleSelectAll}
+                    className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  />
+                </div>
+              )}
             </div>
           </div>
 

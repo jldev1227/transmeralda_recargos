@@ -24,6 +24,8 @@ interface DiaLaboral {
   es_especial: boolean;
   es_domingo: boolean;
   es_festivo: boolean;
+  kilometraje_inicial: number | null;
+  kilometraje_final: number | null;
   hed: number;
   hen: number;
   hefd: number;
@@ -233,6 +235,12 @@ export interface DiaLaboralPlanilla {
 
   /** Indica si el día es domingo */
   es_domingo: boolean;
+
+  /** Kilometraje inicial del vehículo */
+  kilometraje_inicial?: number | null;
+
+  /** Kilometraje final del vehículo */
+  kilometraje_final?: number | null;
 
   /** Disponibilidad */
   disponibilidad: boolean;
