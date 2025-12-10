@@ -443,11 +443,19 @@ const CanvasRecargosDashboard = () => {
   });
 
   const handleOpenFormModal = () => {
+    // Rol kilometraje no puede crear nuevos recargos
+    if (isKilometrajeRole) {
+      return;
+    }
     setRecargoId("");
     setModalFormIsOpen(!modalFormIsOpen);
   };
 
   const handleEliminar = async () => {
+    // Rol kilometraje no puede eliminar recargos
+    if (isKilometrajeRole) {
+      return;
+    }
     const result = await eliminarRecargoConfirm({
       title: "Eliminar recargos",
       message: "¿Deseas eliminar los recargos seleccionados?",
@@ -474,6 +482,11 @@ const CanvasRecargosDashboard = () => {
   };
 
   const handleAcciones = async () => {
+    // Rol kilometraje no puede acceder a acciones de estados
+    if (isKilometrajeRole) {
+      return;
+    }
+    
     // Si no hay recargos para liquidar, mostrar mensaje
     if (selectedRows.size === 0) {
       // nothing selected
@@ -2115,16 +2128,20 @@ const CanvasRecargosDashboard = () => {
 
                 {/* Action buttons */}
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  <Button
-                    onPress={handleOpenFormModal}
-                    color="success"
-                    variant="flat"
-                    radius="sm"
-                    startContent={<PlusIcon className="w-5 h-5" />}
-                  >
-                    Nuevo recargo
-                  </Button>
-                  <ModalConfiguracion />
+                  {!isKilometrajeRole && (
+                    <>
+                      <Button
+                        onPress={handleOpenFormModal}
+                        color="success"
+                        variant="flat"
+                        radius="sm"
+                        startContent={<PlusIcon className="w-5 h-5" />}
+                      >
+                        Nuevo recargo
+                      </Button>
+                      <ModalConfiguracion />
+                    </>
+                  )}
                   <div className="flex items-center gap-4">
                     <Dropdown placement="bottom-end">
                       <DropdownTrigger>
@@ -2493,17 +2510,6 @@ const CanvasRecargosDashboard = () => {
                       {selectedRows.size > 1 ? "Acciones múltiples" : "Acciones"} {selectedRows.size > 0 ? `(${selectedRows.size})` : ""}
                     </Button>
 
-                    <Button
-                      onPress={handleCopySelectedRows}
-                      color="primary"
-                      variant="flat"
-                      size="sm"
-                      startContent={<Copy size={12} />}
-                      className={`text-xs px-2 py-1 ${copiedRowId ? "bg-emerald-100 text-emerald-700" : ""}`}
-                    >
-                      {copiedRowId ? "Copiado!" : "Copiar"}
-                    </Button>
-
                     <button
                       onClick={() => setSelectedRows(new Set())}
                       className="text-xs text-gray-600 hover:text-gray-800 underline"
@@ -2526,6 +2532,37 @@ const CanvasRecargosDashboard = () => {
                         </Button>
                       </>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Barra de copiar para rol kilometraje - solo copiar celdas */}
+              {selectedRows.size > 0 && isKilometrajeRole && (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                  <div className="flex flex-col">
+                    <span className="text-sm text-blue-700 font-medium">
+                      {selectedRows.size} seleccionado{selectedRows.size > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      onPress={handleCopySelectedRows}
+                      color="primary"
+                      variant="flat"
+                      size="sm"
+                      startContent={<Copy size={12} />}
+                      className={`text-xs px-2 py-1 ${copiedRowId ? "bg-blue-100 text-blue-700" : ""}`}
+                    >
+                      {copiedRowId ? "Copiado!" : "Copiar selección"}
+                    </Button>
+
+                    <button
+                      onClick={() => setSelectedRows(new Set())}
+                      className="text-xs text-gray-600 hover:text-gray-800 underline"
+                    >
+                      Cancelar
+                    </button>
                   </div>
                 </div>
               )}
@@ -2683,6 +2720,34 @@ const CanvasRecargosDashboard = () => {
                           className="text-xs"
                         >
                           Eliminar seleccionados
+                        </Button>
+
+                        <Button
+                          variant="light"
+                          onPress={() => setSelectedRows(new Set())}
+                          className="text-xs text-gray-600 hover:text-gray-800 underline"
+                        >
+                          Deseleccionar todo
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Barra de copiar para rol kilometraje - solo copiar celdas */}
+                    {selectedRows.size > 0 && isKilometrajeRole && (
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-blue-600 font-medium">
+                          {selectedRows.size} elemento{selectedRows.size > 1 ? "s" : ""} seleccionado{selectedRows.size > 1 ? "s" : ""}
+                        </span>
+
+                        <Button
+                          onPress={handleCopySelectedRows}
+                          color="primary"
+                          variant="flat"
+                          size="sm"
+                          startContent={<Copy size={12} />}
+                          className={`text-xs px-2 py-1 ${copiedRowId ? "bg-blue-100 text-blue-700" : ""}`}
+                        >
+                          {copiedRowId ? "Copiado!" : "Copiar selección"}
                         </Button>
 
                         <Button

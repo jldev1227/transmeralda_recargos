@@ -943,7 +943,7 @@ export default function ModalFormRecargo({
       }}
       hideCloseButton
       classNames={{
-        base: "max-h-[95vh] max-w-[95vw]",
+        base: "max-h-[65vh] max-w-[70vw]",
         body: "py-6",
       }}
     >
@@ -1303,40 +1303,41 @@ export default function ModalFormRecargo({
                           >
                             {diasLaborales.length}/15 días
                           </Chip>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              color="primary"
-                              variant="flat"
-                              startContent={<RefreshCw size={16} />}
-                              onPress={() => {
-                                const diasFaltantes = 15 - diasLaborales.length;
-                                if (diasFaltantes > 0) {
-                                  const nuevosDias = Array.from(
-                                    { length: diasFaltantes },
-                                    (_, index) => ({
-                                      id: (Date.now() + index).toString(),
-                                      dia: "",
-                                      mes: "",
-                                      año: new Date().getFullYear().toString(),
-                                      hora_inicio: "",
-                                      hora_fin: "",
-                                      es_domingo: false,
-                                      es_festivo: false,
-                                      disponibilidad: false,
-                                    }),
-                                  );
-                                  setDiasLaborales([
-                                    ...diasLaborales,
-                                    ...nuevosDias,
-                                  ]);
-                                }
-                              }}
-                              isDisabled={diasLaborales.length >= 15}
-                              className="text-sm"
-                            >
-                              Completar 15 Días
-                            </Button>
+                          {!isKilometrajeRole && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                color="primary"
+                                variant="flat"
+                                startContent={<RefreshCw size={16} />}
+                                onPress={() => {
+                                  const diasFaltantes = 15 - diasLaborales.length;
+                                  if (diasFaltantes > 0) {
+                                    const nuevosDias = Array.from(
+                                      { length: diasFaltantes },
+                                      (_, index) => ({
+                                        id: (Date.now() + index).toString(),
+                                        dia: "",
+                                        mes: "",
+                                        año: new Date().getFullYear().toString(),
+                                        hora_inicio: "",
+                                        hora_fin: "",
+                                        es_domingo: false,
+                                        es_festivo: false,
+                                        disponibilidad: false,
+                                      }),
+                                    );
+                                    setDiasLaborales([
+                                      ...diasLaborales,
+                                      ...nuevosDias,
+                                    ]);
+                                  }
+                                }}
+                                isDisabled={diasLaborales.length >= 15}
+                                className="text-sm"
+                              >
+                                Completar 15 Días
+                              </Button>
                             <Button
                               size="sm"
                               color="danger"
@@ -1374,6 +1375,7 @@ export default function ModalFormRecargo({
                               Agregar Día
                             </Button>
                           </div>
+                          )}
                         </div>
                       </div>
 
