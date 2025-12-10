@@ -37,12 +37,7 @@ import ReactSelect, {
   OptionProps,
   GroupBase,
 } from "react-select";
-import {
-  Conductor,
-  DiaLaboral,
-  Empresa,
-  Vehiculo,
-} from "@/types";
+import { Conductor, DiaLaboral, Empresa, Vehiculo } from "@/types";
 import { useRecargo } from "@/context/RecargoPlanillaContext";
 import { useAuth } from "@/context/AuthContext";
 import { addToast } from "@heroui/toast";
@@ -94,11 +89,12 @@ const CustomTab: React.FC<TabProps> = ({
       className={`
         relative flex items-center gap-3 px-6 py-4 font-medium text-sm
         transition-all duration-200 border-b-2 hover:bg-gray-50 flex-1
-        ${isActive
-          ? editMode
-            ? "text-blue-600 border-blue-500 bg-blue-50/50"
-            : "text-emerald-600 border-emerald-500 bg-emerald-50/50"
-          : "text-gray-600 border-transparent hover:text-gray-800"
+        ${
+          isActive
+            ? editMode
+              ? "text-blue-600 border-blue-500 bg-blue-50/50"
+              : "text-emerald-600 border-emerald-500 bg-emerald-50/50"
+            : "text-gray-600 border-transparent hover:text-gray-800"
         } cursor-pointer
       `}
     >
@@ -115,12 +111,13 @@ const CustomTab: React.FC<TabProps> = ({
       <div className="flex items-center gap-2">
         <span
           className={`
-          ${isActive
+          ${
+            isActive
               ? editMode
                 ? "text-blue-600"
                 : "text-emerald-600"
               : "text-gray-500"
-            }
+          }
         `}
         >
           {icon}
@@ -202,7 +199,7 @@ const Chip: React.FC<ChipProps> = ({
 const customStyles: StylesConfig<Option, false, GroupBase<Option>> = {
   control: (
     provided: CSSObjectWithLabel,
-    state: ControlProps<Option, false, GroupBase<Option>>,
+    state: ControlProps<Option, false, GroupBase<Option>>
   ) => ({
     ...provided,
     minHeight: "52px",
@@ -237,7 +234,7 @@ const customStyles: StylesConfig<Option, false, GroupBase<Option>> = {
   }),
   option: (
     provided: CSSObjectWithLabel,
-    state: OptionProps<Option, false, GroupBase<Option>>,
+    state: OptionProps<Option, false, GroupBase<Option>>
   ) => ({
     ...provided,
     backgroundColor: state.isFocused ? "#f3f4f6" : "white",
@@ -330,7 +327,7 @@ export default function ModalFormRecargo({
 
   // Hook de autenticación para verificar rol
   const { user } = useAuth();
-  const isKilometrajeRole = user?.role === 'kilometraje';
+  const isKilometrajeRole = user?.role === "kilometraje";
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -339,7 +336,9 @@ export default function ModalFormRecargo({
   const [archivoAdjunto, setArchivoAdjunto] = useState<File | null>(null);
   const [archivoExistente, setArchivoExistente] = useState<string | null>(null);
   // Guardamos también la clave S3 original para no perderla al actualizar
-  const [archivoExistenteKey, setArchivoExistenteKey] = useState<string | null>(null);
+  const [archivoExistenteKey, setArchivoExistenteKey] = useState<string | null>(
+    null
+  );
 
   // ===== FUNCIONES DE PERSISTENCIA DE DATOS =====
   const STORAGE_KEY = "modalFormRecargo_data";
@@ -360,7 +359,7 @@ export default function ModalFormRecargo({
         // Error manejado silenciosamente
       }
     },
-    [currentMonth, currentYear, recargoId],
+    [currentMonth, currentYear, recargoId]
   );
 
   const clearLocalStorage = useCallback(() => {
@@ -513,7 +512,7 @@ export default function ModalFormRecargo({
       try {
         setIsLoadingData(true);
         clearLocalStorage();
-        resetearFormulario()
+        resetearFormulario();
 
         const response = await obtenerRecargoPorId(id);
         const recargo = response?.data.recargo;
@@ -539,18 +538,18 @@ export default function ModalFormRecargo({
           if (recargo.dias_laborales && recargo.dias_laborales.length > 0) {
             const diasCargados = Array.isArray(recargo.dias_laborales)
               ? recargo.dias_laborales.map((detalle: any) => ({
-                id: detalle.id,
-                dia: detalle.dia.toString(), // ✅ Convertir a string
-                mes: currentMonth.toString(), // ✅ Convertir a string
-                año: currentYear.toString(), // ✅ Convertir a string
-                hora_inicio: detalle.hora_inicio,
-                hora_fin: detalle.hora_fin,
-                kilometraje_inicial: detalle.kilometraje_inicial || null,
-                kilometraje_final: detalle.kilometraje_final || null,
-                es_domingo: detalle.es_domingo,
-                es_festivo: detalle.es_festivo,
-                disponibilidad: detalle.disponibilidad ?? false, // ✅ Nuevo campo
-              }))
+                  id: detalle.id,
+                  dia: detalle.dia.toString(), // ✅ Convertir a string
+                  mes: currentMonth.toString(), // ✅ Convertir a string
+                  año: currentYear.toString(), // ✅ Convertir a string
+                  hora_inicio: detalle.hora_inicio,
+                  hora_fin: detalle.hora_fin,
+                  kilometraje_inicial: detalle.kilometraje_inicial || null,
+                  kilometraje_final: detalle.kilometraje_final || null,
+                  es_domingo: detalle.es_domingo,
+                  es_festivo: detalle.es_festivo,
+                  disponibilidad: detalle.disponibilidad ?? false, // ✅ Nuevo campo
+                }))
               : [];
             setDiasLaborales(diasCargados);
           }
@@ -567,7 +566,7 @@ export default function ModalFormRecargo({
         setIsLoadingData(false);
       }
     },
-    [currentMonth, currentYear, obtenerRecargoPorId, getPresignedUrl],
+    [currentMonth, currentYear, obtenerRecargoPorId, getPresignedUrl]
   );
 
   // Función para resetear el formulario
@@ -658,25 +657,33 @@ export default function ModalFormRecargo({
     }
   }, [isOpen]);
 
-  
   useEffect(() => {
     // Si se ha creado un vehículo, auto seleccionar el vehículo en el formulario
     if (vehiculoCreado && formData.vehiculoId !== vehiculoCreado.id) {
-      setFormData((prev: typeof formData) => ({ ...prev, vehiculoId: vehiculoCreado.id }));
+      setFormData((prev: typeof formData) => ({
+        ...prev,
+        vehiculoId: vehiculoCreado.id,
+      }));
     }
   }, [vehiculoCreado]);
 
   useEffect(() => {
     // Si se ha creado un vehículo, auto seleccionar el vehículo en el formulario
     if (empresaCreado && formData.empresaId !== empresaCreado.id) {
-      setFormData((prev: typeof formData) => ({ ...prev, empresaId: empresaCreado.id }));
+      setFormData((prev: typeof formData) => ({
+        ...prev,
+        empresaId: empresaCreado.id,
+      }));
     }
   }, [empresaCreado]);
 
   useEffect(() => {
     // Si se ha creado un vehículo, auto seleccionar el vehículo en el formulario
     if (conductorCreado && formData.conductorId !== conductorCreado.id) {
-      setFormData((prev: typeof formData) => ({ ...prev, conductorId: conductorCreado.id }));
+      setFormData((prev: typeof formData) => ({
+        ...prev,
+        conductorId: conductorCreado.id,
+      }));
     }
   }, [conductorCreado]);
 
@@ -690,7 +697,7 @@ export default function ModalFormRecargo({
     if (formData.empresaId) completed++;
     if (
       diasLaborales.some(
-        (dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin,
+        (dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin
       )
     )
       completed++;
@@ -707,7 +714,7 @@ export default function ModalFormRecargo({
         ? true
         : false,
     horarios: diasLaborales.some(
-      (dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin,
+      (dia: DiaLaboral) => dia.dia && dia.hora_inicio && dia.hora_fin
     ),
   };
 
@@ -750,7 +757,7 @@ export default function ModalFormRecargo({
   const eliminarDiaLaboral = (id: string) => {
     if (diasLaborales.length > 1) {
       setDiasLaborales(
-        diasLaborales.filter((dia: DiaLaboral) => dia.id !== id),
+        diasLaborales.filter((dia: DiaLaboral) => dia.id !== id)
       );
     }
   };
@@ -758,12 +765,12 @@ export default function ModalFormRecargo({
   const actualizarDiaLaboral = (
     id: string,
     campo: keyof DiaLaboral,
-    valor: string,
+    valor: string
   ) => {
     setDiasLaborales(
       diasLaborales.map((dia: DiaLaboral) =>
-        dia.id === id ? { ...dia, [campo]: valor } : dia,
-      ),
+        dia.id === id ? { ...dia, [campo]: valor } : dia
+      )
     );
   };
 
@@ -811,7 +818,7 @@ export default function ModalFormRecargo({
 
     if (
       diasLaborales.some(
-        (dia: DiaLaboral) => !dia.dia || !dia.hora_inicio || !dia.hora_fin,
+        (dia: DiaLaboral) => !dia.dia || !dia.hora_inicio || !dia.hora_fin
       )
     ) {
       addToast({
@@ -926,12 +933,12 @@ export default function ModalFormRecargo({
   return (
     <Modal
       isOpen={isOpen}
-      size="full"
+      size="5xl"
       scrollBehavior="inside"
       onOpenChange={(open) => {
         if (!open) {
           // Solo resetear archivo adjunto al cerrar, mantener otros datos
-          setArchivoAdjunto(null)
+          setArchivoAdjunto(null);
 
           // ✅ Si estamos en modo edición, limpiar localStorage al cerrar
           if (editMode) {
@@ -943,7 +950,7 @@ export default function ModalFormRecargo({
       }}
       hideCloseButton
       classNames={{
-        base: "max-h-[65vh] max-w-[70vw]",
+        base: "max-h-[90vh] max-w-[75vw]",
         body: "py-6",
       }}
     >
@@ -1072,7 +1079,7 @@ export default function ModalFormRecargo({
                               value={
                                 conductorOptions.find(
                                   (option) =>
-                                    option.value === formData.conductorId,
+                                    option.value === formData.conductorId
                                 ) || null
                               }
                               onChange={(selectedOption) => {
@@ -1115,7 +1122,7 @@ export default function ModalFormRecargo({
                               value={
                                 vehiculoOptions.find(
                                   (option) =>
-                                    option.value === formData.vehiculoId,
+                                    option.value === formData.vehiculoId
                                 ) || null
                               }
                               onChange={(selectedOption) => {
@@ -1157,7 +1164,8 @@ export default function ModalFormRecargo({
                               options={empresaOptions}
                               value={
                                 empresaOptions.find(
-                                  (option) => option.value === formData.empresaId,
+                                  (option) =>
+                                    option.value === formData.empresaId
                                 ) || null
                               }
                               onChange={(selectedOption) => {
@@ -1311,7 +1319,8 @@ export default function ModalFormRecargo({
                                 variant="flat"
                                 startContent={<RefreshCw size={16} />}
                                 onPress={() => {
-                                  const diasFaltantes = 15 - diasLaborales.length;
+                                  const diasFaltantes =
+                                    15 - diasLaborales.length;
                                   if (diasFaltantes > 0) {
                                     const nuevosDias = Array.from(
                                       { length: diasFaltantes },
@@ -1319,13 +1328,15 @@ export default function ModalFormRecargo({
                                         id: (Date.now() + index).toString(),
                                         dia: "",
                                         mes: "",
-                                        año: new Date().getFullYear().toString(),
+                                        año: new Date()
+                                          .getFullYear()
+                                          .toString(),
                                         hora_inicio: "",
                                         hora_fin: "",
                                         es_domingo: false,
                                         es_festivo: false,
                                         disponibilidad: false,
-                                      }),
+                                      })
                                     );
                                     setDiasLaborales([
                                       ...diasLaborales,
@@ -1338,43 +1349,43 @@ export default function ModalFormRecargo({
                               >
                                 Completar 15 Días
                               </Button>
-                            <Button
-                              size="sm"
-                              color="danger"
-                              variant="flat"
-                              startContent={<X size={16} />}
-                              onPress={() => {
-                                setDiasLaborales([
-                                  {
-                                    id: "1",
-                                    dia: "",
-                                    mes: "",
-                                    año: new Date().getFullYear().toString(),
-                                    hora_inicio: "",
-                                    hora_fin: "",
-                                    es_domingo: false,
-                                    es_festivo: false,
-                                    disponibilidad: false,
-                                  },
-                                ]);
-                              }}
-                              isDisabled={diasLaborales.length <= 1}
-                              className="text-sm"
-                            >
-                              Eliminar Todos
-                            </Button>
-                            <Button
-                              size="sm"
-                              color="success"
-                              variant="flat"
-                              startContent={<Plus size={16} />}
-                              onPress={agregarDiaLaboral}
-                              isDisabled={diasLaborales.length >= 15}
-                              className="text-sm"
-                            >
-                              Agregar Día
-                            </Button>
-                          </div>
+                              <Button
+                                size="sm"
+                                color="danger"
+                                variant="flat"
+                                startContent={<X size={16} />}
+                                onPress={() => {
+                                  setDiasLaborales([
+                                    {
+                                      id: "1",
+                                      dia: "",
+                                      mes: "",
+                                      año: new Date().getFullYear().toString(),
+                                      hora_inicio: "",
+                                      hora_fin: "",
+                                      es_domingo: false,
+                                      es_festivo: false,
+                                      disponibilidad: false,
+                                    },
+                                  ]);
+                                }}
+                                isDisabled={diasLaborales.length <= 1}
+                                className="text-sm"
+                              >
+                                Eliminar Todos
+                              </Button>
+                              <Button
+                                size="sm"
+                                color="success"
+                                variant="flat"
+                                startContent={<Plus size={16} />}
+                                onPress={agregarDiaLaboral}
+                                isDisabled={diasLaborales.length >= 15}
+                                className="text-sm"
+                              >
+                                Agregar Día
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1406,10 +1417,11 @@ export default function ModalFormRecargo({
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <div
-                    className={`w-2 h-2 rounded-full ${progress.completed === progress.total
-                      ? "bg-green-500"
-                      : "bg-amber-500"
-                      }`}
+                    className={`w-2 h-2 rounded-full ${
+                      progress.completed === progress.total
+                        ? "bg-green-500"
+                        : "bg-amber-500"
+                    }`}
                   />
                   {progress.completed === progress.total
                     ? "Formulario completo"
