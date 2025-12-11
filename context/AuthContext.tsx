@@ -19,6 +19,7 @@ export interface User {
     | "gestor_planillas"
     | "liquidador"
     | "kilometraje"
+    | "consulta"
     | "usuario";
   telefono: string;
   permisos: {
@@ -31,6 +32,7 @@ export interface User {
     gestor_servicio?: boolean;
     gestor_planillas?: boolean;
     kilometraje?: boolean;
+    consulta?: boolean;
     [key: string]: boolean | undefined;
   };
   ultimo_acceso: string;

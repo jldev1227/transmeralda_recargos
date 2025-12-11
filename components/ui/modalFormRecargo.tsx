@@ -332,6 +332,7 @@ export default function ModalFormRecargo({
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [isClosing, setIsClosing] = useState(false); // Flag para prevenir useEffect durante cierre
 
   const [archivoAdjunto, setArchivoAdjunto] = useState<File | null>(null);
   const [archivoExistente, setArchivoExistente] = useState<string | null>(null);
@@ -556,7 +557,7 @@ export default function ModalFormRecargo({
 
           setEditMode(true);
         }
-      } catch {
+      } catch (error) {
         addToast({
           title: "Error",
           description: "No se pudo cargar la información del recargo",
@@ -605,7 +606,7 @@ export default function ModalFormRecargo({
 
   // Efecto para guardar formData cuando cambie
   useEffect(() => {
-    if (isOpen && !editMode && !isLoadingData) {
+    if (isOpen && !editMode && !isLoadingData && !isClosing) {
       const dataToSave = {
         formData,
         activeTab,
@@ -618,12 +619,13 @@ export default function ModalFormRecargo({
     isOpen,
     editMode,
     isLoadingData,
+    isClosing,
     saveToLocalStorage,
   ]);
 
   // Efecto para guardar diasLaborales cuando cambien
   useEffect(() => {
-    if (isOpen && !editMode && !isLoadingData) {
+    if (isOpen && !editMode && !isLoadingData && !isClosing) {
       const dataToSave = {
         formData,
         diasLaborales,
@@ -638,6 +640,7 @@ export default function ModalFormRecargo({
     isOpen,
     editMode,
     isLoadingData,
+    isClosing,
     saveToLocalStorage,
   ]);
 
@@ -654,6 +657,7 @@ export default function ModalFormRecargo({
     if (isOpen) {
       // Solo resetear archivo al abrir el modal, no al cambiar tabs
       setArchivoAdjunto(null);
+      setIsClosing(false); // Resetear flag de cierre al abrir
     }
   }, [isOpen]);
 
@@ -884,24 +888,31 @@ export default function ModalFormRecargo({
         formDataToSend.append("planilla", archivoAdjunto);
       }
 
+      let result;
+      
       if (editMode && recargoId) {
-        const result = await actualizarRecargo(recargoId, formDataToSend);
-        if (result?.success) {
-          // Limpiar localStorage al enviar exitosamente
-          clearLocalStorage();
-          onClose();
-        }
+        result = await actualizarRecargo(recargoId, formDataToSend);
       } else {
-        const result = await registrarRecargo(formDataToSend);
-        if (result?.success) {
-          // Limpiar localStorage al enviar exitosamente
-          clearLocalStorage();
-          // También resetear el formulario en nuevo registro exitoso
-          resetearFormulario();
-          onClose();
-        }
+        result = await registrarRecargo(formDataToSend);
       }
-    } catch {
+      
+      // Marcar que estamos cerrando para prevenir useEffect
+      setIsClosing(true);
+      
+      // Limpiar y cerrar modal después de completar la operación
+      clearLocalStorage();
+      setIsLoading(false);
+      resetearFormulario();
+      
+      // Dar tiempo a React para procesar el cambio de estado
+      setTimeout(() => {
+        onClose();
+        // Resetear el flag después de cerrar
+        setIsClosing(false);
+      }, 50);
+      
+    } catch (error) {
+      console.error("Error en handleSubmit:", error);
       addToast({
         title: editMode ? "Error al actualizar" : "Error al registrar",
         description: editMode
@@ -909,8 +920,20 @@ export default function ModalFormRecargo({
           : "Ocurrió un error al registrar el recargo. Intente nuevamente.",
         color: "danger",
       });
-    } finally {
+      
+      // Marcar que estamos cerrando
+      setIsClosing(true);
+      
+      // Cerrar modal incluso si hay error (el toast ya informó del problema)
+      clearLocalStorage();
       setIsLoading(false);
+      resetearFormulario();
+      
+      // Dar tiempo a React para procesar
+      setTimeout(() => {
+        onClose();
+        setIsClosing(false);
+      }, 50);
     }
   };
 
@@ -937,6 +960,10 @@ export default function ModalFormRecargo({
       scrollBehavior="inside"
       onOpenChange={(open) => {
         if (!open) {
+          // Forzar reset de estados de loading
+          setIsLoading(false);
+          setIsLoadingData(false);
+          setIsClosing(false);
           // Solo resetear archivo adjunto al cerrar, mantener otros datos
           setArchivoAdjunto(null);
 
@@ -948,6 +975,8 @@ export default function ModalFormRecargo({
           onClose();
         }
       }}
+      isDismissable={true}
+      isKeyboardDismissDisabled={false}
       hideCloseButton
       classNames={{
         base: "max-h-[90vh] max-w-[75vw]",
@@ -955,7 +984,7 @@ export default function ModalFormRecargo({
       }}
     >
       <ModalContent>
-        {(onClose) => (
+        {(onModalClose) => (
           <>
             <ModalHeader className="flex flex-col gap-1 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
@@ -1010,20 +1039,24 @@ export default function ModalFormRecargo({
                     </p>
                   </div>
                 </div>
-                {!isLoading && !isLoadingData && (
-                  <Button
-                    onPress={() => {
-                      // Solo resetear archivo adjunto al cerrar con X
-                      setArchivoAdjunto(null);
-                      onClose();
-                    }}
-                    isIconOnly
-                    variant="light"
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={20} />
-                  </Button>
-                )}
+                {/* ✅ SIEMPRE mostrar botón de cerrar para permitir cancelar operaciones */}
+                <Button
+                  onPress={() => {
+                    // Forzar detener loading
+                    setIsLoading(false);
+                    setIsLoadingData(false);
+                    setIsClosing(false);
+                    // Resetear archivo adjunto
+                    setArchivoAdjunto(null);
+                    // Llamar al onClose del render prop de NextUI para cerrar el modal
+                    onModalClose();
+                  }}
+                  isIconOnly
+                  variant="light"
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </Button>
               </div>
             </ModalHeader>
 
@@ -1436,7 +1469,8 @@ export default function ModalFormRecargo({
                       // ✅ Limpiar storage siempre al cancelar
                       clearLocalStorage();
                       resetearFormulario();
-                      onClose();
+                      // Llamar al onClose del render prop de NextUI
+                      onModalClose();
                     }}
                     isDisabled={isLoading || isLoadingData}
                     className="min-w-[100px]"

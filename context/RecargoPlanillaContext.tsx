@@ -1018,6 +1018,14 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
         if (response.data.success) {
           // ✅ Invalidar cache de recargos para que se recarguen
           setLastFetch((prev) => ({ ...prev, recargos: undefined }));
+          
+          // Mostrar toast de éxito
+          addToast({
+            title: "Recargo creado",
+            description: "El recargo se creó correctamente",
+            color: "success",
+          });
+          
           return {
             success: true,
             data: response.data.data,
@@ -1169,6 +1177,13 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
             [`recargo_${id}`]: undefined,
           }));
 
+          // ✅ Mostrar toast de éxito
+          addToast({
+            title: "Recargo actualizado",
+            description: "El recargo se actualizó correctamente",
+            color: "success",
+          });
+
           return {
             success: true,
             data: response.data.data,
@@ -1178,11 +1193,11 @@ export const RecargoProvider: React.FC<{ children: React.ReactNode }> = ({
           return { success: false };
         }
       } catch (err) {
-        // Error handled silently
         const errorMessage = handleApiError(
           err,
           "Error al actualizar el recargo",
         );
+        
         addToast({
           title: "Error al actualizar recargo",
           description: errorMessage,

@@ -146,8 +146,10 @@ const CanvasRecargosDashboard = () => {
   const { user } = useAuth();
   const { logout } = useLogout();
   
-  // Detectar si el usuario tiene rol de kilometraje
+  // Detectar roles especiales
   const isKilometrajeRole = user?.role === 'kilometraje';
+  const isConsultaRole = user?.role === 'consulta'; // Rol solo lectura
+  const isReadOnlyRole = isConsultaRole; // Alias más descriptivo
   
   const [searchTerm, setSearchTerm] = useState("");
   const [sortField, setSortField] = useState("");
@@ -443,12 +445,21 @@ const CanvasRecargosDashboard = () => {
   });
 
   const handleOpenFormModal = () => {
-    // Rol kilometraje no puede crear nuevos recargos
+    // Si el modal está abierto, SIEMPRE permitir cerrarlo (sin importar el rol)
+    if (modalFormIsOpen) {
+      setRecargoId("");
+      setModalFormIsOpen(false);
+      return;
+    }
+    
+    // Si el modal está cerrado, rol kilometraje NO puede crear nuevos recargos
     if (isKilometrajeRole) {
       return;
     }
+    
+    // Abrir modal para crear nuevo recargo
     setRecargoId("");
-    setModalFormIsOpen(!modalFormIsOpen);
+    setModalFormIsOpen(true);
   };
 
   const handleEliminar = async () => {
@@ -564,14 +575,15 @@ const CanvasRecargosDashboard = () => {
     const daysInCurrentMonth = getDaysInMonth(selectedMonth, selectedYear);
 
     const baseColumns = [
-      {
+      // Columna select: ocultar para rol consulta
+      ...(!isReadOnlyRole ? [{
         key: "select",
         label: "",
         width: "50px",
         sortable: false,
         filterable: false,
         fixed: true,
-      },
+      }] : []),
       {
         key: "acciones",
         label: "ACCIONES",
@@ -730,13 +742,13 @@ const CanvasRecargosDashboard = () => {
       },
     ];
 
-    // Filtrar columna de selección si es rol kilometraje
-    const finalColumns = isKilometrajeRole 
+    // Filtrar columna de selección si es rol kilometraje o consulta
+    const finalColumns = (isKilometrajeRole || isReadOnlyRole)
       ? [...baseColumns.filter(col => col.key !== 'select'), ...dayColumns, ...summaryColumns]
       : [...baseColumns, ...dayColumns, ...summaryColumns];
 
     return finalColumns;
-  }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday, isKilometrajeRole]);
+  }, [selectedMonth, selectedYear, getDaysInMonth, isSunday, isHoliday, isKilometrajeRole, isReadOnlyRole]);
 
   const MAPEO_CAMPOS_HORAS = useMemo(
     () =>
@@ -1002,15 +1014,6 @@ const CanvasRecargosDashboard = () => {
   const obtenerTotalRecargos = useCallback(
     (item: CanvasRecargo): number => {
       // DEBUG: activar para ver cálculos detallados en consola
-      const DEBUG_RECARGOS = true;
-      const dbg = (...args: any[]) => {
-        if (!DEBUG_RECARGOS) return;
-        // eslint-disable-next-line no-console
-        console.log(
-          `[RECARGO DEBUG] id=${item.id} planilla=${item.numero_planilla || "-"}`,
-          ...args,
-        );
-      };
       // Función para obtener salario base
       const obtenerSalarioBase = (
         item: CanvasRecargo,
@@ -1071,17 +1074,9 @@ const CanvasRecargosDashboard = () => {
       if (!configuracionSalario) {
         return 0;
       }
-      dbg("configuracionSalario", {
-        empresa_id: configuracionSalario.empresa_id,
-        sede: (configuracionSalario as any).sede,
-        paga_dias_festivos: configuracionSalario.paga_dias_festivos,
-        salario_basico: configuracionSalario.salario_basico,
-        horas_mensuales_base: configuracionSalario.horas_mensuales_base,
-      });
 
       const valorPorHora =
         configuracionSalario.salario_basico / (configuracionSalario.horas_mensuales_base || 240);
-      dbg("valorPorHora", valorPorHora);
 
       let totalGeneral = 0;
 
@@ -1089,12 +1084,10 @@ const CanvasRecargosDashboard = () => {
       const diasParaCalculoValor = item.dias_laborales.filter(
         (dia) => !dia.disponibilidad
       );
-      dbg("diasParaCalculoValor count", diasParaCalculoValor.length);
 
       const pagaDiasFestivos = configuracionSalario.paga_dias_festivos || false;
       const tieneConfiguracionEmpresa = configuracionSalario.empresa_id !== null &&
         configuracionSalario.empresa_id !== undefined;
-      dbg("flags", { pagaDiasFestivos, tieneConfiguracionEmpresa });
 
       // 🎯 LÓGICA ESPECIAL: Si paga días festivos Y tiene configuración de empresa
       if (pagaDiasFestivos && tieneConfiguracionEmpresa) {
@@ -1105,7 +1098,6 @@ const CanvasRecargosDashboard = () => {
         const diasNormales = diasParaCalculoValor.filter(
           (dia) => !dia.es_festivo && !dia.es_domingo
         );
-        dbg("branch=pagaFestivos+configEmpresa", { diasEspeciales: diasEspeciales.length, diasNormales: diasNormales.length });
 
         // 1️⃣ CALCULAR DÍAS ESPECIALES (festivos Y domingos) con recargo DF (180%)
         if (diasEspeciales.length > 0) {
@@ -1122,7 +1114,6 @@ const CanvasRecargosDashboard = () => {
               const valorTotalEspeciales = diasEspeciales.length * valorDiaConRecargo;
 
               totalGeneral += valorTotalEspeciales;
-              dbg("DF_calculo", { valorDiarioBase, porcentaje, diasEspeciales: diasEspeciales.length, valorDiaConRecargo, valorTotalEspeciales });
             }
           }
         }
@@ -1139,7 +1130,6 @@ const CanvasRecargosDashboard = () => {
           );
 
           totalGeneral += totalNormales;
-          dbg("subtotal_normales_excl_RDyDF", totalNormales);
         }
       } else {
         // ✅ Lógica normal: SIN configuración de empresa
@@ -1151,10 +1141,8 @@ const CanvasRecargosDashboard = () => {
           false, // NO excluir RD ni DF
           tieneConfiguracionEmpresa
         );
-        dbg("branch=normal subtotal", totalGeneral);
       }
 
-      dbg("TOTAL_GENERAL", totalGeneral);
       return totalGeneral;
 
       // 🔧 FUNCIÓN AUXILIAR: Calcular recargos normales
@@ -1167,7 +1155,6 @@ const CanvasRecargosDashboard = () => {
         tieneConfigEmpresa: boolean = false
       ): number {
         let total = 0;
-        console.log(item, "ITEM")
 
         // Filtrar tipos de recargo activos y ordenar
         const tiposActivos = tiposRecargo
@@ -1208,14 +1195,12 @@ const CanvasRecargosDashboard = () => {
                   dia: dia.dia,
                   total_horas: dia.total_horas || 0
                 }));
-                dbg("RD diasDominicalesYFestivos", mapDominicalesFestivos);
 
                 if (totalHorasRDEspeciales > 0) {
                   // RD se calcula como: valor_hora × porcentaje × horas
                   const valorRecargoPorHora = valorPorHora * (porcentaje / 100);
                   valorCalculado = valorRecargoPorHora * totalHorasRDEspeciales;
                   total += valorCalculado;
-                  dbg("RD", { porcentaje, valorPorHora, valorRecargoPorHora, horas: totalHorasRDEspeciales, valorCalculado });
                 }
               }
             }
@@ -1261,7 +1246,6 @@ const CanvasRecargosDashboard = () => {
             const valorFijo = parseFloat(tipoRecargo.valor_fijo.toString());
             if (!isNaN(valorFijo)) {
               valorCalculado = valorFijo;
-              dbg(tipoRecargo.codigo, { modo: "valor_fijo", valorFijo, valorCalculado });
             }
           } else {
             const porcentaje = parseFloat(tipoRecargo.porcentaje.toString());
@@ -1273,12 +1257,10 @@ const CanvasRecargosDashboard = () => {
               // Recargo adicional: valor_hora * (1 + porcentaje/100)
               const valorHoraConRecargo = valorPorHora * (1 + porcentaje / 100);
               valorCalculado = valorHoraConRecargo * horasTrabajadas;
-              dbg(tipoRecargo.codigo, { modo: "adicional", porcentaje, valorPorHora, horas: horasTrabajadas, valorHoraConRecargo, valorCalculado });
             } else {
               // Recargo normal: valor_hora * (porcentaje/100)
               const valorHoraConRecargo = valorPorHora * (porcentaje / 100);
               valorCalculado = valorHoraConRecargo * horasTrabajadas;
-              dbg(tipoRecargo.codigo, { modo: "normal", porcentaje, valorPorHora, horas: horasTrabajadas, valorHoraConRecargo, valorCalculado });
             }
           }
 
@@ -1514,6 +1496,10 @@ const CanvasRecargosDashboard = () => {
   const renderCell = (item: CanvasRecargo, column: Column) => {
     switch (column.key) {
       case "select":
+        // Ocultar checkbox para rol consulta (solo lectura)
+        if (isReadOnlyRole) {
+          return null;
+        }
         return (
           <div onClick={(e) => e.stopPropagation()}>
             <input
@@ -1538,16 +1524,18 @@ const CanvasRecargosDashboard = () => {
             >
               <Eye size={14} />
             </Button>
-            <Button
-              title="Editar"
-              isIconOnly
-              variant="light"
-              size="sm"
-              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-              onPress={() => handleEditRecargo(item.id)}
-            >
-              <Edit3 size={14} />
-            </Button>
+            {!isReadOnlyRole && (
+              <Button
+                title="Editar"
+                isIconOnly
+                variant="light"
+                size="sm"
+                className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                onPress={() => handleEditRecargo(item.id)}
+              >
+                <Edit3 size={14} />
+              </Button>
+            )}
           </div>
         );
 
@@ -2128,7 +2116,7 @@ const CanvasRecargosDashboard = () => {
 
                 {/* Action buttons */}
                 <div className="flex items-center space-x-2 sm:space-x-3">
-                  {!isKilometrajeRole && (
+                  {!isKilometrajeRole && !isReadOnlyRole && (
                     <>
                       <Button
                         onPress={handleOpenFormModal}
@@ -2473,8 +2461,8 @@ const CanvasRecargosDashboard = () => {
               </div>
 
               {/* Elementos seleccionados móvil */}
-              {/* Barra de acciones masivas - oculta para rol kilometraje */}
-              {selectedRows.size > 0 && !isKilometrajeRole && (
+              {/* Barra de acciones masivas - oculta para roles kilometraje y consulta */}
+              {selectedRows.size > 0 && !isKilometrajeRole && !isReadOnlyRole && (
                 <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                   <div className="flex flex-col">
                     <span className="text-sm text-emerald-700 font-medium">
@@ -2672,7 +2660,7 @@ const CanvasRecargosDashboard = () => {
                 <div className="flex items-center justify-between sm:justify-end space-x-4 w-full lg:w-auto">
                   {/* Información de registros */}
                   <div className="flex items-center space-x-3 text-sm">
-                    {selectedRows.size > 0 && !isKilometrajeRole && (
+                    {selectedRows.size > 0 && !isKilometrajeRole && !isReadOnlyRole && (
                       <div className="flex items-center space-x-2">
                         <div className="flex flex-col">
                           <span className="text-sm text-emerald-600 font-medium">
