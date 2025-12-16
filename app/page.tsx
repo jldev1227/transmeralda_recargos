@@ -142,6 +142,24 @@ const months = [
 // CONFIG: ID de la empresa PAREX (poner aquí el id real)
 const PAREX_COMPANY_ID = ""; // <-- coloca el id de PAREX aquí
 
+// ✅ Helper para obtener el label legible de un estado
+const getEstadoLabel = (estado: string): string => {
+  switch (estado?.toLowerCase()) {
+    case "pendiente":
+      return "pendiente";
+    case "liquidada":
+      return "liquidada";
+    case "facturada":
+      return "facturada";
+    case "encontrada":
+      return "encontrada";
+    case "no_esta":
+      return "no está";
+    default:
+      return estado || "Desconocido";
+  }
+};
+
 const CanvasRecargosDashboard = () => {
   const { user } = useAuth();
   const { logout } = useLogout();
@@ -198,7 +216,7 @@ const CanvasRecargosDashboard = () => {
         return obtenerTotalRecargos(item).toString();
 
       case "estado":
-        return item.estado || "";
+        return getEstadoLabel(item.estado) || "";
 
       case "total_horas":
         return (item.total_horas || 0).toString();
@@ -866,7 +884,7 @@ const CanvasRecargosDashboard = () => {
       // Aplicar filtros de estados (afecta todos los demás filtros)
       if (activeFilters.estados && activeFilters.estados.length > 0) {
         filteredData = filteredData.filter((item) =>
-          activeFilters.estados.includes(item.estado || "pendiente"),
+          activeFilters.estados.includes(getEstadoLabel(item.estado || "pendiente")),
         );
       }
 
@@ -903,7 +921,8 @@ const CanvasRecargosDashboard = () => {
             value = item.empresa?.nombre || "Sin empresa";
             break;
           case "estados":
-            value = item.estado || "pendiente";
+            // ✅ Usar el label legible en lugar del valor raw del enum
+            value = getEstadoLabel(item.estado || "pendiente");
             break;
           case "planillas":
             value = item.numero_planilla || "";
@@ -965,7 +984,9 @@ const CanvasRecargosDashboard = () => {
       );
     }
     if (filters.estados.length > 0) {
-      result = result.filter((item) => filters.estados.includes(item.estado));
+      result = result.filter((item) => 
+        filters.estados.includes(getEstadoLabel(item.estado))
+      );
     }
     if (filters.planillas.length > 0) {
       result = result.filter((item) =>
@@ -1642,38 +1663,34 @@ const CanvasRecargosDashboard = () => {
       case "estado":
         let estadoBg = "bg-blue-100";
         let estadoText = "text-blue-800";
-        let estadoLabel = item.estado;
+        
+        // ✅ Usar función helper para obtener el label
+        const estadoLabel = getEstadoLabel(item.estado);
 
         switch (item.estado?.toLowerCase()) {
           case "pendiente":
             estadoBg = "bg-blue-100";
             estadoText = "text-blue-800";
-            estadoLabel = "pendiente";
             break;
           case "liquidada":
             estadoBg = "bg-violet-100";
             estadoText = "text-violet-800";
-            estadoLabel = "liquidada";
             break;
           case "facturada":
             estadoBg = "bg-green-100";
             estadoText = "text-green-800";
-            estadoLabel = "facturada";
             break;
           case "encontrada":
             estadoBg = "bg-sky-100";
             estadoText = "text-sky-800";
-            estadoLabel = "encontrada";
             break;
           case "no_esta":
             estadoBg = "bg-red-100";
             estadoText = "text-red-800";
-            estadoLabel = "no está";
             break;
           default:
             estadoBg = "bg-gray-100";
             estadoText = "text-gray-800";
-            estadoLabel = item.estado || "Desconocido";
         }
 
         return (
